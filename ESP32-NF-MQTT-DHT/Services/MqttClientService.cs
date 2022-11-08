@@ -58,7 +58,7 @@
         private void ConnectionClosed(object sender, EventArgs e)
         {
             Debug.WriteLine("[-] Lost Connection...");
-            Debug.WriteLine("[r] Rebooting the device...");
+            Debug.WriteLine("[r] Restart the device...");
             Thread.Sleep(5000);
             Power.RebootDevice();
         }
