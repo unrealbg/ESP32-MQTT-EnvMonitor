@@ -41,12 +41,16 @@
                 Constants.MQTT_CLIENT_USERNAME,
                 Constants.MQTT_CLIENT_PASSWORD);
 
+            if (this.MqttClient.IsConnected)
+            {
+                Debug.WriteLine("[+] MQTT Client Connected!");
+            }
+
             MqttClient.ConnectionClosed += this.ConnectionClosed;
 
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
-            Debug.WriteLine("[+] MQTT Client Connected!");
-
+           
             this.SendUptimePer1S();
         }
 
