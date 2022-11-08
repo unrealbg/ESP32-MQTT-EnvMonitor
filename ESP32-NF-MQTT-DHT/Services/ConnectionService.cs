@@ -16,7 +16,7 @@
             var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
 
             var isConnected = false;
-            int count = 0;
+            var count = 0;
 
             while (isConnected == false)
             {
@@ -36,7 +36,7 @@
                 else
                 {
                     // more detailed error message
-                    string errorMsg = string.Empty;
+                    var errorMsg = string.Empty;
 
                     switch (result.ConnectionStatus.ToString())
                     {
