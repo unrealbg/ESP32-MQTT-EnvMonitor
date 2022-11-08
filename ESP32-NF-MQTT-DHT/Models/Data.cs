@@ -6,7 +6,7 @@
 
     public class Data
     {
-        public string Sensorname => "Esp32NF";
+        public string Sensorname => "Dht21";
 
         public string Date { get; set; }
 
