@@ -46,12 +46,33 @@
                 Debug.WriteLine("[+] MQTT Client Connected!");
             }
 
-            MqttClient.ConnectionClosed += this.ConnectionClosed;
+            this.MqttClient.ConnectionClosed += this.ConnectionClosed;
 
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
-           
-            this.SendUptimePer1S();
+            Thread th1 = new Thread(new ThreadStart(this.UptimeLoop));
+            th1.Start();
+        }
+
+        // Sends device uptime every minute // Demo method
+        private void UptimeLoop()
+        {
+            string date = $"The System Is Started On - {DateTime.UtcNow.ToString("MM/dd/yyyy")}";
+            string time = $"at {DateTime.UtcNow.ToString("HH:mm:ss")}";
+
+            string dateTime = date + time;
+
+            MqttClient.Publish("home/start/data", Encoding.UTF8.GetBytes(dateTime), MqttQoSLevel.AtLeastOnce, false);
+
+            while (true)
+            {
+                MqttClient.Publish(
+                    "home/nf2/uptime",
+                    Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()),
+                    MqttQoSLevel.AtLeastOnce,
+                    false);
+                Thread.Sleep(10000);
+            }
         }
 
         // if the connection to the server is lost restart the device
@@ -63,14 +84,14 @@
             Power.RebootDevice();
         }
 
-        // receives the messages from the server
+        // handle incoming messages from the server
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
             //// Debug.WriteLine($"Message received: {Encoding.UTF8.GetString(e.Message, 0, e.Message.Length)}");
 
             var msg = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
 
-            // turns a relay on and off
+            // turns the relay on and off when a command is given
             if (e.Topic == "home/nf2/switch/Relay")
             {
                 if (msg.Contains("true"))
@@ -83,20 +104,6 @@
                     this.RelayPin.Write(PinValue.Low);
                     Debug.WriteLine("OFF");
                 }
-            }
-        }
-
-        // Sends uptime every second
-        private void SendUptimePer1S()
-        {
-            while (true)
-            {
-                MqttClient.Publish(
-                    "home/nf2/uptime",
-                    Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()),
-                    MqttQoSLevel.AtLeastOnce,
-                    false);
-                Thread.Sleep(1000);
             }
         }
     }
