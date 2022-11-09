@@ -15,13 +15,16 @@
         {
             var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
 
-            var isConnected = false;
             var count = 0;
 
-            while (isConnected == false)
+            while (true)
             {
                 Debug.WriteLine($"[*] Connecting... Attempt {++count}");
 
+                // Disconnect in case we are already connected
+                wifiAdapter.Disconnect();
+
+                // Connect to network
                 var result = wifiAdapter.Connect(
                     Constants.SSID,
                     WifiReconnectionKind.Automatic,
@@ -53,8 +56,7 @@
                             errorMsg = "Connection attempt timed out.";
                             break;
                         case "5":
-                            errorMsg = "Unspecified error";
-                            isConnected = true;
+                            errorMsg = "Unspecified error [connection refused]";
                             break;
                         case "6":
                             errorMsg = "Authentication protocol is not supported.";
