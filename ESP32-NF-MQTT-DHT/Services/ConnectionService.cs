@@ -15,14 +15,21 @@
         {
             var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
 
+            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            var needToConnect = string.IsNullOrEmpty(ipAddress) || (ipAddress == "0.0.0.0");
+
+            if (!needToConnect)
+            {
+                Debug.WriteLine("[+] The device is already connected...");
+                Thread.Sleep(5000);
+                return;
+            }
+
             var count = 0;
 
             while (true)
             {
-                Debug.WriteLine($"[*] Connecting... Attempt {++count}");
-
-                // Disconnect in case we are already connected
-                wifiAdapter.Disconnect();
+                Debug.WriteLine($"[*] Connecting... [Attempt {++count}]");
 
                 // Connect to network
                 var result = wifiAdapter.Connect(
@@ -66,11 +73,13 @@
                     Debug.WriteLine(
                         $"[-] Connection failed [{errorMsg}]");
 
+
+                    // wait 10 seconds before the next attempt
                     Thread.Sleep(10000);
                 }
             }
-
-            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            
+            ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
             Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress} ");
         }
     }
