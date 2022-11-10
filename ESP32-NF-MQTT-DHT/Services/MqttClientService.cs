@@ -101,8 +101,10 @@
 
                         Debug.WriteLine("[+] Successfully connected to MQTT Broker");
                         Thread.Sleep(2000);
+
                         Thread uptime = new Thread(this.UptimeLoop);
                         uptime.Start();
+
                         break;
                     }
 
