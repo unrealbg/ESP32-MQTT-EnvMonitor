@@ -8,7 +8,7 @@
 
         public const string WIFI_PASSWORD = "password";
 
-        public static readonly string BROKER = "broker.mydomain.com";
+        public static readonly string BROKER = "test.mosquitto.org";
 
         public static readonly string CLIENT_ID = Guid.NewGuid().ToString();
 
