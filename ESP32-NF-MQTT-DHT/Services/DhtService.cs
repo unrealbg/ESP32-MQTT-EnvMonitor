@@ -22,10 +22,10 @@
         {
             this._client = client;
             this.JsonSerializer = new JsonSerializer();
-            this.Device = new Device();
+            this.Device = new Sensor();
         }
 
-        public Device Device { get; set; }
+        public Sensor Device { get; set; }
 
         public JsonSerializer JsonSerializer { get; set; }
 
