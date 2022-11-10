@@ -24,8 +24,6 @@
 
         private static GpioController _gpioController;
 
-        public GpioPin RelayPin { get; private set; }
-
         public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService)
         {
             this._uptimeService = uptimeService;
@@ -33,11 +31,14 @@
             _gpioController = new GpioController();
         }
 
+        public GpioPin RelayPin { get; private set; }
+        
         public MqttClient MqttClient { get; private set; }
 
         // start the client
         public void Start()
         {
+            // Initialize the relay pin
             this.RelayPin = _gpioController.OpenPin(25, PinMode.Output);
 
             this.ClientConnect();
@@ -92,6 +93,7 @@
 
                     this.MqttClient.Connect(Constants.CLIENT_ID, Constants.MQTT_CLIENT_USERNAME, Constants.MQTT_CLIENT_PASSWORD);
 
+                    // Checks if the client connected successfully
                     if (MqttClient.IsConnected)
                     {
                         this.MqttClient.ConnectionClosed += this.ConnectionClosed;

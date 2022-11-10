@@ -18,6 +18,7 @@
             var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
             var needToConnect = string.IsNullOrEmpty(ipAddress) || (ipAddress == "0.0.0.0");
 
+            // Checking that we are not already connected
             if (!needToConnect)
             {
                 Debug.WriteLine("[+] The device is already connected...");
@@ -79,6 +80,7 @@
                 }
             }
             
+            // Get IPv4 Address
             ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
             Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress} ");
         }
