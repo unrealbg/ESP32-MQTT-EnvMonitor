@@ -18,11 +18,12 @@
 
     internal class MqttClientService : IMqttClient
     {
+        private static GpioController _gpioController;
+
         private readonly IUptimeService _uptimeService;
 
         private readonly IConnectionService _connectionService;
 
-        private static GpioController _gpioController;
 
         public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService)
         {
@@ -42,6 +43,7 @@
             this.RelayPin = _gpioController.OpenPin(25, PinMode.Output);
 
             this.ClientConnect();
+            this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
         }
 
         // Sends device uptime every minute // Demo method
@@ -88,7 +90,7 @@
             {
                 try
                 {
-                    Debug.WriteLine($"[c] Attempting to connect to the server [Attempt: {(++count).ToString()}]");
+                    Debug.WriteLine($"[c] Attempting to connect to the MQTT broker: {Constants.BROKER} [Attempt: {(++count).ToString()}]");
                     this.MqttClient = new MqttClient(Constants.BROKER);
 
                     this.MqttClient.Connect(Constants.CLIENT_ID, Constants.MQTT_CLIENT_USERNAME, Constants.MQTT_CLIENT_PASSWORD);
@@ -97,11 +99,10 @@
                     if (MqttClient.IsConnected)
                     {
                         this.MqttClient.ConnectionClosed += this.ConnectionClosed;
-                        this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
 
                         this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
 
-                        Debug.WriteLine("[+] Successfully connected to MQTT Broker");
+                        Debug.WriteLine("[+] You're connected to the MQTT broker!");
                         Thread.Sleep(2000);
 
                         Thread uptime = new Thread(this.UptimeLoop);
@@ -152,11 +153,11 @@
         // handle incoming messages from the server
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
-            //// Debug.WriteLine($"Message received: {Encoding.UTF8.GetString(e.Message, 0, e.Message.Length)}");
+            //Debug.WriteLine($"Message received: {Encoding.UTF8.GetString(e.Message, 0, e.Message.Length)}");
 
             var msg = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
 
-            // turns the relay on and off when a command is given
+            //// turns the relay on and off when a command is given
             if (e.Topic == "home/nf2/switch/Relay")
             {
                 if (msg.Contains("on"))
