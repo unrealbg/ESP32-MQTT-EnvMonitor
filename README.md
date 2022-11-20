@@ -1,4 +1,5 @@
-# ESP32 with DHT sensor (Temperature, Humidity) and MQTT-Client sending data to my Blazor IoT portal https://www.unrealbg.com
+# ESP32 with DHT sensor (Temperature, Humidity) and MQTT-Client sending data to my Blazor IoT portal 
+# Portal address: https://www.unrealbg.com <br/> user: demo@unrealbg.com , pass: Demo123@
 Programming is my hobby, I'd appreciate it if you could help improve the code
 <br/>
 <br/>
