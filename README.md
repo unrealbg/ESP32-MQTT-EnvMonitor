@@ -1,5 +1,5 @@
 # C# nanoframework for ESP32 with DHT21 sensor and MQTT client
-# Portal address: https://www.unrealbg.com <br/> user: demo@unrealbg.com , pass: Demo123@
+# Portal address: http://www.unrealbg.com <br/> user: demo@unrealbg.com , pass: Demo123@
 Programming is my hobby, I'd appreciate it if you could help improve the code.
 
 This repository contains C# code for an ESP32 device using nanoframework, a DHT21 sensor for temperature and humidity sensing, and an MQTT client for remote communication. The code allows for real-time monitoring of temperature and humidity data, as well as the ability to publish and subscribe to data over the MQTT protocol.
