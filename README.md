@@ -10,7 +10,7 @@ This repository contains C# code for an ESP32 device using nanoframework, a DHT2
 + MQTT broker (e.g. Mosquitto)
 
 ## Setup
-1. Install the C# nanoframework on your ESP32 device following the instructions here.
+1. Install the C# nanoframework on your ESP32 device following the instructions <a href="https://docs.nanoframework.net/content/getting-started-guides/getting-started-managed.html">here</a>.
 2. Connect the DHT21 sensor to your ESP32 device according to the sensor's documentation.
 3. Set up an MQTT broker on your network (e.g. Mosquitto) and make note of the hostname and port number.
 4. Replace <YOUR_MQTT_BROKER_HOSTNAME> and <YOUR_MQTT_BROKER_PORT> in the code with the hostname and port number of your MQTT broker.
