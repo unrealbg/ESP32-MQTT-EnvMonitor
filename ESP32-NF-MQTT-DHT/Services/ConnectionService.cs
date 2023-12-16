@@ -6,14 +6,15 @@
     using Microsoft.Extensions.Logging;
     using Constants;
     using Contracts;
+    using System;
 
     public class ConnectionService : IConnectionService
     {
         private readonly ILogger _logger;
 
-        public ConnectionService(ILogger logger)
+        public ConnectionService(ILoggerFactory loggerFactory)
         {
-            _logger = logger;
+            _logger = loggerFactory?.CreateLogger(nameof(ConnectionService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
         }
 
         public void Connect()

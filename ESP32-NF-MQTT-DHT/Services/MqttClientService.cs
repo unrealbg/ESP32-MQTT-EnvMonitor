@@ -30,11 +30,11 @@
         private readonly IConnectionService _connectionService;
         private readonly ILogger _logger;
 
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILogger logger)
+        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
-            _logger = logger;
+            _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _gpioController = new GpioController();
         }
 

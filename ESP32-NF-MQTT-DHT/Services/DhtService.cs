@@ -25,10 +25,10 @@
         private const string Topic = "IoT/messages2";
         private const string ErrorTopic = "nf-mqtt/basic-dht";
 
-        public DhtService(IMqttClient client, ILogger logger)
+        public DhtService(IMqttClient client, ILoggerFactory loggerFactory)
         {
             _client = client;
-            _logger = logger;
+            _logger = loggerFactory?.CreateLogger(nameof(DhtService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             Device = new Sensor();
         }
 
