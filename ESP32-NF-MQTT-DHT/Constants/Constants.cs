@@ -4,6 +4,8 @@
 
     public static class Constants
     {
+        public const string DEVICE = "DeviceName";
+
         public const string SSID = "MySSID";
 
         public const string WIFI_PASSWORD = "password";
