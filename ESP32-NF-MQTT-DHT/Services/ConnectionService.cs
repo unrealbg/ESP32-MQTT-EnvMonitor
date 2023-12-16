@@ -1,21 +1,26 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System.Device.Wifi;
-    using System.Diagnostics;
     using System.Net.NetworkInformation;
     using System.Threading;
-
+    using Microsoft.Extensions.Logging;
     using Constants;
-
     using Contracts;
 
     public class ConnectionService : IConnectionService
     {
+        private readonly ILogger _logger;
+
+        public ConnectionService(ILogger logger)
+        {
+            _logger = logger;
+        }
+
         public void Connect()
         {
             if (IsAlreadyConnected())
             {
-                Debug.WriteLine("[+] The device is already connected...");
+                _logger.LogInformation("[+] The device is already connected...");
                 Thread.Sleep(5000);
                 return;
             }
@@ -25,23 +30,23 @@
 
             do
             {
-                Debug.WriteLine($"[*] Connecting... [Attempt {++count}]");
+                _logger.LogInformation($"[*] Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(Constants.SSID, WifiReconnectionKind.Automatic, Constants.WIFI_PASSWORD);
                 if (result.ConnectionStatus == WifiConnectionStatus.Success)
                 {
-                    Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID}.");
+                    _logger.LogInformation($"[+] Connected to Wifi network {Constants.SSID}.");
                     Thread.Sleep(2000);
                     break;
                 }
                 else
                 {
-                    Debug.WriteLine($"[-] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
+                    _logger.LogError($"[-] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
                     Thread.Sleep(10000);
                 }
             } while (true);
 
             var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress}");
+            _logger.LogInformation($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress}");
         }
 
         private bool IsAlreadyConnected()
