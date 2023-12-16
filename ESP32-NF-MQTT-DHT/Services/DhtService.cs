@@ -7,6 +7,8 @@
 
     using Iot.Device.DHTxx.Esp32;
 
+    using Microsoft.Extensions.Logging;
+
     using Models;
 
     using nanoFramework.Json;
@@ -17,24 +19,24 @@
     internal class DhtService : IDhtService
     {
         private readonly IMqttClient _client;
+        private readonly ILogger _logger;
         private const int ReadInterval = 60000; // 1 minute
         private const int ErrorInterval = 10000; // 10 seconds
         private const string Topic = "IoT/messages2";
         private const string ErrorTopic = "nf-mqtt/basic-dht";
 
-        public DhtService(IMqttClient client)
+        public DhtService(IMqttClient client, ILogger logger)
         {
             _client = client;
+            _logger = logger;
             Device = new Sensor();
         }
 
         public Sensor Device { get; set; }
 
-        public JsonSerializer JsonSerializer { get; set; }
-
         public void Start()
         {
-            Debug.WriteLine("[+] Start Reading Sensor Data from DHT21");
+            _logger.LogInformation("[+] Start Reading Sensor Data from DHT21");
 
             using (Dht21 dht = new Dht21(26, 27))
             {
@@ -46,7 +48,7 @@
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine(ex.Message);
+                        _logger.LogError($"Sensor reading error: {ex.Message}");
                         PublishError("Sensor reading error: " + ex.Message);
                     }
                 }
@@ -67,8 +69,8 @@
             }
             else
             {
-                Debug.WriteLine("Error reading DHT sensor");
-                PublishError("Error reading DHT sensor");
+                _logger.LogWarning("Unable to read sensor data");
+                PublishError("Unable to read sensor data");
             }
         }
 
