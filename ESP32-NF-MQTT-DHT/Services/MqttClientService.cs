@@ -20,6 +20,9 @@
 
     internal class MqttClientService : IMqttClient
     {
+        private readonly string uptimeTopic = $"home/{Constants.DEVICE}/uptime";
+        private readonly string relayTopic = $"home/{Constants.DEVICE}/switch/relay";
+
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
@@ -105,7 +108,7 @@
                 try
                 {
                     string uptimeMessage = _uptimeService.GetUptime();
-                    MqttClient.Publish("home/nf2/uptime", Encoding.UTF8.GetBytes(uptimeMessage));
+                    MqttClient.Publish(uptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
                     Debug.WriteLine(uptimeMessage);
                     Thread.Sleep(60000); // 1 minute
                 }
@@ -121,7 +124,7 @@
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
-            if (e.Topic == "home/nf2/switch/Relay")
+            if (e.Topic == relayTopic)
             {
                 if (message.Contains("on"))
                 {
