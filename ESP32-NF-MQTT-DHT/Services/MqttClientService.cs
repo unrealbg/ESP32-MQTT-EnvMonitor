@@ -9,6 +9,8 @@
 
     using Constants;
 
+    using Microsoft.Extensions.Logging;
+
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Exceptions;
     using nanoFramework.M2Mqtt.Messages;
@@ -26,11 +28,13 @@
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
+        private readonly ILogger _logger;
 
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService)
+        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILogger logger)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
+            _logger = logger;
             _gpioController = new GpioController();
         }
 
@@ -55,7 +59,7 @@
             {
                 try
                 {
-                    Debug.WriteLine($"[c] Attempting to connect to MQTT broker: {Constants.BROKER} [Attempt: {++attemptCount}]");
+                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Constants.BROKER} [Attempt: {++attemptCount}]");
                     MqttClient = new MqttClient(Constants.BROKER);
                     MqttClient.Connect(Constants.CLIENT_ID, Constants.MQTT_CLIENT_USERNAME, Constants.MQTT_CLIENT_PASSWORD);
 
@@ -63,7 +67,7 @@
                     {
                         MqttClient.ConnectionClosed += ConnectionClosed;
                         MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
-                        Debug.WriteLine("[+] Connected to MQTT broker.");
+                        _logger.LogInformation("[+] Connected to MQTT broker.");
                         Thread uptimeThread = new Thread(UptimeLoop);
                         uptimeThread.Start();
                         break;
@@ -73,21 +77,23 @@
                 }
                 catch (MqttCommunicationException)
                 {
-                    Debug.WriteLine("[ex] MQTT Communication ERROR");
+                    _logger.LogError("[ex] MQTT Communication ERROR");
                     Thread.Sleep(5000);
                 }
                 catch (SocketException)
                 {
-                    Debug.WriteLine("[ex] Communication ERROR");
+                    _logger.LogError("[ex] Communication ERROR");
                     Thread.Sleep(5000);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[ex] ERROR: {ex.Message}");
+                    _logger.LogError($"[ex] ERROR: {ex.Message}");
+
                     if (attemptCount > 20)
                     {
                         Power.RebootDevice();
                     }
+
                     Thread.Sleep(10000);
                 }
             }
@@ -95,7 +101,7 @@
 
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            Debug.WriteLine("[-] Lost connection to MQTT broker, attempting to reconnect...");
+            _logger.LogWarning("[-] Lost connection to MQTT broker, attempting to reconnect...");
             Thread.Sleep(5000);
             _connectionService.Connect();
             ConnectToBroker();
@@ -109,14 +115,15 @@
                 {
                     string uptimeMessage = _uptimeService.GetUptime();
                     MqttClient.Publish(uptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
-                    Debug.WriteLine(uptimeMessage);
+                    _logger.LogInformation(uptimeMessage);
                     Thread.Sleep(60000); // 1 minute
                 }
-                catch (OutOfMemoryException)
+                catch (Exception ex)
                 {
-                    Debug.WriteLine("[e] ERROR: Out of memory, restarting device...");
+                    _logger.LogError($"[e] ERROR: {ex.Message}");
                     Thread.Sleep(2000);
-                    Power.RebootDevice();
+                    // optional
+                    // Power.RebootDevice();
                 }
             }
         }
@@ -129,12 +136,12 @@
                 if (message.Contains("on"))
                 {
                     RelayPin.Write(PinValue.High);
-                    Debug.WriteLine("Relay turned ON");
+                    _logger.LogInformation("Relay turned ON");
                 }
                 else if (message.Contains("off"))
                 {
                     RelayPin.Write(PinValue.Low);
-                    Debug.WriteLine("Relay turned OFF");
+                    _logger.LogInformation("Relay turned OFF");
                 }
             }
         }
