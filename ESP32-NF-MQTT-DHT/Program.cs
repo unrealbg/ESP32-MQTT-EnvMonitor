@@ -34,7 +34,7 @@ namespace ESP32_NF_MQTT_DHT
         {
             return new ServiceCollection()
                 .AddSingleton(typeof(Startup))
-                .AddSingleton(typeof(IConnectionService, typeof(ConnectionService))
+                .AddSingleton(typeof(IConnectionService), typeof(ConnectionService))
                 .AddSingleton(typeof(IMqttClient), typeof(MqttClientService))
                 .AddSingleton(typeof(IDhtService), typeof(DhtService))
                 .AddSingleton(typeof(IUptimeService), typeof(UptimeService))
