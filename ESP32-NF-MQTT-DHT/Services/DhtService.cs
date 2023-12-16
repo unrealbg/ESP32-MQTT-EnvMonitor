@@ -25,7 +25,6 @@
         public DhtService(IMqttClient client)
         {
             _client = client;
-            JsonSerializer = new JsonSerializer();
             Device = new Sensor();
         }
 
@@ -63,7 +62,7 @@
             {
                 UpdateDeviceData(temperature, humidity);
                 var msg = JsonSerializer.SerializeObject(Device);
-                _client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg), MqttQoSLevel.AtLeastOnce, false);
+                _client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg));
                 Thread.Sleep(ReadInterval);
             }
             else
@@ -83,7 +82,7 @@
 
         private void PublishError(string errorMessage)
         {
-            _client.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage), MqttQoSLevel.AtLeastOnce, false);
+            _client.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
             Thread.Sleep(ErrorInterval);
         }
     }

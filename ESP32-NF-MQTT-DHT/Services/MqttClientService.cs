@@ -3,7 +3,6 @@
     using System;
     using System.Device.Gpio;
     using System.Diagnostics;
-    using System.Net.PeerToPeer.Collaboration;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
@@ -16,6 +15,8 @@
     using nanoFramework.Runtime.Native;
 
     using Services.Contracts;
+
+    using IMqttClient = Contracts.IMqttClient;
 
     internal class MqttClientService : IMqttClient
     {
@@ -104,7 +105,7 @@
                 try
                 {
                     string uptimeMessage = _uptimeService.GetUptime();
-                    MqttClient.Publish("home/nf2/uptime", Encoding.UTF8.GetBytes(uptimeMessage), MqttQoSLevel.AtLeastOnce, false);
+                    MqttClient.Publish("home/nf2/uptime", Encoding.UTF8.GetBytes(uptimeMessage));
                     Debug.WriteLine(uptimeMessage);
                     Thread.Sleep(60000); // 1 minute
                 }
