@@ -3,6 +3,7 @@
     using System;
     using System.Device.Gpio;
     using System.Diagnostics;
+    using System.Net.PeerToPeer.Collaboration;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
@@ -19,95 +20,48 @@
     internal class MqttClientService : IMqttClient
     {
         private static GpioController _gpioController;
-
         private readonly IUptimeService _uptimeService;
-
         private readonly IConnectionService _connectionService;
-
 
         public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService)
         {
-            this._uptimeService = uptimeService;
-            this._connectionService = connectionService;
+            _uptimeService = uptimeService;
+            _connectionService = connectionService;
             _gpioController = new GpioController();
         }
 
         public GpioPin RelayPin { get; private set; }
-        
         public MqttClient MqttClient { get; private set; }
 
-        // start the client
         public void Start()
         {
-            // Initialize the relay pin
-            this.RelayPin = _gpioController.OpenPin(25, PinMode.Output);
-
-            this.ClientConnect();
-            this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
+            InitializeRelayPin();
+            ConnectToBroker();
         }
 
-        // Sends device uptime every minute // Demo method
-        private void UptimeLoop()
+        private void InitializeRelayPin()
         {
-            string date = $"[s] The MQTT Client Is Started On - {DateTime.UtcNow.ToString("MM/dd/yyyy")}";
-            string time = $" {DateTime.UtcNow.ToString("HH:mm:ss")}";
+            RelayPin = _gpioController.OpenPin(25, PinMode.Output);
+        }
 
-            string dateTime = date + time;
-
-            Debug.WriteLine(dateTime);
-
-            MqttClient.Publish("home/nf2/start/data", Encoding.UTF8.GetBytes(dateTime), MqttQoSLevel.AtLeastOnce, false);
-
+        private void ConnectToBroker()
+        {
+            int attemptCount = 0;
             while (true)
             {
                 try
                 {
-                    MqttClient.Publish(
-                        "home/nf2/uptime",
-                        Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()),
-                        MqttQoSLevel.AtLeastOnce,
-                        false);
+                    Debug.WriteLine($"[c] Attempting to connect to MQTT broker: {Constants.BROKER} [Attempt: {++attemptCount}]");
+                    MqttClient = new MqttClient(Constants.BROKER);
+                    MqttClient.Connect(Constants.CLIENT_ID, Constants.MQTT_CLIENT_USERNAME, Constants.MQTT_CLIENT_PASSWORD);
 
-                    Debug.WriteLine(this._uptimeService.GetUptime());
-
-                    Thread.Sleep(10000);
-                }
-                catch (OutOfMemoryException)
-                {
-                    Debug.WriteLine("[e] ERROR [Out of memory]");
-                    Debug.WriteLine("[r] Restarting the device...");
-                    Thread.Sleep(2000);
-                    Power.RebootDevice();
-                }
-            }
-        }
-
-        private void ClientConnect()
-        {
-            int count = 0;
-
-            while (true)
-            {
-                try
-                {
-                    Debug.WriteLine($"[c] Attempting to connect to the MQTT broker: {Constants.BROKER} [Attempt: {(++count).ToString()}]");
-                    this.MqttClient = new MqttClient(Constants.BROKER);
-
-                    this.MqttClient.Connect(Constants.CLIENT_ID, Constants.MQTT_CLIENT_USERNAME, Constants.MQTT_CLIENT_PASSWORD);
-
-                    // Checks if the client connected successfully
                     if (MqttClient.IsConnected)
                     {
-                        this.MqttClient.ConnectionClosed += this.ConnectionClosed;
-
-                        this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
-
-                        Debug.WriteLine("[+] You're connected to the MQTT broker!");
-                        Thread.Sleep(2000);
-
-                        Thread uptime = new Thread(this.UptimeLoop);
-                        uptime.Start();
-
+                        MqttClient.ConnectionClosed += ConnectionClosed;
+                        MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+                        Debug.WriteLine("[+] Connected to MQTT broker.");
+                        Thread uptimeThread = new Thread(UptimeLoop);
+                        uptimeThread.Start();
                         break;
                     }
 
@@ -115,60 +69,68 @@
                 }
                 catch (MqttCommunicationException)
                 {
-                    Debug.WriteLine($"[ex] Mqtt Communication ERROR [Server down or wrong credentials]");
+                    Debug.WriteLine("[ex] MQTT Communication ERROR");
                     Thread.Sleep(5000);
                 }
                 catch (SocketException)
                 {
-                    Debug.WriteLine($"[ex] Communication ERROR [Server down or wrong credentials]");
+                    Debug.WriteLine("[ex] Communication ERROR");
                     Thread.Sleep(5000);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    Debug.WriteLine("[ex] ERROR [Lost connection to the server or the server has stopped]");
-
-                    if (count > 20)
+                    Debug.WriteLine($"[ex] ERROR: {ex.Message}");
+                    if (attemptCount > 20)
                     {
                         Power.RebootDevice();
                     }
-
                     Thread.Sleep(10000);
                 }
             }
-
-            Thread.Sleep(5000);
         }
 
-        // if the connection to the server is lost we are trying to connect again
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            Debug.WriteLine("[-] Lost connection...");
-            Debug.WriteLine("[r] Trying to reconnect...");
+            Debug.WriteLine("[-] Lost connection to MQTT broker, attempting to reconnect...");
             Thread.Sleep(5000);
-
-            this._connectionService.Connect();
-            this.ClientConnect();
+            _connectionService.Connect();
+            ConnectToBroker();
         }
 
-        // handle incoming messages from the server
+        private void UptimeLoop()
+        {
+            while (true)
+            {
+                try
+                {
+                    string uptimeMessage = _uptimeService.GetUptime();
+                    MqttClient.Publish("home/nf2/uptime", Encoding.UTF8.GetBytes(uptimeMessage), MqttQoSLevel.AtLeastOnce, false);
+                    Debug.WriteLine(uptimeMessage);
+                    Thread.Sleep(60000); // 1 minute
+                }
+                catch (OutOfMemoryException)
+                {
+                    Debug.WriteLine("[e] ERROR: Out of memory, restarting device...");
+                    Thread.Sleep(2000);
+                    Power.RebootDevice();
+                }
+            }
+        }
+
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
-            //Debug.WriteLine($"Message received: {Encoding.UTF8.GetString(e.Message, 0, e.Message.Length)}");
-
-            var msg = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
-
-            //// turns the relay on and off when a command is given
+            var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
             if (e.Topic == "home/nf2/switch/Relay")
             {
-                if (msg.Contains("on"))
+                if (message.Contains("on"))
                 {
-                    this.RelayPin.Write(PinValue.High);
-                    Debug.WriteLine("ON");
+                    RelayPin.Write(PinValue.High);
+                    Debug.WriteLine("Relay turned ON");
                 }
-                else if (msg.Contains("off"))
+                else if (message.Contains("off"))
                 {
-                    this.RelayPin.Write(PinValue.Low);
-                    Debug.WriteLine("OFF");
+                    RelayPin.Write(PinValue.Low);
+                    Debug.WriteLine("Relay turned OFF");
                 }
             }
         }
