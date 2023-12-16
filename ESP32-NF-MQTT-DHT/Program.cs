@@ -1,8 +1,8 @@
 namespace ESP32_NF_MQTT_DHT
 {
+    using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
-    using nanoFramework.DependencyInjection;
     using nanoFramework.Logging.Debug;
 
     using Services;
@@ -21,7 +21,8 @@ namespace ESP32_NF_MQTT_DHT
         public static void Main()
         {
             var services = ConfigureServices();
-            var application = services.GetRequiredService<Startup>();
+            var application = (Startup)services.GetService(typeof(Startup));
+
             application.Run();
         }
 
@@ -32,12 +33,12 @@ namespace ESP32_NF_MQTT_DHT
         private static ServiceProvider ConfigureServices()
         {
             return new ServiceCollection()
-                .AddSingleton<Startup>()
-                .AddSingleton<IConnectionService, ConnectionService>()
-                .AddSingleton<IMqttClient, MqttClientService>()
-                .AddSingleton<IDhtService, DhtService>()
-                .AddSingleton<IUptimeService, UptimeService>()
-                .AddSingleton<ILoggerFactory, DebugLoggerFactory>()
+                .AddSingleton(typeof(Startup))
+                .AddSingleton(typeof(IConnectionService, typeof(ConnectionService))
+                .AddSingleton(typeof(IMqttClient), typeof(MqttClientService))
+                .AddSingleton(typeof(IDhtService), typeof(DhtService))
+                .AddSingleton(typeof(IUptimeService), typeof(UptimeService))
+                .AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory))
                 .BuildServiceProvider();
         }
     }
