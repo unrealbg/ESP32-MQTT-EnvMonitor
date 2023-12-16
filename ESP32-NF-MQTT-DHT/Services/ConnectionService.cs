@@ -13,31 +13,20 @@
     {
         public void Connect()
         {
-            var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
-
-            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            var needToConnect = string.IsNullOrEmpty(ipAddress) || (ipAddress == "0.0.0.0");
-
-            // Checking that we are not already connected
-            if (!needToConnect)
+            if (IsAlreadyConnected())
             {
                 Debug.WriteLine("[+] The device is already connected...");
                 Thread.Sleep(5000);
                 return;
             }
 
+            var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
             var count = 0;
 
-            while (true)
+            do
             {
                 Debug.WriteLine($"[*] Connecting... [Attempt {++count}]");
-
-                // Connect to network
-                var result = wifiAdapter.Connect(
-                    Constants.SSID,
-                    WifiReconnectionKind.Automatic,
-                    Constants.WIFI_PASSWORD);
-
+                var result = wifiAdapter.Connect(Constants.SSID, WifiReconnectionKind.Automatic, Constants.WIFI_PASSWORD);
                 if (result.ConnectionStatus == WifiConnectionStatus.Success)
                 {
                     Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID}.");
@@ -46,43 +35,33 @@
                 }
                 else
                 {
-                    // more detailed error message
-                    var errorMsg = string.Empty;
-
-                    switch (result.ConnectionStatus.ToString())
-                    {
-                        case "0":
-                            errorMsg = "Access to the network has been revoked.";
-                            break;
-                        case "1":
-                            errorMsg = "Invalid credential was presented.";
-                            break;
-                        case "2":
-                            errorMsg = "Network is not available.";
-                            break;
-                        case "4":
-                            errorMsg = "Connection attempt timed out.";
-                            break;
-                        case "5":
-                            errorMsg = "Unspecified error [connection refused]";
-                            break;
-                        case "6":
-                            errorMsg = "Authentication protocol is not supported.";
-                            break;
-                    }
-
-                    Debug.WriteLine(
-                        $"[-] Connection failed [{errorMsg}]");
-
-
-                    // wait 10 seconds before the next attempt
+                    Debug.WriteLine($"[-] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
                     Thread.Sleep(10000);
                 }
+            } while (true);
+
+            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress}");
+        }
+
+        private bool IsAlreadyConnected()
+        {
+            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
+        }
+
+        private string GetErrorMessage(WifiConnectionStatus status)
+        {
+            switch (status)
+            {
+                case WifiConnectionStatus.AccessRevoked: return "Access to the network has been revoked.";
+                case WifiConnectionStatus.InvalidCredential: return "Invalid credential was presented.";
+                case WifiConnectionStatus.NetworkNotAvailable: return "Network is not available.";
+                case WifiConnectionStatus.Timeout: return "Connection attempt timed out.";
+                case WifiConnectionStatus.UnspecifiedFailure: return "Unspecified error [connection refused]";
+                case WifiConnectionStatus.UnsupportedAuthenticationProtocol: return "Authentication protocol is not supported.";
+                default: return "Unknown error.";
             }
-            
-            // Get IPv4 Address
-            ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            Debug.WriteLine($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress} ");
         }
     }
 }
