@@ -67,6 +67,7 @@
                     {
                         MqttClient.ConnectionClosed += ConnectionClosed;
                         MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+                        MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation("[+] Connected to MQTT broker.");
                         Thread uptimeThread = new Thread(UptimeLoop);
                         uptimeThread.Start();
