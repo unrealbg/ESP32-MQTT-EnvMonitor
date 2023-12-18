@@ -25,6 +25,8 @@
     /// </summary>
     internal class MqttClientService : IMqttClient
     {
+        private const string relayOnMsg = "Relay turned ON";
+        private const string relayOffMsg = "Relay turned OFF";
         private readonly string uptimeTopic = $"home/{Constants.DEVICE}/uptime";
         private readonly string relayTopic = $"home/{Constants.DEVICE}/switch/relay";
 
@@ -157,12 +159,14 @@
                 if (message.Contains("on"))
                 {
                     RelayPin.Write(PinValue.High);
-                    _logger.LogInformation("Relay turned ON");
+                    MqttClient.Publish(relayTopic, Encoding.UTF8.GetBytes(relayOnMsg));
+                    _logger.LogInformation($"[m] {relayOnMsg}");
                 }
                 else if (message.Contains("off"))
                 {
                     RelayPin.Write(PinValue.Low);
-                    _logger.LogInformation("Relay turned OFF");
+                    MqttClient.Publish(relayTopic, Encoding.UTF8.GetBytes(relayOffMsg));
+                    _logger.LogInformation($"[m] {relayOffMsg}");
                 }
             }
         }
