@@ -1,7 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
-    using System.Diagnostics;
     using System.Text;
     using System.Threading;
 
@@ -12,10 +11,12 @@
     using Models;
 
     using nanoFramework.Json;
-    using nanoFramework.M2Mqtt.Messages;
 
     using Services.Contracts;
 
+    /// <summary>
+    /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
+    /// </summary>
     internal class DhtService : IDhtService
     {
         private readonly IMqttClient _client;
@@ -25,6 +26,12 @@
         private const string Topic = "IoT/messages2";
         private const string ErrorTopic = "nf-mqtt/basic-dht";
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DhtService"/> class.
+        /// </summary>
+        /// <param name="client">The MQTT client used for publishing messages.</param>
+        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
+        /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public DhtService(IMqttClient client, ILoggerFactory loggerFactory)
         {
             _client = client;
@@ -32,8 +39,14 @@
             Device = new Sensor();
         }
 
+        /// <summary>
+        /// Gets or sets the sensor device.
+        /// </summary>
         public Sensor Device { get; set; }
 
+        /// <summary>
+        /// Starts the service to continuously read and publish sensor data.
+        /// </summary>
         public void Start()
         {
             _logger.LogInformation("[+] Start Reading Sensor Data from DHT21");

@@ -2,7 +2,6 @@
 {
     using System;
     using System.Device.Gpio;
-    using System.Diagnostics;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
@@ -20,6 +19,10 @@
 
     using IMqttClient = Contracts.IMqttClient;
 
+    /// <summary>
+    /// Service to handle MQTT client functionalities including connecting to the broker,
+    /// handling messages, and managing a relay pin.
+    /// </summary>
     internal class MqttClientService : IMqttClient
     {
         private readonly string uptimeTopic = $"home/{Constants.DEVICE}/uptime";
@@ -30,6 +33,13 @@
         private readonly IConnectionService _connectionService;
         private readonly ILogger _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MqttClientService"/> class.
+        /// </summary>
+        /// <param name="uptimeService">Service to get uptime information.</param>
+        /// <param name="connectionService">Service to manage network connections.</param>
+        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
+        /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory)
         {
             _uptimeService = uptimeService;
@@ -38,9 +48,19 @@
             _gpioController = new GpioController();
         }
 
+        /// <summary>
+        /// Gets the GPIO pin for the relay control.
+        /// </summary>
         public GpioPin RelayPin { get; private set; }
+
+        /// <summary>
+        /// Gets the MQTT client instance.
+        /// </summary>
         public MqttClient MqttClient { get; private set; }
 
+        /// <summary>
+        /// Starts the MQTT client service, initializing the relay pin and connecting to the MQTT broker.
+        /// </summary>
         public void Start()
         {
             InitializeRelayPin();

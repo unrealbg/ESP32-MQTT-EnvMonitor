@@ -8,15 +8,26 @@
     using Contracts;
     using System;
 
+    /// <summary>
+    /// Service responsible for managing the network connection of the device.
+    /// </summary>
     public class ConnectionService : IConnectionService
     {
         private readonly ILogger _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConnectionService"/> class.
+        /// </summary>
+        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
+        /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public ConnectionService(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory?.CreateLogger(nameof(ConnectionService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
         }
 
+        /// <summary>
+        /// Initiates a connection to the network.
+        /// </summary>
         public void Connect()
         {
             if (IsAlreadyConnected())
