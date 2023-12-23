@@ -23,11 +23,12 @@
     {
         private readonly IMqttClientService _client;
         private readonly ILogger _logger;
-        private const int ReadInterval = 60000; // 1 minute
+        private const int ReadInterval = 300000; // 5 minutes
         private const int ErrorInterval = 10000; // 10 seconds
         private const string Topic = "IoT/messages2";
-        private static readonly string ErrorTopic = $"{Constants.DEVICE}/errors";
-        private double temp;
+        private static readonly string ErrorTopic = $"home/{Constants.DEVICE}/errors";
+        private double _temp;
+        private double _humidity;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
@@ -78,14 +79,20 @@
 
         public string GetTemp()
         {
-            return this.temp.ToString();
+            return this._temp.ToString();
+        }
+
+        public string GetHumidity()
+        {
+            return this._humidity.ToString();
         }
 
         private void ReadAndPublishData(Dht21 dht)
         {
             var temperature = dht.Temperature.Value;
             var humidity = dht.Humidity.Value;
-            this.temp = temperature;
+            this._temp = temperature;
+            this._humidity = humidity;
 
             if (dht.IsLastReadSuccessful)
             {
