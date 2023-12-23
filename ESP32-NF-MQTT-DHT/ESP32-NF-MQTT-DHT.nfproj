@@ -29,10 +29,12 @@
     <Compile Include="Services\Contracts\IMqttClientService.cs" />
     <Compile Include="Services\Contracts\ITcpListenerService.cs" />
     <Compile Include="Services\Contracts\IUptimeService.cs" />
+    <Compile Include="Services\Contracts\IWebServerService.cs" />
     <Compile Include="Services\DhtService.cs" />
     <Compile Include="Services\MqttClientService.cs" />
     <Compile Include="Services\TcpListenerService.cs" />
     <Compile Include="Services\UptimeService.cs" />
+    <Compile Include="Services\WebServerService.cs" />
     <Compile Include="Startup.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -72,6 +74,9 @@
     <Reference Include="nanoFramework.System.Text">
       <HintPath>..\packages\nanoFramework.System.Text.1.2.54\lib\nanoFramework.System.Text.dll</HintPath>
     </Reference>
+    <Reference Include="nanoFramework.WebServer">
+      <HintPath>..\packages\nanoFramework.WebServer.1.2.14\lib\nanoFramework.WebServer.dll</HintPath>
+    </Reference>
     <Reference Include="System.Device.Gpio">
       <HintPath>..\packages\nanoFramework.System.Device.Gpio.1.1.38\lib\System.Device.Gpio.dll</HintPath>
     </Reference>
@@ -95,6 +100,9 @@
     </Reference>
     <Reference Include="System.Net">
       <HintPath>..\packages\nanoFramework.System.Net.1.10.64\lib\System.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Net.Http">
+      <HintPath>..\packages\nanoFramework.System.Net.Http.Server.1.5.113\lib\System.Net.Http.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Sockets.TcpClient">
       <HintPath>..\packages\nanoframework.System.Net.Sockets.TcpClient.1.1.64\lib\System.Net.Sockets.TcpClient.dll</HintPath>
