@@ -1,5 +1,7 @@
 ﻿namespace ESP32_NF_MQTT_DHT
 {
+    using ESP32_NF_MQTT_DHT.Services;
+
     using Microsoft.Extensions.Logging;
 
     using Services.Contracts;
@@ -64,7 +66,8 @@
                 _logger.LogInformation("Startup: TcpListener service started.");
 
                 _logger.LogInformation("Startup: Starting WebServer service...");
-                _webServerService.Start();
+                var webServerService = new WebServerService(80, _dhtService);
+                webServerService.Start();
                 _logger.LogInformation("Startup: WebServer service started.");
 
                 _logger.LogInformation("Startup: Starting DHT service...");
