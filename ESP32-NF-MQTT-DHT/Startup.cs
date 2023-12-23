@@ -15,6 +15,7 @@
         private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;
         private readonly ITcpListenerService _tcpListenerService;
+        private readonly IWebServerService _webServerService;
         private readonly ILogger _logger;
 
         /// <summary>
@@ -29,15 +30,18 @@
             IMqttClientService mqttClient,
             IDhtService dhtService,
             ILoggerFactory loggerFactory,
-            ITcpListenerService tcpListenerService)
+            ITcpListenerService tcpListenerService,
+            IWebServerService webServerService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
-            _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
-            _logger.LogInformation("Startup: Initializing application...");
             _tcpListenerService = tcpListenerService;
+            _webServerService = webServerService;
+
+            _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logger.LogInformation("Startup: Initializing application...");
         }
 
         /// <summary>
@@ -55,18 +59,22 @@
                 _mqttClient.Start();
                 _logger.LogInformation("Startup: MQTT client started.");
 
+                _logger.LogInformation("Startup: Starting TcpListener service...");
+                _tcpListenerService.Start();
+                _logger.LogInformation("Startup: TcpListener service started.");
+
+                _logger.LogInformation("Startup: Starting WebServer service...");
+                _webServerService.Start();
+                _logger.LogInformation("Startup: WebServer service started.");
+
                 _logger.LogInformation("Startup: Starting DHT service...");
                 _dhtService.Start();
                 _logger.LogInformation("Startup: DHT service started.");
 
-                _logger.LogInformation("Startup: Starting TcpListener service...");
-                _tcpListenerService.Start();
-                _logger.LogInformation("Startup: TcpListener service started.");
             }
             catch (Exception ex)
             {
                 _logger.LogError($"An error occurred during startup: {ex.Message}");
-                // Consider re-throwing the exception or handling it as needed for your application
             }
         }
     }
