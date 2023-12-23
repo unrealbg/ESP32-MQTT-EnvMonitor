@@ -17,18 +17,20 @@
 
     using Services.Contracts;
 
-    using IMqttClient = Contracts.IMqttClient;
+    using IMqttClientService = Contracts.IMqttClientService;
 
     /// <summary>
     /// Service to handle MQTT client functionalities including connecting to the broker,
     /// handling messages, and managing a relay pin.
     /// </summary>
-    internal class MqttClientService : IMqttClient
+    internal class MqttClientService : IMqttClientService
     {
-        private const string relayOnMsg = "Relay turned ON";
-        private const string relayOffMsg = "Relay turned OFF";
-        private readonly string uptimeTopic = $"home/{Constants.DEVICE}/uptime";
-        private readonly string relayTopic = $"home/{Constants.DEVICE}/switch/relay";
+        private const string RelayOnMsg = "Relay turned ON";
+        private const string RelayOffMsg = "Relay turned OFF";
+        private static readonly string DeviceName = $"{Constants.DEVICE}";
+        private readonly string UptimeTopic = $"home/{DeviceName}/uptime";
+        private readonly string RelayTopic = $"home/{DeviceName}/switch/relay";
+        private readonly string SystemTopic = $"home/{DeviceName}/system";
 
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
@@ -137,7 +139,7 @@
                 try
                 {
                     string uptimeMessage = _uptimeService.GetUptime();
-                    MqttClient.Publish(uptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
+                    MqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
                     _logger.LogInformation(uptimeMessage);
                     Thread.Sleep(60000); // 1 minute
                 }
@@ -154,19 +156,33 @@
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
-            if (e.Topic == relayTopic)
+
+            if (e.Topic == RelayTopic)
             {
                 if (message.Contains("on"))
                 {
                     RelayPin.Write(PinValue.High);
-                    MqttClient.Publish(relayTopic, Encoding.UTF8.GetBytes(relayOnMsg));
-                    _logger.LogInformation($"[m] {relayOnMsg}");
+                    MqttClient.Publish(RelayTopic, Encoding.UTF8.GetBytes(RelayOnMsg));
+                    _logger.LogInformation($"[m] {RelayOnMsg}");
                 }
                 else if (message.Contains("off"))
                 {
                     RelayPin.Write(PinValue.Low);
-                    MqttClient.Publish(relayTopic, Encoding.UTF8.GetBytes(relayOffMsg));
-                    _logger.LogInformation($"[m] {relayOffMsg}");
+                    MqttClient.Publish(RelayTopic, Encoding.UTF8.GetBytes(RelayOffMsg));
+                    _logger.LogInformation($"[m] {RelayOffMsg}");
+                }
+            }
+            else if (e.Topic == SystemTopic)
+            {
+                if (message.Contains("uptime"))
+                {
+                    MqttClient.Publish($"home/{DeviceName}/uptime", Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
+                }
+                else if (message.Contains("reboot"))
+                {
+                    MqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
+                    Thread.Sleep(2000);
+                    Power.RebootDevice();
                 }
             }
         }
