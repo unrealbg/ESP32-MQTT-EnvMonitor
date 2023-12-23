@@ -25,6 +25,7 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService
     {
+        private const int RelayPinNumber = 32;
         private const string RelayOnMsg = "Relay turned ON";
         private const string RelayOffMsg = "Relay turned OFF";
         private static readonly string DeviceName = $"{Constants.DEVICE}";
@@ -73,7 +74,7 @@
 
         private void InitializeRelayPin()
         {
-            RelayPin = _gpioController.OpenPin(32, PinMode.Output);
+            RelayPin = _gpioController.OpenPin(RelayPinNumber, PinMode.Output);
         }
 
         private void ConnectToBroker()
