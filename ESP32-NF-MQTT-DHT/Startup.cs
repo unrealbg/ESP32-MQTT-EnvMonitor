@@ -12,8 +12,9 @@
     public class Startup
     {
         private readonly IConnectionService _connectionService;
-        private readonly IMqttClient _mqttClient;
+        private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;
+        private readonly ITcpListenerService _tcpListenerService;
         private readonly ILogger _logger;
 
         /// <summary>
@@ -25,9 +26,10 @@
         /// <param name="loggerFactory">Factory for creating logger instances.</param>
         public Startup(
             IConnectionService connectionService,
-            IMqttClient mqttClient,
+            IMqttClientService mqttClient,
             IDhtService dhtService,
-            ILoggerFactory loggerFactory)
+            ILoggerFactory loggerFactory,
+            ITcpListenerService tcpListenerService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
@@ -35,6 +37,7 @@
             _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
             _logger.LogInformation("Startup: Initializing application...");
+            _tcpListenerService = tcpListenerService;
         }
 
         /// <summary>
@@ -55,6 +58,10 @@
                 _logger.LogInformation("Startup: Starting DHT service...");
                 _dhtService.Start();
                 _logger.LogInformation("Startup: DHT service started.");
+
+                _logger.LogInformation("Startup: Starting TcpListener service...");
+                _tcpListenerService.Start();
+                _logger.LogInformation("Startup: TcpListener service started.");
             }
             catch (Exception ex)
             {
