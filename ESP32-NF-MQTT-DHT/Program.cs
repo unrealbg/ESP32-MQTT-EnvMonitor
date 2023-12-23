@@ -40,6 +40,7 @@ namespace ESP32_NF_MQTT_DHT
                 .AddSingleton(typeof(IUptimeService), typeof(UptimeService))
                 .AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory))
                 .AddSingleton(typeof(ITcpListenerService), typeof(TcpListenerService))
+                .AddSingleton(typeof(IWebServerService), typeof(WebServerService))
                 .BuildServiceProvider();
         }
     }
