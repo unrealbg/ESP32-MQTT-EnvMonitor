@@ -5,9 +5,6 @@
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
-
-    using Constants;
-
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.M2Mqtt;
@@ -15,7 +12,9 @@
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
 
-    using Services.Contracts;
+    using Contracts;
+
+    using static Constants.Constants;
 
     using IMqttClientService = Contracts.IMqttClientService;
 
@@ -28,10 +27,9 @@
         private const int RelayPinNumber = 32;
         private const string RelayOnMsg = "Relay turned ON";
         private const string RelayOffMsg = "Relay turned OFF";
-        private static readonly string DeviceName = $"{Constants.DEVICE}";
-        private readonly string UptimeTopic = $"home/{DeviceName}/uptime";
-        private readonly string RelayTopic = $"home/{DeviceName}/switch";
-        private readonly string SystemTopic = $"home/{DeviceName}/system";
+        private readonly string _uptimeTopic = $"home/{DEVICE}/uptime";
+        private readonly string _relayTopic = $"home/{DEVICE}/switch";
+        private readonly string _systemTopic = $"home/{DEVICE}/system";
 
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
@@ -74,7 +72,7 @@
 
         private void InitializeRelayPin()
         {
-            RelayPin = _gpioController.OpenPin(RelayPinNumber, PinMode.Output);
+            this.RelayPin = _gpioController.OpenPin(RelayPinNumber, PinMode.Output);
         }
 
         private void ConnectToBroker()
@@ -84,15 +82,15 @@
             {
                 try
                 {
-                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Constants.BROKER} [Attempt: {++attemptCount}]");
-                    MqttClient = new MqttClient(Constants.BROKER);
-                    MqttClient.Connect(Constants.CLIENT_ID, Constants.MQTT_CLIENT_USERNAME, Constants.MQTT_CLIENT_PASSWORD);
+                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {BROKER} [Attempt: {++attemptCount}]");
+                    this.MqttClient = new MqttClient(BROKER);
+                    this.MqttClient.Connect(CLIENT_ID, MQTT_CLIENT_USERNAME, MQTT_CLIENT_PASSWORD);
 
                     if (MqttClient.IsConnected)
                     {
-                        MqttClient.ConnectionClosed += ConnectionClosed;
-                        MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
-                        MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
+                        this.MqttClient.ConnectionClosed += ConnectionClosed;
+                        this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+                        this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation("[+] Connected to MQTT broker.");
                         Thread uptimeThread = new Thread(UptimeLoop);
                         uptimeThread.Start();
@@ -140,7 +138,7 @@
                 try
                 {
                     string uptimeMessage = _uptimeService.GetUptime();
-                    MqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
+                    this.MqttClient.Publish(_uptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
                     _logger.LogInformation(uptimeMessage);
                     Thread.Sleep(60000); // 1 minute
                 }
@@ -158,30 +156,30 @@
         {
             var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
 
-            if (e.Topic == RelayTopic)
+            if (e.Topic == _relayTopic)
             {
                 if (message.Contains("on"))
                 {
-                    RelayPin.Write(PinValue.High);
-                    MqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOnMsg));
+                    this.RelayPin.Write(PinValue.High);
+                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOnMsg));
                     _logger.LogInformation($"[m] {RelayOnMsg}");
                 }
                 else if (message.Contains("off"))
                 {
-                    RelayPin.Write(PinValue.Low);
-                    MqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOffMsg));
+                    this.RelayPin.Write(PinValue.Low);
+                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOffMsg));
                     _logger.LogInformation($"[m] {RelayOffMsg}");
                 }
             }
-            else if (e.Topic == SystemTopic)
+            else if (e.Topic == _systemTopic)
             {
                 if (message.Contains("uptime"))
                 {
-                    MqttClient.Publish($"home/{DeviceName}/uptime", Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
+                    this.MqttClient.Publish($"home/{DEVICE}/uptime", Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
                 }
                 else if (message.Contains("reboot"))
                 {
-                    MqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
+                    this.MqttClient.Publish($"home/{DEVICE}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
