@@ -29,7 +29,7 @@
         private const string RelayOffMsg = "Relay turned OFF";
         private static readonly string DeviceName = $"{Constants.DEVICE}";
         private readonly string UptimeTopic = $"home/{DeviceName}/uptime";
-        private readonly string RelayTopic = $"home/{DeviceName}/switch/relay";
+        private readonly string RelayTopic = $"home/{DeviceName}/switch";
         private readonly string SystemTopic = $"home/{DeviceName}/system";
 
         private static GpioController _gpioController;
@@ -73,7 +73,7 @@
 
         private void InitializeRelayPin()
         {
-            RelayPin = _gpioController.OpenPin(25, PinMode.Output);
+            RelayPin = _gpioController.OpenPin(32, PinMode.Output);
         }
 
         private void ConnectToBroker()
@@ -162,13 +162,13 @@
                 if (message.Contains("on"))
                 {
                     RelayPin.Write(PinValue.High);
-                    MqttClient.Publish(RelayTopic, Encoding.UTF8.GetBytes(RelayOnMsg));
+                    MqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOnMsg));
                     _logger.LogInformation($"[m] {RelayOnMsg}");
                 }
                 else if (message.Contains("off"))
                 {
                     RelayPin.Write(PinValue.Low);
-                    MqttClient.Publish(RelayTopic, Encoding.UTF8.GetBytes(RelayOffMsg));
+                    MqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOffMsg));
                     _logger.LogInformation($"[m] {RelayOffMsg}");
                 }
             }
