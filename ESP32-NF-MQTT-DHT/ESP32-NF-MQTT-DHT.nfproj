@@ -26,10 +26,12 @@
     <Compile Include="Services\ConnectionService.cs" />
     <Compile Include="Services\Contracts\IConnectionService.cs" />
     <Compile Include="Services\Contracts\IDhtService.cs" />
-    <Compile Include="Services\Contracts\IMqttClient.cs" />
+    <Compile Include="Services\Contracts\IMqttClientService.cs" />
+    <Compile Include="Services\Contracts\ITcpListenerService.cs" />
     <Compile Include="Services\Contracts\IUptimeService.cs" />
     <Compile Include="Services\DhtService.cs" />
     <Compile Include="Services\MqttClientService.cs" />
+    <Compile Include="Services\TcpListenerService.cs" />
     <Compile Include="Services\UptimeService.cs" />
     <Compile Include="Startup.cs" />
   </ItemGroup>
@@ -93,6 +95,9 @@
     </Reference>
     <Reference Include="System.Net">
       <HintPath>..\packages\nanoFramework.System.Net.1.10.64\lib\System.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Net.Sockets.TcpClient">
+      <HintPath>..\packages\nanoframework.System.Net.Sockets.TcpClient.1.1.64\lib\System.Net.Sockets.TcpClient.dll</HintPath>
     </Reference>
     <Reference Include="System.Threading">
       <HintPath>..\packages\nanoFramework.System.Threading.1.1.32\lib\System.Threading.dll</HintPath>
