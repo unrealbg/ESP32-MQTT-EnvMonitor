@@ -17,5 +17,9 @@
         public static readonly string MQTT_CLIENT_USERNAME = "username";
 
         public static readonly string MQTT_CLIENT_PASSWORD = "password";
+
+        public static readonly string TCP_CLIENT_USERNAME = "admin";
+
+        public static readonly string TCP_CLIENT_PASSWORD = "kraimorie";
     }
 }
