@@ -14,17 +14,20 @@
 
     using Services.Contracts;
 
+    using Constants;
+
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
     /// </summary>
     internal class DhtService : IDhtService
     {
-        private readonly IMqttClient _client;
+        private readonly IMqttClientService _client;
         private readonly ILogger _logger;
         private const int ReadInterval = 60000; // 1 minute
         private const int ErrorInterval = 10000; // 10 seconds
         private const string Topic = "IoT/messages2";
-        private const string ErrorTopic = "nf-mqtt/basic-dht";
+        private static readonly string ErrorTopic = $"{Constants.DEVICE}/errors";
+        private double temp;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
@@ -32,7 +35,7 @@
         /// <param name="client">The MQTT client used for publishing messages.</param>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public DhtService(IMqttClient client, ILoggerFactory loggerFactory)
+        public DhtService(IMqttClientService client, ILoggerFactory loggerFactory)
         {
             _client = client;
             _logger = loggerFactory?.CreateLogger(nameof(DhtService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -68,10 +71,21 @@
             }
         }
 
+        public void GetData()
+        {
+            PublishSensorData();
+        }
+
+        public string GetTemp()
+        {
+            return this.temp.ToString();
+        }
+
         private void ReadAndPublishData(Dht21 dht)
         {
             var temperature = dht.Temperature.Value;
             var humidity = dht.Humidity.Value;
+            this.temp = temperature;
 
             if (dht.IsLastReadSuccessful)
             {
@@ -99,6 +113,12 @@
         {
             _client.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
             Thread.Sleep(ErrorInterval);
+        }
+
+        private void PublishSensorData()
+        {
+            var msg = JsonSerializer.SerializeObject(this.Device);
+            this._client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg));
         }
     }
 }
