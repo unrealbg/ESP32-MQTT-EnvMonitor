@@ -43,6 +43,38 @@ After completing the setup, the ESP32 device will start monitoring and publishin
 - **Sensor Data Accuracy:**  
   If temperature and humidity readings are inaccurate or unstable, verify the DHT21 sensor's connections and calibration.
 
+## WebServer with Controllers
+
+This project now includes a WebServer that serves API endpoints, making use of Controllers for structured handling of HTTP requests. This enhancement allows for remote interaction with the ESP32 device, offering a RESTful interface to access sensor data and control device functionalities.
+
+### WebServer Features
+
+- **API Endpoints**: The WebServer exposes several API endpoints to interact with the DHT21 sensor and other functionalities.
+- **RESTful Design**: Adhering to REST principles, it enables easy integration with various client-side applications or services.
+- **Real-Time Data Access**: Offers endpoints to fetch real-time temperature and humidity data from the DHT21 sensor.
+- **Device Control**: Additional endpoints provide control over certain functionalities of the ESP32 device.
+
+### API Endpoints Usage
+
+1. **Temperature Data**:  
+   - Endpoint: `/api/temperature`  
+   - Method: `GET`  
+   - Description: Returns the current temperature reading from the DHT21 sensor in JSON format.
+
+2. **Humidity Data**:  
+   - Endpoint: `/api/humidity`  
+   - Method: `GET`  
+   - Description: Returns the current humidity reading from the DHT21 sensor in JSON format.
+
+3. **Sensor Data**:  
+   - Endpoint: `/api/data`  
+   - Method: `GET`  
+   - Description: Returns both temperature and humidity readings in a structured JSON format.
+
+### Integration
+
+The WebServer is designed to be scalable and easily integrable with other systems, providing a seamless interface for data communication and device control. This makes it an ideal solution for IoT applications requiring real-time sensor data monitoring and device management over HTTP.
+
 ## Project Images
 
 ### Without Breadboard Power Supply
