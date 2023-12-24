@@ -1,7 +1,5 @@
 ﻿namespace ESP32_NF_MQTT_DHT
 {
-    using ESP32_NF_MQTT_DHT.Services;
-
     using Microsoft.Extensions.Logging;
 
     using Services.Contracts;
@@ -16,7 +14,6 @@
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;
-        private readonly ITcpListenerService _tcpListenerService;
         private readonly IWebServerService _webServerService;
         private readonly ILogger _logger;
 
@@ -27,19 +24,18 @@
         /// <param name="mqttClient">MQTT client service.</param>
         /// <param name="dhtService">DHT sensor service.</param>
         /// <param name="loggerFactory">Factory for creating logger instances.</param>
+        /// <param name="webServerService">WebServer service.</param>
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
             IDhtService dhtService,
             ILoggerFactory loggerFactory,
-            ITcpListenerService tcpListenerService,
             IWebServerService webServerService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
 
-            _tcpListenerService = tcpListenerService;
             _webServerService = webServerService;
 
             _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -61,13 +57,8 @@
                 _mqttClient.Start();
                 _logger.LogInformation("Startup: MQTT client started.");
 
-                _logger.LogInformation("Startup: Starting TcpListener service...");
-                _tcpListenerService.Start();
-                _logger.LogInformation("Startup: TcpListener service started.");
-
                 _logger.LogInformation("Startup: Starting WebServer service...");
-                var webServerService = new WebServerService(80, _dhtService);
-                webServerService.Start();
+                _webServerService.Start();
                 _logger.LogInformation("Startup: WebServer service started.");
 
                 _logger.LogInformation("Startup: Starting DHT service...");
