@@ -4,22 +4,22 @@
 
     public static class Constants
     {
-        public const string DEVICE = "DeviceName";
+        public const string Device = "DeviceName";
 
-        public const string SSID = "MySSID";
+        public const string Ssid = "MySSID";
 
-        public const string WIFI_PASSWORD = "password";
+        public const string WifiPassword = "password";
 
-        public static readonly string BROKER = "test.mosquitto.org";
+        public const string Broker = "test.mosquitto.org";
 
-        public static readonly string CLIENT_ID = Guid.NewGuid().ToString();
+        public static readonly string ClientId = Guid.NewGuid().ToString();
 
-        public static readonly string MQTT_CLIENT_USERNAME = "username";
+        public const string MqttClientUsername = "username";
 
-        public static readonly string MQTT_CLIENT_PASSWORD = "password";
+        public const string MqttClientPassword = "password";
 
-        public static readonly string TCP_CLIENT_USERNAME = "admin";
+        public const string TcpClientUsername = "user";
 
-        public static readonly string TCP_CLIENT_PASSWORD = "kraimorie";
+        public const string TcpClientPassword = "pass";
     }
 }
