@@ -19,6 +19,7 @@
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
     <Compile Include="Constants\Constants.cs" />
+    <Compile Include="Controllers\SensorController.cs" />
     <Compile Include="Models\Sensor.cs" />
     <Compile Include="Models\Data.cs" />
     <Compile Include="Program.cs" />
