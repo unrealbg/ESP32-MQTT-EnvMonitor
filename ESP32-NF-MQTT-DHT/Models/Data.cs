@@ -52,7 +52,7 @@
         /// <value>
         /// The SSID of the connected WiFi network. This value is obtained from the Constants.SSID.
         /// </value>
-        public string Wifissid => Constants.SSID;
+        public string Wifissid => Constants.Ssid;
 
         /// <summary>
         /// Gets the firmware release information.

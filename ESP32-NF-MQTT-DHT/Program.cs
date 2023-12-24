@@ -1,5 +1,7 @@
+
 namespace ESP32_NF_MQTT_DHT
 {
+
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
@@ -7,6 +9,7 @@ namespace ESP32_NF_MQTT_DHT
 
     using Services;
     using Services.Contracts;
+    using Controllers;
 
     using System;
 
@@ -32,14 +35,18 @@ namespace ESP32_NF_MQTT_DHT
         /// <returns>Configured service provider.</returns>
         private static ServiceProvider ConfigureServices()
         {
-            return new ServiceCollection()
-                .AddSingleton(typeof(Startup))
-                .AddSingleton(typeof(IConnectionService), typeof(ConnectionService))
-                .AddSingleton(typeof(IMqttClient), typeof(MqttClientService))
-                .AddSingleton(typeof(IDhtService), typeof(DhtService))
-                .AddSingleton(typeof(IUptimeService), typeof(UptimeService))
-                .AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory))
-                .BuildServiceProvider();
+            var services = new ServiceCollection();
+
+            // Register individual services
+            services.AddSingleton(typeof(Startup));
+            services.AddSingleton(typeof(IConnectionService), typeof(ConnectionService));
+            services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
+            services.AddSingleton(typeof(IDhtService), typeof(DhtService));
+            services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
+            services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
+            services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new Type[] { typeof(SensorController) }));
+
+            return services.BuildServiceProvider();
         }
     }
 }

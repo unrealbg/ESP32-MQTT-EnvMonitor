@@ -5,7 +5,7 @@
     /// <summary>
     /// Defines a contract for a service that manages MQTT client functionalities.
     /// </summary>
-    public interface IMqttClient
+    public interface IMqttClientService
     {
         /// <summary>
         /// Gets the instance of the MQTT client.

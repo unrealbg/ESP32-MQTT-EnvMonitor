@@ -1,12 +1,14 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
+    using System;
     using System.Device.Wifi;
     using System.Net.NetworkInformation;
     using System.Threading;
+    
     using Microsoft.Extensions.Logging;
+    
     using Constants;
     using Contracts;
-    using System;
 
     /// <summary>
     /// Service responsible for managing the network connection of the device.
@@ -43,10 +45,10 @@
             do
             {
                 _logger.LogInformation($"[*] Connecting... [Attempt {++count}]");
-                var result = wifiAdapter.Connect(Constants.SSID, WifiReconnectionKind.Automatic, Constants.WIFI_PASSWORD);
+                var result = wifiAdapter.Connect(Constants.Ssid, WifiReconnectionKind.Automatic, Constants.WifiPassword);
                 if (result.ConnectionStatus == WifiConnectionStatus.Success)
                 {
-                    _logger.LogInformation($"[+] Connected to Wifi network {Constants.SSID}.");
+                    _logger.LogInformation($"[+] Connected to Wifi network {Constants.Ssid}.");
                     Thread.Sleep(2000);
                     break;
                 }
@@ -58,7 +60,7 @@
             } while (true);
 
             var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            _logger.LogInformation($"[+] Connected to Wifi network {Constants.SSID} with IP address {ipAddress}");
+            _logger.LogInformation($"[+] Connected to Wifi network {Constants.Ssid} with IP address {ipAddress}");
         }
 
         private bool IsAlreadyConnected()
