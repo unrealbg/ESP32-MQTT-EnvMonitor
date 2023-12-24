@@ -1,39 +1,22 @@
-﻿using ESP32_NF_MQTT_DHT.Services.Contracts;
-
-using nanoFramework.WebServer;
-
-namespace ESP32_NF_MQTT_DHT.Services
+﻿namespace ESP32_NF_MQTT_DHT.Services
 {
+    using System;
+
+    using nanoFramework.WebServer;
+
+    using Contracts;
     public class WebServerService : IWebServerService
     {
-        private WebServer server;
-        private readonly IDhtService _dhtService;
+        private readonly WebServer _server;
 
-        public WebServerService(int port, IDhtService dhtService)
+        public WebServerService(int port, Type[] controllerTypes)
         {
-            _dhtService = dhtService;
-            server = new WebServer(port, HttpProtocol.Http);
-            server.CommandReceived += ServerCommandReceived;
-        }
-
-        private void ServerCommandReceived(object sender, WebServerEventArgs e)
-        {
-            switch (e.Context.Request.RawUrl)
-            {
-                case "/api/temperature":
-                    var temperature = _dhtService.GetTemp();
-                    WebServer.OutPutStream(e.Context.Response, temperature);
-                    break;
-                case "/api/humidity":
-                    var humidity = _dhtService.GetHumidity();
-                    WebServer.OutPutStream(e.Context.Response, humidity);
-                    break;
-            }
+            _server = new WebServer(port, HttpProtocol.Http, controllerTypes);
         }
 
         public void Start()
         {
-            server.Start();
+            _server.Start();
         }
     }
 }
