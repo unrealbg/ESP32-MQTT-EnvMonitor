@@ -14,6 +14,7 @@
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;
+        private readonly IAhtSernsorService _ahtSernsorService;
         private readonly IWebServerService _webServerService;
         private readonly ILogger _logger;
 
@@ -25,18 +26,20 @@
         /// <param name="dhtService">DHT sensor service.</param>
         /// <param name="loggerFactory">Factory for creating logger instances.</param>
         /// <param name="webServerService">WebServer service.</param>
+        /// <param name="ahtSernsorService">AHT sensor service.</param>
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
             IDhtService dhtService,
             ILoggerFactory loggerFactory,
-            IWebServerService webServerService)
+            IWebServerService webServerService, IAhtSernsorService ahtSernsorService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
 
             _webServerService = webServerService;
+            _ahtSernsorService = ahtSernsorService;
 
             _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _logger.LogInformation("Startup: Initializing application...");
@@ -64,6 +67,10 @@
                 _logger.LogInformation("Startup: Starting DHT service...");
                 _dhtService.Start();
                 _logger.LogInformation("Startup: DHT service started.");
+
+                _logger.LogInformation("Startup: Starting AHT service...");
+                _ahtSernsorService.Start();
+                _logger.LogInformation("Startup: AHT service started.");
 
             }
             catch (Exception ex)
