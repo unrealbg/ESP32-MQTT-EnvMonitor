@@ -24,12 +24,12 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService
     {
-        private const int RelayPinNumber = 32;
+        private const int RelayPinNumber = 6;
         private const string RelayOnMsg = "Relay turned ON";
         private const string RelayOffMsg = "Relay turned OFF";
-        private readonly string _uptimeTopic = $"home/{DEVICE}/uptime";
-        private readonly string _relayTopic = $"home/{DEVICE}/switch";
-        private readonly string _systemTopic = $"home/{DEVICE}/system";
+        private readonly string _uptimeTopic = $"home/{Device}/uptime";
+        private readonly string _relayTopic = $"home/{Device}/switch";
+        private readonly string _systemTopic = $"home/{Device}/system";
 
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
@@ -66,8 +66,8 @@
         /// </summary>
         public void Start()
         {
-            InitializeRelayPin();
-            ConnectToBroker();
+            this.InitializeRelayPin();
+            this.ConnectToBroker();
         }
 
         private void InitializeRelayPin()
@@ -82,9 +82,9 @@
             {
                 try
                 {
-                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {BROKER} [Attempt: {++attemptCount}]");
-                    this.MqttClient = new MqttClient(BROKER);
-                    this.MqttClient.Connect(CLIENT_ID, MQTT_CLIENT_USERNAME, MQTT_CLIENT_PASSWORD);
+                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Broker} [Attempt: {++attemptCount}]");
+                    this.MqttClient = new MqttClient(Broker);
+                    this.MqttClient.Connect(ClientId, MqttClientUsername, MqttClientPassword);
 
                     if (MqttClient.IsConnected)
                     {
@@ -128,7 +128,7 @@
             _logger.LogWarning("[-] Lost connection to MQTT broker, attempting to reconnect...");
             Thread.Sleep(5000);
             _connectionService.Connect();
-            ConnectToBroker();
+            this.ConnectToBroker();
         }
 
         private void UptimeLoop()
@@ -175,11 +175,11 @@
             {
                 if (message.Contains("uptime"))
                 {
-                    this.MqttClient.Publish($"home/{DEVICE}/uptime", Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
+                    this.MqttClient.Publish($"home/{Device}/uptime", Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
                 }
                 else if (message.Contains("reboot"))
                 {
-                    this.MqttClient.Publish($"home/{DEVICE}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
+                    this.MqttClient.Publish($"home/{Device}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
