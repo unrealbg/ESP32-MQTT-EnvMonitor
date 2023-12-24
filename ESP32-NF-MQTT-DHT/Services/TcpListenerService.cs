@@ -1,20 +1,20 @@
-﻿using ESP32_NF_MQTT_DHT.Services.Contracts;
-
-using nanoFramework.Runtime.Native;
-
-using System;
-using System.Diagnostics;
-using System.IO;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-
-using static ESP32_NF_MQTT_DHT.Constants.Constants;
-
-namespace ESP32_NF_MQTT_DHT.Services
+﻿namespace ESP32_NF_MQTT_DHT.Services
 {
+    using System;
+    using System.Diagnostics;
+    using System.IO;
+    using System.Net;
+    using System.Net.NetworkInformation;
+    using System.Net.Sockets;
+    using System.Text;
+    using System.Threading;
+    
+    using nanoFramework.Runtime.Native;
+
+    using Contracts;
+
+    using static ESP32_NF_MQTT_DHT.Constants.Constants;
+
     /// <summary>
     /// Provides services for TCP listener functionalities including accepting and handling incoming TCP connections.
     /// </summary>
@@ -94,7 +94,7 @@ namespace ESP32_NF_MQTT_DHT.Services
             sw.Flush();
             var passwordInput = streamReader.ReadLine();
 
-            if (TCP_CLIENT_USERNAME != usernameInput || TCP_CLIENT_PASSWORD != passwordInput)
+            if (TcpClientUsername != usernameInput || TcpClientPassword != passwordInput)
             {
                 throw new ArgumentException("Invalid credentials.");
             }
@@ -110,7 +110,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                                 + $"Available commands: uptime, temp, publishUptime, exit, reboot\r\n\r\n  "
                                 + $"Users logged in:       1  IPv4 address for eth0: {NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address}\r\n");
 
-            sw.Write($"[{TCP_CLIENT_USERNAME}@{clientIp}]:~# ");
+            sw.Write($"[{TcpClientUsername}@{clientIp}]:~# ");
             sw.Flush();
 
             while (streamReader.Peek() > -1)
@@ -123,7 +123,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                     break;
                 }
 
-                sw.Write($"[{TCP_CLIENT_USERNAME}@{clientIp}] ");
+                sw.Write($"[{TcpClientUsername}@{clientIp}] ");
                 sw.Flush();
             }
         }
@@ -136,10 +136,10 @@ namespace ESP32_NF_MQTT_DHT.Services
                     WriteToStream(sw, _uptimeService.GetUptime());
                     return false;
                 case "temp":
-                    WriteToStream(sw, _dhtService.GetTemp());
+                    WriteToStream(sw, _dhtService.GetTemp().ToString());
                     return false;
                 case "publishUptime":
-                    _mqttClient.MqttClient.Publish($"home/{DEVICE}/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
+                    _mqttClient.MqttClient.Publish($"home/{Device}/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
                     return false;
                 case "exit":
                     Debug.WriteLine("[-] Client disconnected!");
