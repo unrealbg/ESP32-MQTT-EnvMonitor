@@ -24,7 +24,7 @@
         /// This method should extract the temperature data from the sensor
         /// and format it as a string for easy display or logging.
         /// </remarks>
-        string GetTemp();
+        double GetTemp();
 
         /// <summary>
         /// Retrieves the current humidity reading from the DHT sensor.
@@ -36,7 +36,7 @@
         /// This method should extract the humidity data from the sensor
         /// and format it as a string for easy display or logging.
         /// </remarks>
-        string GetHumidity();
+        double GetHumidity();
 
         /// <summary>
         /// Initiates the process of gathering sensor data from the DHT sensor.
