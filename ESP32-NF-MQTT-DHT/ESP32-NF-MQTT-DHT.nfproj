@@ -29,11 +29,13 @@
     <Compile Include="Services\Contracts\IConnectionService.cs" />
     <Compile Include="Services\Contracts\IDhtService.cs" />
     <Compile Include="Services\Contracts\IMqttClientService.cs" />
+    <Compile Include="Services\Contracts\IRelayService.cs" />
     <Compile Include="Services\Contracts\ITcpListenerService.cs" />
     <Compile Include="Services\Contracts\IUptimeService.cs" />
     <Compile Include="Services\Contracts\IWebServerService.cs" />
     <Compile Include="Services\DhtService.cs" />
     <Compile Include="Services\MqttClientService.cs" />
+    <Compile Include="Services\RelayService.cs" />
     <Compile Include="Services\TcpListenerService.cs" />
     <Compile Include="Services\UptimeService.cs" />
     <Compile Include="Services\WebServerService.cs" />
