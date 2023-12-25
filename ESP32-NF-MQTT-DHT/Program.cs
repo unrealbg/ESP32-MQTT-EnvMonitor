@@ -54,8 +54,15 @@ namespace ESP32_NF_MQTT_DHT
         }
     }
 
+    /// <summary>
+    /// Provides a global access point to shared services across the application.
+    /// </summary>
     public static class GlobalServices
     {
+        /// <summary>
+        /// Gets or sets the globally available instance of the DHT sensor service.
+        /// This service is responsible for interacting with the DHT sensor to read temperature and humidity data.
+        /// </summary>
         public static IDhtService DhtService { get; set; }
     }
 }
