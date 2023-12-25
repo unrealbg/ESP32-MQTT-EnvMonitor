@@ -20,6 +20,7 @@
   <ItemGroup>
     <Compile Include="Constants\Constants.cs" />
     <Compile Include="Controllers\SensorController.cs" />
+    <Compile Include="Helpers\HtmlPages.cs" />
     <Compile Include="Models\Sensor.cs" />
     <Compile Include="Models\Data.cs" />
     <Compile Include="Program.cs" />
