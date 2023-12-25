@@ -46,7 +46,17 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new Type[] { typeof(SensorController) }));
 
-            return services.BuildServiceProvider();
+            var serviceProvider = services.BuildServiceProvider();
+
+            // Set the global DhtService instance
+            GlobalServices.DhtService = serviceProvider.GetService(typeof(IDhtService)) as IDhtService;
+
+            return serviceProvider;
         }
+    }
+
+    public static class GlobalServices
+    {
+        public static IDhtService DhtService { get; set; }
     }
 }

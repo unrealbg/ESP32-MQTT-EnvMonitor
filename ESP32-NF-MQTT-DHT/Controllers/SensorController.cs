@@ -1,7 +1,5 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Controllers
 {
-    using Services.Contracts;
-
     using Microsoft.Extensions.Logging;
 
     using Models;
@@ -13,14 +11,10 @@
 
     public class SensorController
     {
-        private readonly IDhtService _dhtService;
-        private ILogger _logger;
-        private Sensor _device;
+        private readonly ILogger _logger;
 
-        public SensorController(IDhtService dhtService, ILoggerFactory loggerFactory)
+        public SensorController(ILoggerFactory loggerFactory)
         {
-            _dhtService = dhtService;
-            _device = new Sensor();
             _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
         }
 
@@ -28,80 +22,68 @@
         [Method("GET")]
         public void GetTemperature(WebServerEventArgs e)
         {
-            var temperature = 0.0;
-
-            try
-            {
-                temperature = _dhtService.GetTemp();
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(exception.Message);
-            }
-
-            var jsonResponse = $"{{\"temperature\": {temperature}}}";
-            e.Context.Response.ContentType = "application/json";
-            WebServer.OutPutStream(e.Context.Response, jsonResponse);
+            var temperature = FetchTemperature();
+            RespondWithJson(e, $"{{\"temperature\": {temperature:f2}}}");
         }
 
         [Route("api/humidity")]
         [Method("GET")]
         public void GetHumidity(WebServerEventArgs e)
         {
-            var humidity = 0.0;
-
-            try
-            {
-                humidity = _dhtService.GetHumidity();
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(exception.Message);
-            }
-
-            var jsonResponse = $"{{\"humidity\": {humidity}}}";
-            e.Context.Response.ContentType = "application/json";
-            WebServer.OutPutStream(e.Context.Response, jsonResponse);
+            var humidity = FetchHumidity();
+            RespondWithJson(e, $"{{\"humidity\": {humidity:f1}}}");
         }
 
         [Route("api/data")]
         [Method("GET")]
         public void GetData(WebServerEventArgs e)
         {
-            var temperature = 0.0;
-            var humidity = 0.0;
+            var temperature = FetchTemperature();
+            var humidity = FetchHumidity();
+            var sensorData = new Sensor
+            {
+                Data = new Data
+                {
+                    Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
+                    Time = DateTime.UtcNow.ToString("HH:mm:ss"),
+                    Temp = temperature,
+                    Humid = (int)humidity
+                }
+            };
 
+            RespondWithJson(e, JsonSerializer.SerializeObject(sensorData));
+        }
+
+        private double FetchTemperature()
+        {
             try
             {
-                temperature = _dhtService.GetTemp();
-                humidity = _dhtService.GetHumidity();
+                return GlobalServices.DhtService.GetTemp();
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception.Message);
+                _logger.LogError($"Failed to fetch temperature: {exception.Message}");
+                return double.NaN;
             }
-
-            //UpdateDeviceData(temperature, humidity);
-            var sensorData = new Sensor();
-            sensorData.Data = new Data();
-            sensorData.Data.Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy");
-            sensorData.Data.Time = DateTime.UtcNow.ToString("HH:mm:ss");
-            sensorData.Data.Temp = temperature;
-            sensorData.Data.Humid = (int)humidity;
-
-            var data = JsonSerializer.SerializeObject(sensorData);
-
-            var jsonResponse = $"{{\"sensor\": {data}}}";
-            e.Context.Response.ContentType = "application/json";
-            WebServer.OutPutStream(e.Context.Response, jsonResponse);
         }
 
-        private void UpdateDeviceData(double temperature, double humidity)
+        private double FetchHumidity()
         {
-            _device.Data.Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy");
-            _device.Data.Time = DateTime.UtcNow.ToString("HH:mm:ss");
-            _device.Data.Temp = temperature;
-            _device.Data.Humid = (int)humidity;
+            try
+            {
+                return GlobalServices.DhtService.GetHumidity();
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError($"Failed to fetch humidity: {exception.Message}");
+                return double.NaN;
+            }
+        }
+
+        private void RespondWithJson(WebServerEventArgs e, string jsonResponse)
+        {
+            e.Context.Response.ContentType = "application/json";
+            WebServer.OutPutStream(e.Context.Response, jsonResponse);
         }
     }
 }
