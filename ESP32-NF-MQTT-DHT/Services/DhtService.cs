@@ -27,8 +27,9 @@
         private const int ErrorInterval = 10000; // 10 seconds
         private const string Topic = "IoT/messages2";
         private static readonly string ErrorTopic = $"home/{Constants.Constants.Device}/errors";
-        private double _temp;
-        private double _humidity;
+        private Thread _sensorThread;
+        private double _temp = 0;
+        private double _humidity = 0;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
@@ -41,6 +42,7 @@
             _client = client;
             _logger = loggerFactory?.CreateLogger(nameof(DhtService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             this.Device = new Sensor();
+            _sensorThread = new Thread(SensorReadLoop);
         }
 
         /// <summary>
@@ -54,22 +56,7 @@
         public void Start()
         {
             _logger.LogInformation("[+] Start Reading Sensor Data from DHT21");
-
-            using (Dht21 dht = new Dht21(26, 27))
-            {
-                while (true)
-                {
-                    try
-                    {
-                        this.ReadAndPublishData(dht);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Sensor reading error: {ex.Message}");
-                        this.PublishError("Sensor reading error: " + ex.Message);
-                    }
-                }
-            }
+            _sensorThread.Start();
         }
 
         public void GetData()
@@ -126,6 +113,25 @@
         {
             var msg = JsonSerializer.SerializeObject(this.Device);
             this._client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg));
+        }
+
+        private void SensorReadLoop()
+        {
+            using (Dht21 dht = new Dht21(26, 27))
+            {
+                while (true)
+                {
+                    try
+                    {
+                        this.ReadAndPublishData(dht);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Sensor reading error: {ex.Message}");
+                        this.PublishError("Sensor reading error: " + ex.Message);
+                    }
+                }
+            }
         }
     }
 }
