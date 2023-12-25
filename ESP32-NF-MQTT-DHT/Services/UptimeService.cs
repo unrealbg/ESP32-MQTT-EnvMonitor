@@ -3,7 +3,7 @@
     using System.Diagnostics;
     using System.Text;
 
-    using Services.Contracts;
+    using Contracts;
 
     /// <summary>
     /// Provides functionality to measure the uptime of the system.

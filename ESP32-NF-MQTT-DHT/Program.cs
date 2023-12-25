@@ -1,7 +1,5 @@
-
 namespace ESP32_NF_MQTT_DHT
 {
-
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 

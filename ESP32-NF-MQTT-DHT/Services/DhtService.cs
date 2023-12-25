@@ -13,8 +13,7 @@
     using nanoFramework.Json;
 
     using Contracts;
-
-    using static Constants.Constants;
+    using Constants;
 
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
@@ -26,7 +25,7 @@
         private const int ReadInterval = 300000; // 5 minutes
         private const int ErrorInterval = 10000; // 10 seconds
         private const string Topic = "IoT/messages2";
-        private static readonly string ErrorTopic = $"home/{Constants.Constants.Device}/errors";
+        private static readonly string ErrorTopic = $"home/{Constants.Device}/errors";
         private Thread _sensorThread;
         private double _temp = 0;
         private double _humidity = 0;

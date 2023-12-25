@@ -35,7 +35,6 @@
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
-
             _webServerService = webServerService;
 
             _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));

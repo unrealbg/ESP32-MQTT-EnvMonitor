@@ -1,6 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Controllers
 {
-    using ESP32_NF_MQTT_DHT.Helpers;
+    using Helpers;
 
     using Microsoft.Extensions.Logging;
 
