@@ -1,5 +1,7 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Controllers
 {
+    using ESP32_NF_MQTT_DHT.Helpers;
+
     using Microsoft.Extensions.Logging;
 
     using Models;
@@ -16,6 +18,16 @@
         public SensorController(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+        }
+
+        [Route("/")]
+        [Method("GET")]
+        public void GetIndexPage(WebServerEventArgs e)
+        {
+            var htmlContent = HtmlPages.IndexPage;
+
+            e.Context.Response.ContentType = "text/html";
+            WebServer.OutPutStream(e.Context.Response, htmlContent);
         }
 
         [Route("api/temperature")]
