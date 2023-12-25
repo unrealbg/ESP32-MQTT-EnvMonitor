@@ -25,9 +25,6 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService
     {
-        private const int RelayPinNumber = 32;
-        private const string RelayOnMsg = "Relay turned ON";
-        private const string RelayOffMsg = "Relay turned OFF";
         private readonly string _uptimeTopic = $"home/{Device}/uptime";
         private readonly string _relayTopic = $"home/{Device}/switch";
         private readonly string _systemTopic = $"home/{Device}/system";
@@ -36,6 +33,7 @@
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly ILogger _logger;
+        private readonly IRelayService _relayService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
@@ -43,11 +41,13 @@
         /// <param name="uptimeService">Service to get uptime information.</param>
         /// <param name="connectionService">Service to manage network connections.</param>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
+        /// <param name="relayService">Service to control and manage the relay operations.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory)
+        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
+            _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
             _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _gpioController = new GpioController();
         }
@@ -67,13 +67,7 @@
         /// </summary>
         public void Start()
         {
-            this.InitializeRelayPin();
             this.ConnectToBroker();
-        }
-
-        private void InitializeRelayPin()
-        {
-            this.RelayPin = _gpioController.OpenPin(RelayPinNumber, PinMode.Output);
         }
 
         private void ConnectToBroker()
@@ -161,15 +155,13 @@
             {
                 if (message.Contains("on"))
                 {
-                    this.RelayPin.Write(PinValue.High);
-                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOnMsg));
-                    _logger.LogInformation($"[m] {RelayOnMsg}");
+                    _relayService.TurnOn();
+                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes("ON"));
                 }
                 else if (message.Contains("off"))
                 {
-                    this.RelayPin.Write(PinValue.Low);
-                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes(RelayOffMsg));
-                    _logger.LogInformation($"[m] {RelayOffMsg}");
+                    _relayService.TurnOff();
+                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
                 }
             }
             else if (e.Topic == _systemTopic)
