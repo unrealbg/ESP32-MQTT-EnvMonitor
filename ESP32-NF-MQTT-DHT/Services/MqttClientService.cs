@@ -5,6 +5,7 @@
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
+
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.M2Mqtt;
@@ -24,7 +25,7 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService
     {
-        private const int RelayPinNumber = 6;
+        private const int RelayPinNumber = 32;
         private const string RelayOnMsg = "Relay turned ON";
         private const string RelayOffMsg = "Relay turned OFF";
         private readonly string _uptimeTopic = $"home/{Device}/uptime";
