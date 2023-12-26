@@ -73,8 +73,8 @@
             }
             else
             {
-                _logger.LogWarning("Unable to read sensor data");
-
+                _logger.LogWarning($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                SetErrorValues();
                 Thread.Sleep(ErrorInterval);
             }
         }
@@ -92,9 +92,15 @@
                     catch (Exception ex)
                     {
                         _logger.LogError($"Sensor reading error: {ex.Message}");
+                        SetErrorValues();
                     }
                 }
             }
+        }
+        private void SetErrorValues()
+        {
+            _temp = -50;
+            _humidity = -100;
         }
     }
 }
