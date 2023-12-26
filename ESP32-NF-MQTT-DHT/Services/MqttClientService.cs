@@ -2,14 +2,12 @@
 {
     using System;
     using System.Device.Gpio;
-    using System.Net.Sockets;
     using System.Text;
     using System.Threading;
 
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.M2Mqtt;
-    using nanoFramework.M2Mqtt.Exceptions;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
 
@@ -18,6 +16,8 @@
     using static Constants.Constants;
 
     using IMqttClientService = Contracts.IMqttClientService;
+    using ESP32_NF_MQTT_DHT.Models;
+    using nanoFramework.Json;
 
     /// <summary>
     /// Service to handle MQTT client functionalities including connecting to the broker,
@@ -28,17 +28,22 @@
         private readonly string _uptimeTopic = $"home/{Device}/uptime";
         private readonly string _relayTopic = $"home/{Device}/switch";
         private readonly string _systemTopic = $"home/{Device}/system";
-        
+        private static readonly string ErrorTopic = $"home/{Device}/errors";
+
         private const int MaxReconnectAttempts = 20;
         private const int ReconnectDelay = 10000;
         private const int ErrorDelay = 15000;
         private const int UptimeDelay = 60000;
+        private const int ErrorInterval = 10000; // 10 seconds
+        private const string Topic = "IoT/messages2";
 
         private int _attemptCount = 1;
+        private bool _isRunning = true;
 
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
+        private readonly IDhtService _dhtService;
         private readonly ILogger _logger;
         private readonly IRelayService _relayService;
 
@@ -50,13 +55,14 @@
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <param name="relayService">Service to control and manage the relay operations.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService)
+        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService, IDhtService dhtService)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
             _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
             _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _gpioController = new GpioController();
+            _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
         }
 
         /// <summary>
@@ -75,7 +81,7 @@
 
         private void ConnectToBroker()
         {
-            while (true)
+            while (_isRunning)
             {
                 try
                 {
@@ -89,24 +95,17 @@
                         this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation("[+] Connected to MQTT broker.");
+
                         Thread uptimeThread = new Thread(UptimeLoop);
                         uptimeThread.Start();
+
+                        Thread sensorDataThread = new Thread(SensorDataLoop);
+                        sensorDataThread.Start();
+
                         break;
                     }
 
                     Thread.Sleep(ReconnectDelay);
-                }
-                catch (SocketException ex)
-                {
-                    _logger.LogError("[ex] Socket ERROR: " + ex.Message);
-                    HandleReconnection();
-                    _attemptCount++;
-                }
-                catch (MqttCommunicationException ex)
-                {
-                    _logger.LogError("[ex] MQTT Communication ERROR: " + ex.Message);
-                    HandleReconnection();
-                    _attemptCount++;
                 }
                 catch (Exception ex)
                 {
@@ -193,6 +192,73 @@
             }
 
             Thread.Sleep(ReconnectDelay);
+        }
+
+        private void SensorDataLoop()
+        {
+            while (_isRunning)
+            {
+                PublishSensorData();
+                Thread.Sleep(300000);
+            }
+        }
+
+        private void PublishSensorData()
+        {
+            try
+            {
+                var data = _dhtService.GetData();
+                if (IsSensorDataValid(data))
+                {
+                    PublishValidSensorData(data);
+                }
+                else
+                {
+                    PublishError("Unable to read sensor data");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                PublishError(ex.Message);
+            }
+        }
+
+        private void PublishError(string errorMessage)
+        {
+            MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
+            Thread.Sleep(ErrorInterval);
+        }
+
+        private bool IsSensorDataValid(double[] data)
+        {
+            return !(data[0] == -50 && data[1] == -100);
+        }
+
+        private void PublishValidSensorData(double[] data)
+        {
+            var sensorData = CreateSensorData(data);
+            var message = JsonSerializer.SerializeObject(sensorData);
+            MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(message));
+        }
+
+        private Sensor CreateSensorData(double[] data)
+        {
+            return new Sensor
+            {
+                Data = new Data
+                {
+                    Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
+                    Time = DateTime.UtcNow.ToString("HH:mm:ss"),
+                    Temp = data[0],
+                    Humid = (int)data[1]
+                }
+            };
+        }
+
+        private void Stop()
+        {
+            _isRunning = false;
         }
     }
 }
