@@ -198,29 +198,25 @@
         {
             while (_isRunning)
             {
-                PublishSensorData();
-                Thread.Sleep(300000);
-            }
-        }
+                try
+                {
+                    var data = _dhtService.GetData();
 
-        private void PublishSensorData()
-        {
-            try
-            {
-                var data = _dhtService.GetData();
-                if (IsSensorDataValid(data))
-                {
-                    PublishValidSensorData(data);
+                    if (IsSensorDataValid(data))
+                    {
+                        PublishValidSensorData(data);
+                        Thread.Sleep(300000);
+                    }
+                    else
+                    {
+                        PublishError($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    PublishError("Unable to read sensor data");
+                    _logger.LogError(ex.Message);
+                    PublishError(ex.Message);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message);
-                PublishError(ex.Message);
             }
         }
 
@@ -232,7 +228,7 @@
 
         private bool IsSensorDataValid(double[] data)
         {
-            return !(data[0] == -50 && data[1] == -100);
+            return !(data[0] == -50 || data[1] == -100);
         }
 
         private void PublishValidSensorData(double[] data)
