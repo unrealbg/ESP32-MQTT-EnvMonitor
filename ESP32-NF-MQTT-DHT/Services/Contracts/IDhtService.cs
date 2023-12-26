@@ -46,6 +46,6 @@
         /// temperature and humidity data from the DHT sensor.
         /// The collected data can then be used for further processing or analysis.
         /// </remarks>
-        void GetData();
+        double[] GetData();
     }
 }

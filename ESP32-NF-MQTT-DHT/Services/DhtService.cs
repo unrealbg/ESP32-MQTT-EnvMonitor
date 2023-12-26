@@ -1,54 +1,37 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
-    using System.Text;
     using System.Threading;
 
     using Iot.Device.DHTxx.Esp32;
 
     using Microsoft.Extensions.Logging;
 
-    using Models;
-
-    using nanoFramework.Json;
-
     using Contracts;
-
-    using static Constants.Constants;
 
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
     /// </summary>
     internal class DhtService : IDhtService
     {
-        private readonly IMqttClientService _client;
         private readonly ILogger _logger;
-        private const int ReadInterval = 300000; // 5 minutes
-        private const int ErrorInterval = 10000; // 10 seconds
-        private const string Topic = "IoT/messages2";
-        private static readonly string ErrorTopic = $"home/{Constants.Constants.Device}/errors";
+        private const int ReadInterval = 60000; // 1 minute
+        private const int ErrorInterval = 30000; // 30 seconds
+
         private Thread _sensorThread;
-        private double _temp = 0;
-        private double _humidity = 0;
+        private double _temp = -50;
+        private double _humidity = -100;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
         /// </summary>
-        /// <param name="client">The MQTT client used for publishing messages.</param>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public DhtService(IMqttClientService client, ILoggerFactory loggerFactory)
+        public DhtService(ILoggerFactory loggerFactory)
         {
-            _client = client;
             _logger = loggerFactory?.CreateLogger(nameof(DhtService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
-            this.Device = new Sensor();
             _sensorThread = new Thread(SensorReadLoop);
         }
-
-        /// <summary>
-        /// Gets or sets the sensor device.
-        /// </summary>
-        public Sensor Device { get; set; }
 
         /// <summary>
         /// Starts the service to continuously read and publish sensor data.
@@ -59,9 +42,13 @@
             _sensorThread.Start();
         }
 
-        public void GetData()
+        public double[] GetData()
         {
-            this.PublishSensorData();
+            var data = new double[2];
+            data[0] = this._temp;
+            data[1] = this._humidity;
+
+            return data;
         }
 
         public double GetTemp()
@@ -76,43 +63,20 @@
 
         private void ReadAndPublishData(Dht21 dht)
         {
-            var temperature = dht.Temperature.Value;
-            var humidity = dht.Humidity.Value;
-            this._temp = temperature;
-            this._humidity = humidity;
+            this._temp = dht.Temperature.Value;
+            this._humidity = dht.Humidity.Value;
 
             if (dht.IsLastReadSuccessful)
             {
-                UpdateDeviceData(temperature, humidity);
-                var msg = JsonSerializer.SerializeObject(this.Device);
-                _client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg));
+                _logger.LogInformation($"Temp: {_temp}\nHumid: {_humidity}");
                 Thread.Sleep(ReadInterval);
             }
             else
             {
-                _logger.LogWarning("Unable to read sensor data");
-                this.PublishError("Unable to read sensor data");
+                _logger.LogWarning($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                SetErrorValues();
+                Thread.Sleep(ErrorInterval);
             }
-        }
-
-        private void UpdateDeviceData(double temperature, double humidity)
-        {
-            this.Device.Data.Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy");
-            this.Device.Data.Time = DateTime.UtcNow.ToString("HH:mm:ss");
-            this.Device.Data.Temp = temperature;
-            this.Device.Data.Humid = (int)humidity;
-        }
-
-        private void PublishError(string errorMessage)
-        {
-            _client.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
-            Thread.Sleep(ErrorInterval);
-        }
-
-        private void PublishSensorData()
-        {
-            var msg = JsonSerializer.SerializeObject(this.Device);
-            this._client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg));
         }
 
         private void SensorReadLoop()
@@ -128,10 +92,15 @@
                     catch (Exception ex)
                     {
                         _logger.LogError($"Sensor reading error: {ex.Message}");
-                        this.PublishError("Sensor reading error: " + ex.Message);
+                        SetErrorValues();
                     }
                 }
             }
+        }
+        private void SetErrorValues()
+        {
+            _temp = -50;
+            _humidity = -100;
         }
     }
 }
