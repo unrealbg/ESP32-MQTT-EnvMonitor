@@ -28,6 +28,13 @@
         private readonly string _uptimeTopic = $"home/{Device}/uptime";
         private readonly string _relayTopic = $"home/{Device}/switch";
         private readonly string _systemTopic = $"home/{Device}/system";
+        
+        private const int MaxReconnectAttempts = 20;
+        private const int ReconnectDelay = 10000;
+        private const int ErrorDelay = 15000;
+        private const int UptimeDelay = 60000;
+
+        private int _attemptCount = 1;
 
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
@@ -53,11 +60,6 @@
         }
 
         /// <summary>
-        /// Gets the GPIO pin for the relay control.
-        /// </summary>
-        public GpioPin RelayPin { get; private set; }
-
-        /// <summary>
         /// Gets the MQTT client instance.
         /// </summary>
         public MqttClient MqttClient { get; private set; }
@@ -67,17 +69,17 @@
         /// </summary>
         public void Start()
         {
-            this.ConnectToBroker();
+            Thread connectionThread = new Thread(ConnectToBroker);
+            connectionThread.Start();
         }
 
         private void ConnectToBroker()
         {
-            int attemptCount = 0;
             while (true)
             {
                 try
                 {
-                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Broker} [Attempt: {++attemptCount}]");
+                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
                     this.MqttClient = new MqttClient(Broker);
                     this.MqttClient.Connect(ClientId, MqttClientUsername, MqttClientPassword);
 
@@ -92,28 +94,25 @@
                         break;
                     }
 
-                    Thread.Sleep(2000);
+                    Thread.Sleep(ReconnectDelay);
                 }
-                catch (MqttCommunicationException)
+                catch (SocketException ex)
                 {
-                    _logger.LogError("[ex] MQTT Communication ERROR");
-                    Thread.Sleep(5000);
+                    _logger.LogError("[ex] Socket ERROR: " + ex.Message);
+                    HandleReconnection();
+                    _attemptCount++;
                 }
-                catch (SocketException)
+                catch (MqttCommunicationException ex)
                 {
-                    _logger.LogError("[ex] Communication ERROR");
-                    Thread.Sleep(5000);
+                    _logger.LogError("[ex] MQTT Communication ERROR: " + ex.Message);
+                    HandleReconnection();
+                    _attemptCount++;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"[ex] ERROR: {ex.Message}");
-
-                    if (attemptCount > 20)
-                    {
-                        Power.RebootDevice();
-                    }
-
-                    Thread.Sleep(10000);
+                    _logger.LogError("[ex] ERROR: " + ex.Message);
+                    HandleReconnection();
+                    _attemptCount++;
                 }
             }
         }
@@ -121,9 +120,14 @@
         private void ConnectionClosed(object sender, EventArgs e)
         {
             _logger.LogWarning("[-] Lost connection to MQTT broker, attempting to reconnect...");
-            Thread.Sleep(5000);
-            _connectionService.Connect();
-            this.ConnectToBroker();
+            Thread reconnectThread = new Thread(() =>
+            {
+                Thread.Sleep(ReconnectDelay);
+                _connectionService.Connect();
+                ConnectToBroker();
+            });
+
+            reconnectThread.Start();
         }
 
         private void UptimeLoop()
@@ -135,12 +139,12 @@
                     string uptimeMessage = _uptimeService.GetUptime();
                     this.MqttClient.Publish(_uptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
                     _logger.LogInformation(uptimeMessage);
-                    Thread.Sleep(60000); // 1 minute
+                    Thread.Sleep(UptimeDelay);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError($"[e] ERROR: {ex.Message}");
-                    Thread.Sleep(2000);
+                    Thread.Sleep(ErrorDelay);
                     // optional
                     // Power.RebootDevice();
                 }
@@ -177,6 +181,18 @@
                     Power.RebootDevice();
                 }
             }
+        }
+
+        private void HandleReconnection()
+        {
+            if (_attemptCount > MaxReconnectAttempts)
+            {
+                Thread.Sleep(300000);
+                //Power.RebootDevice();
+                _attemptCount = 1;
+            }
+
+            Thread.Sleep(ReconnectDelay);
         }
     }
 }
