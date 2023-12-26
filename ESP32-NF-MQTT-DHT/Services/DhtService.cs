@@ -83,14 +83,24 @@
             if (dht.IsLastReadSuccessful)
             {
                 UpdateDeviceData(temperature, humidity);
-                var msg = JsonSerializer.SerializeObject(this.Device);
-                _client.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(msg));
+
+                if (_client.MqttClient is not null)
+                {
+                    PublishSensorData();
+                }
+
                 Thread.Sleep(ReadInterval);
             }
             else
             {
                 _logger.LogWarning("Unable to read sensor data");
-                this.PublishError("Unable to read sensor data");
+
+                if (_client.MqttClient is not null)
+                {
+                    this.PublishError("Unable to read sensor data");
+                }
+
+                Thread.Sleep(ErrorInterval);
             }
         }
 
