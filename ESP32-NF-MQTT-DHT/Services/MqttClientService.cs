@@ -245,7 +245,7 @@
                 Data = new Data
                 {
                     Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                    Time = DateTime.UtcNow.ToString("HH:mm:ss"),
+                    Time = DateTime.UtcNow.AddHours(2).ToString("HH:mm:ss"),
                     Temp = data[0],
                     Humid = (int)data[1]
                 }
