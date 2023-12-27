@@ -12,11 +12,12 @@
 
     public class AhtSensorService : IAhtSensorService
     {
+        private const int DataPin = 4;
+        private const int ClockPin = 5;
+
         private double _temperature;
         private double _humidity;
         private bool _running;
-        private int _dataPin;
-        private int _clockPin;
         private readonly ILogger _logger;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
@@ -28,8 +29,8 @@
         public void Start()
         {
             _running = true;
-            Configuration.SetPinFunction(_dataPin, DeviceFunction.I2C1_DATA);
-            Configuration.SetPinFunction(_clockPin, DeviceFunction.I2C1_CLOCK);
+            Configuration.SetPinFunction(DataPin, DeviceFunction.I2C1_DATA);
+            Configuration.SetPinFunction(ClockPin, DeviceFunction.I2C1_CLOCK);
 
             Thread sensorReadThread = new Thread(StartReceivingData);
             sensorReadThread.Start();
@@ -70,7 +71,7 @@
                             else
                             {
                                 _logger.LogWarning("Unable to read sensor data");
-                                SetErrorValues();
+                                this.SetErrorValues();
                                 _stopSignal.WaitOne(10000, false);
                             }
                         }
@@ -78,7 +79,7 @@
                     catch (Exception ex)
                     {
                         _logger.LogError($"Sensor reading error: {ex.Message}");
-                        SetErrorValues();
+                        this.SetErrorValues();
                         _stopSignal.WaitOne(10000, false);
                     }
                 }
