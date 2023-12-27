@@ -25,7 +25,9 @@
     <Compile Include="Models\Data.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\AhtSernsorService.cs" />
     <Compile Include="Services\ConnectionService.cs" />
+    <Compile Include="Services\Contracts\IAhtSensorService.cs" />
     <Compile Include="Services\Contracts\IConnectionService.cs" />
     <Compile Include="Services\Contracts\IDhtService.cs" />
     <Compile Include="Services\Contracts\IMqttClientService.cs" />
@@ -42,14 +44,20 @@
     <Compile Include="Startup.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Iot.Device.Ahtxx">
+      <HintPath>..\packages\nanoFramework.Iot.Device.Ahtxx.1.2.458\lib\Iot.Device.Ahtxx.dll</HintPath>
+    </Reference>
     <Reference Include="Iot.Device.Dhtxx.Esp32">
-      <HintPath>..\packages\nanoFramework.Iot.Device.Dhtxx.Esp32.1.2.436\lib\Iot.Device.Dhtxx.Esp32.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.Iot.Device.Dhtxx.Esp32.1.2.458\lib\Iot.Device.Dhtxx.Esp32.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib">
       <HintPath>..\packages\nanoFramework.CoreLibrary.1.15.5\lib\mscorlib.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.DependencyInjection">
       <HintPath>..\packages\nanoFramework.DependencyInjection.1.1.3\lib\nanoFramework.DependencyInjection.dll</HintPath>
+    </Reference>
+    <Reference Include="nanoFramework.Hardware.Esp32">
+      <HintPath>..\packages\nanoFramework.Hardware.Esp32.1.6.12\lib\nanoFramework.Hardware.Esp32.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.Hardware.Esp32.Rmt">
       <HintPath>..\packages\nanoFramework.Hardware.Esp32.Rmt.2.0.7\lib\nanoFramework.Hardware.Esp32.Rmt.dll</HintPath>
@@ -115,10 +123,10 @@
       <HintPath>..\packages\nanoFramework.System.Threading.1.1.32\lib\System.Threading.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.RelativeHumidity">
-      <HintPath>..\packages\UnitsNet.nanoFramework.RelativeHumidity.5.36.0\lib\UnitsNet.RelativeHumidity.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.RelativeHumidity.5.39.0\lib\UnitsNet.RelativeHumidity.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.Temperature">
-      <HintPath>..\packages\UnitsNet.nanoFramework.Temperature.5.36.0\lib\UnitsNet.Temperature.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.Temperature.5.39.0\lib\UnitsNet.Temperature.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
