@@ -44,11 +44,7 @@
 
         public double[] GetData()
         {
-            var data = new double[2];
-            data[0] = this._temp;
-            data[1] = this._humidity;
-
-            return data;
+            return new[] {_temp,  _humidity};
         }
 
         public double GetTemp()
