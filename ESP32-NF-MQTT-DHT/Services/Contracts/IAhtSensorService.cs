@@ -4,6 +4,10 @@
     {
         void Start();
 
+        void Stop();
+
+        double[] GetData();
+
         double GetTemp();
 
         double GetHumidity();

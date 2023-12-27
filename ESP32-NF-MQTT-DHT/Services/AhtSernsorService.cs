@@ -1,91 +1,94 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
-    using Contracts;
-    using Models;
-
-    using nanoFramework.Hardware.Esp32;
-    using nanoFramework.Logging;
-    using nanoFramework.Json;
-
-    using Iot.Device.Ahtxx;
-
     using System;
     using System.Device.I2c;
-    using System.Text;
     using System.Threading;
 
-    using Microsoft.Extensions.Logging;
+    using Iot.Device.Ahtxx;
+    using nanoFramework.Hardware.Esp32;
 
-    using static Constants.Constants;
+    using Contracts;
+    using Microsoft.Extensions.Logging;
 
     public class AhtSensorService : IAhtSensorService
     {
-        private readonly IMqttClientService _mqttClientService;
         private double _temperature;
         private double _humidity;
+        private bool _running;
+        private int _dataPin;
+        private int _clockPin;
+        private readonly ILogger _logger;
+        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
-        public AhtSensorService(IMqttClientService mqttClientService)
+        public AhtSensorService(ILoggerFactory loggerFactory)
         {
-            _mqttClientService = mqttClientService;
+            _logger = loggerFactory.CreateLogger(nameof(AhtSensorService));
         }
-
-        public Sensor Sensor { get; set; }
 
         public void Start()
         {
-            Configuration.SetPinFunction(4, DeviceFunction.I2C1_DATA);
-            Configuration.SetPinFunction(5, DeviceFunction.I2C1_CLOCK);
+            _running = true;
+            Configuration.SetPinFunction(_dataPin, DeviceFunction.I2C1_DATA);
+            Configuration.SetPinFunction(_clockPin, DeviceFunction.I2C1_CLOCK);
 
             Thread sensorReadThread = new Thread(StartReceivingData);
             sensorReadThread.Start();
         }
 
+        public void Stop()
+        {
+            _running = false;
+            _stopSignal.Set();
+        }
+
+        public double[] GetData() => new[] { _temperature, _humidity };
+
         public double GetTemp() => _temperature;
+
         public double GetHumidity() => _humidity;
 
         private void StartReceivingData()
         {
             I2cConnectionSettings i2CSettings = new I2cConnectionSettings(1, AhtBase.DefaultI2cAddress);
-            I2cDevice i2CDevice = I2cDevice.Create(i2CSettings);
-
+            using (I2cDevice i2CDevice = I2cDevice.Create(i2CSettings))
             using (var aht = new Aht10(i2CDevice))
             {
-                while (true)
+                while (_running)
                 {
                     try
                     {
-                        _temperature = aht.GetTemperature().DegreesCelsius;
-                        _humidity = aht.GetHumidity().Percent;
-
-                        if (_temperature < 45)
+                        if (!_stopSignal.WaitOne(0, true))
                         {
-                            var deviceData = new Sensor
+                            _temperature = aht.GetTemperature().DegreesCelsius;
+                            _humidity = aht.GetHumidity().Percent;
+
+                            if (_temperature < 45 && _temperature != -50)
                             {
-                                Data = new Data
-                                {
-                                    Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                                    Time = DateTime.UtcNow.AddHours(2).ToString("HH:mm:ss"),
-                                    Temp = _temperature,
-                                    Humid = (int)_humidity
-                                }
-                            };
-
-                            var msg = JsonSerializer.SerializeObject(deviceData);
-                            _mqttClientService.MqttClient.Publish("IoT/messages", Encoding.UTF8.GetBytes(msg));
+                                _logger.LogInformation($"Temp: {_temperature}\nHumidity: {_humidity}");
+                                _stopSignal.WaitOne(60000, false);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Unable to read sensor data");
+                                SetErrorValues();
+                                _stopSignal.WaitOne(10000, false);
+                            }
                         }
-                        else
-                        {
-                            _mqttClientService.MqttClient.Publish($"home/{Device}/errors", Encoding.UTF8.GetBytes("Error reading from DHT sensor"));
-                        }
-
-                        Thread.Sleep(60000); // Adjust time as needed
                     }
                     catch (Exception ex)
                     {
-                        aht.GetCurrentClassLogger().LogError($"[e] ERROR: {ex.Message}");
+                        _logger.LogError($"Sensor reading error: {ex.Message}");
+                        SetErrorValues();
+                        _stopSignal.WaitOne(10000, false);
                     }
                 }
             }
+        }
+
+        private void SetErrorValues()
+        {
+            _temperature = -50;
+            _humidity = -100;
         }
     }
 }
