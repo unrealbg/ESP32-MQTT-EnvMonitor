@@ -10,15 +10,15 @@
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
+    using nanoFramework.Json;
 
     using Contracts;
+    using Models;
 
     using static Constants.Constants;
     using static Helpers.TimeHelper;
 
     using IMqttClientService = Contracts.IMqttClientService;
-    using Models;
-    using nanoFramework.Json;
 
     /// <summary>
     /// Service to handle MQTT client functionalities including connecting to the broker,
@@ -29,6 +29,7 @@
         private readonly string _uptimeTopic = $"home/{Device}/uptime";
         private readonly string _relayTopic = $"home/{Device}/switch";
         private readonly string _systemTopic = $"home/{Device}/system";
+        private readonly string _dataTopic = $"home/{Device}/messages";
         private static readonly string ErrorTopic = $"home/{Device}/errors";
 
         private const int MaxReconnectAttempts = 20;
@@ -36,7 +37,6 @@
         private const int ErrorDelay = 15000;
         private const int UptimeDelay = 60000;
         private const int ErrorInterval = 10000; // 10 seconds
-        private const string Topic = "IoT/messages2";
 
         private int _attemptCount = 1;
         private bool _isRunning = true;
@@ -101,10 +101,10 @@
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
 
-                        Thread uptimeThread = new Thread(UptimeLoop);
+                        Thread uptimeThread = new Thread(this.UptimeLoop);
                         uptimeThread.Start();
 
-                        Thread sensorDataThread = new Thread(SensorDataLoop);
+                        Thread sensorDataThread = new Thread(this.SensorDataLoop);
                         sensorDataThread.Start();
 
                         break;
@@ -241,20 +241,23 @@
 
         private void PublishValidSensorData(double[] data)
         {
-            var sensorData = CreateSensorData(data);
+            var sensorData = this.CreateSensorData(data);
             var message = JsonSerializer.SerializeObject(sensorData);
-            this.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(message));
+            this.MqttClient.Publish(_dataTopic, Encoding.UTF8.GetBytes(message));
         }
 
         private Sensor CreateSensorData(double[] data)
         {
+            var temp = data[0];
+            temp = (int)((temp * 100) + 0.5) / 100.0;
+
             return new Sensor
             {
                 Data = new Data
                 {
                     Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
                     Time = GetCurrentTimestamp(),
-                    Temp = data[0],
+                    Temp = temp,
                     Humid = (int)data[1]
                 }
             };
