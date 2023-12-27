@@ -1,6 +1,6 @@
-# C# NanoFramework for ESP32 with DHT21 Sensor and MQTT Client
+# C# NanoFramework for ESP32 with DHT21/AHT10 Sensors, MQTT Client and WebServer
 
-This project demonstrates the integration of an ESP32 device with a DHT21 temperature and humidity sensor, using C# and the nanoFramework. It includes MQTT client capabilities for remote data communication, enabling real-time monitoring and data publishing over MQTT.
+This project showcases the integration of an ESP32 device with DHT21 and AHT10 temperature and humidity sensors, employing C# and the nanoFramework for development. Featuring MQTT client capabilities, it facilitates remote data communication, allowing for real-time monitoring and data publishing over MQTT. Additionally, the project includes a WebServer component, providing RESTful API endpoints for direct sensor data access and device control via HTTP requests. This dual functionality enhances the project's ability to interact with sensors and control device operations remotely, making it an ideal framework for IoT applications that require a versatile communication interface.
 
 Visit our portal at: [portal.unrealbg.com](http://portal.unrealbg.com)  
 **Username:** demo@unrealbg.com  
@@ -11,7 +11,7 @@ As a programming enthusiast, I welcome any feedback, guidance, or suggestions fo
 ## Requirements
 
 - ESP32 development board
-- DHT21 temperature and humidity sensor
+- DHT21 or AHT10 temperature and humidity sensor
 - MQTT broker (e.g., Mosquitto)
 
 ## Setup
@@ -20,7 +20,7 @@ As a programming enthusiast, I welcome any feedback, guidance, or suggestions fo
    Install the C# nanoFramework on your ESP32 device. Detailed instructions are available [here](https://docs.nanoframework.net/content/getting-started-guides/getting-started-managed.html).
 
 2. **Sensor Connection:**  
-   Connect the DHT21 sensor to your ESP32 device as per the sensor's documentation.
+   Connect the DHT21/AHT10 sensor to your ESP32 device as per the sensor's documentation.
 
 3. **MQTT Broker Setup:**  
    Set up an MQTT broker (like Mosquitto) on your network. Note down the hostname and port number.
@@ -33,7 +33,7 @@ As a programming enthusiast, I welcome any feedback, guidance, or suggestions fo
 
 ## Usage
 
-After completing the setup, the ESP32 device will start monitoring and publishing temperature and humidity data from the DHT21 sensor to an MQTT topic. Subscribe to this topic to receive real-time updates. The implementation also supports publishing custom messages to the MQTT topic.
+After completing the setup, the ESP32 device will start monitoring and publishing temperature and humidity data from the DHT21/AHT10 sensor to an MQTT topic. Subscribe to this topic to receive real-time updates. The implementation also supports publishing custom messages to the MQTT topic.
 
 ## Troubleshooting
 
@@ -41,7 +41,7 @@ After completing the setup, the ESP32 device will start monitoring and publishin
   Ensure the MQTT broker hostname and port number in the code are correct if connection issues arise.
 
 - **Sensor Data Accuracy:**  
-  If temperature and humidity readings are inaccurate or unstable, verify the DHT21 sensor's connections and calibration.
+  If temperature and humidity readings are inaccurate or unstable, verify the DHT21/AHT10 sensor's connections and calibration.
 
 ## WebServer with Controllers
 
@@ -51,7 +51,7 @@ This project now includes a WebServer that serves API endpoints, making use of C
 
 - **API Endpoints**: The WebServer exposes several API endpoints to interact with the DHT21 sensor and other functionalities.
 - **RESTful Design**: Adhering to REST principles, it enables easy integration with various client-side applications or services.
-- **Real-Time Data Access**: Offers endpoints to fetch real-time temperature and humidity data from the DHT21 sensor.
+- **Real-Time Data Access**: Offers endpoints to fetch real-time temperature and humidity data from the DHT21/AHT10 sensor.
 - **Device Control**: Additional endpoints provide control over certain functionalities of the ESP32 device.
 
 ### API Endpoints Usage
@@ -59,12 +59,12 @@ This project now includes a WebServer that serves API endpoints, making use of C
 1. **Temperature Data**:  
    - Endpoint: `/api/temperature`  
    - Method: `GET`  
-   - Description: Returns the current temperature reading from the DHT21 sensor in JSON format.
+   - Description: Returns the current temperature reading from the DHT21/AHT10 sensor in JSON format.
 
 2. **Humidity Data**:  
    - Endpoint: `/api/humidity`  
    - Method: `GET`  
-   - Description: Returns the current humidity reading from the DHT21 sensor in JSON format.
+   - Description: Returns the current humidity reading from the DHT21/AHT10 sensor in JSON format.
 
 3. **Sensor Data**:  
    - Endpoint: `/api/data`  
