@@ -1,7 +1,4 @@
-﻿//#define USE_DHT_SERVICE
-#define USE_AHT_SERVICE
-
-namespace ESP32_NF_MQTT_DHT
+﻿namespace ESP32_NF_MQTT_DHT
 {
     using Microsoft.Extensions.Logging;
 
@@ -58,15 +55,14 @@ namespace ESP32_NF_MQTT_DHT
                 _connectionService.Connect();
                 _logger.LogInformation("Startup: Connection established.");
 
-#if USE_DHT_SERVICE
+
                 _logger.LogInformation("Startup: Starting DHT service...");
                 _dhtService.Start();
                 _logger.LogInformation("Startup: DHT service started.");
-#elif USE_AHT_SERVICE
-        _logger.LogInformation("Startup: Starting AHT sensor service...");
-        _ahtSensorService.Start();
-        _logger.LogInformation("Startup: AHT sensor service started.");
-#endif
+
+                //_logger.LogInformation("Startup: Starting AHT sensor service...");
+                //_ahtSensorService.Start();
+                //_logger.LogInformation("Startup: AHT sensor service started.");
 
                 _logger.LogInformation("Startup: Starting MQTT client...");
                 _mqttClient.Start();
