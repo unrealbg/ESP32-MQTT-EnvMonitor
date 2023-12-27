@@ -7,8 +7,10 @@
     
     using Microsoft.Extensions.Logging;
     
-    using Constants;
     using Contracts;
+
+    using static Constants.Constants;
+    using static Helpers.TimeHelper;
 
     /// <summary>
     /// Service responsible for managing the network connection of the device.
@@ -34,7 +36,7 @@
         {
             if (IsAlreadyConnected())
             {
-                _logger.LogInformation("[+] The device is already connected...");
+                _logger.LogInformation($"[{GetCurrentTimestamp()}] The device is already connected...");
                 Thread.Sleep(5000);
                 return;
             }
@@ -44,23 +46,23 @@
 
             do
             {
-                _logger.LogInformation($"[*] Connecting... [Attempt {++count}]");
-                var result = wifiAdapter.Connect(Constants.Ssid, WifiReconnectionKind.Automatic, Constants.WifiPassword);
+                _logger.LogInformation($"[{GetCurrentTimestamp()}] Connecting... [Attempt {++count}]");
+                var result = wifiAdapter.Connect(Ssid, WifiReconnectionKind.Automatic, WifiPassword);
                 if (result.ConnectionStatus == WifiConnectionStatus.Success)
                 {
-                    _logger.LogInformation($"[+] Connected to Wifi network {Constants.Ssid}.");
+                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {Ssid}.");
                     Thread.Sleep(2000);
                     break;
                 }
                 else
                 {
-                    _logger.LogError($"[-] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
+                    _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
                     Thread.Sleep(10000);
                 }
             } while (true);
 
             var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            _logger.LogInformation($"[+] Connected to Wifi network {Constants.Ssid} with IP address {ipAddress}");
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {Ssid} with IP address {ipAddress}");
         }
 
         private bool IsAlreadyConnected()

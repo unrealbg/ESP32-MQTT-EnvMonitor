@@ -10,14 +10,15 @@
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
+    using nanoFramework.Json;
 
     using Contracts;
+    using Models;
 
     using static Constants.Constants;
+    using static Helpers.TimeHelper;
 
     using IMqttClientService = Contracts.IMqttClientService;
-    using ESP32_NF_MQTT_DHT.Models;
-    using nanoFramework.Json;
 
     /// <summary>
     /// Service to handle MQTT client functionalities including connecting to the broker,
@@ -28,6 +29,7 @@
         private readonly string _uptimeTopic = $"home/{Device}/uptime";
         private readonly string _relayTopic = $"home/{Device}/switch";
         private readonly string _systemTopic = $"home/{Device}/system";
+        private readonly string _dataTopic = $"home/{Device}/messages";
         private static readonly string ErrorTopic = $"home/{Device}/errors";
 
         private const int MaxReconnectAttempts = 20;
@@ -35,7 +37,6 @@
         private const int ErrorDelay = 15000;
         private const int UptimeDelay = 60000;
         private const int ErrorInterval = 10000; // 10 seconds
-        private const string Topic = "IoT/messages2";
 
         private int _attemptCount = 1;
         private bool _isRunning = true;
@@ -44,6 +45,7 @@
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly IDhtService _dhtService;
+        private readonly IAhtSensorService _ahtSensorService;
         private readonly ILogger _logger;
         private readonly IRelayService _relayService;
 
@@ -54,8 +56,10 @@
         /// <param name="connectionService">Service to manage network connections.</param>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <param name="relayService">Service to control and manage the relay operations.</param>
+        /// <param name="dhtService"> Service to read data from the DHT sensor.</param>
+        /// <param name="ahtSensorService"> Service to read data from the AHT sensor.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService, IDhtService dhtService)
+        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService, IDhtService dhtService, IAhtSensorService ahtSensorService)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
@@ -63,6 +67,7 @@
             _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _gpioController = new GpioController();
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
+            _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
         }
 
         /// <summary>
@@ -85,7 +90,7 @@
             {
                 try
                 {
-                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
+                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
                     this.MqttClient = new MqttClient(Broker);
                     this.MqttClient.Connect(ClientId, MqttClientUsername, MqttClientPassword);
 
@@ -94,12 +99,12 @@
                         this.MqttClient.ConnectionClosed += ConnectionClosed;
                         this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
-                        _logger.LogInformation("[+] Connected to MQTT broker.");
+                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
 
-                        Thread uptimeThread = new Thread(UptimeLoop);
+                        Thread uptimeThread = new Thread(this.UptimeLoop);
                         uptimeThread.Start();
 
-                        Thread sensorDataThread = new Thread(SensorDataLoop);
+                        Thread sensorDataThread = new Thread(this.SensorDataLoop);
                         sensorDataThread.Start();
 
                         break;
@@ -109,8 +114,8 @@
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError("[ex] ERROR: " + ex.Message);
-                    HandleReconnection();
+                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: {ex.Message}");
+                    this.HandleReconnection();
                     _attemptCount++;
                 }
             }
@@ -118,12 +123,12 @@
 
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            _logger.LogWarning("[-] Lost connection to MQTT broker, attempting to reconnect...");
+            _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost connection to MQTT broker, attempting to reconnect...");
             Thread reconnectThread = new Thread(() =>
             {
                 Thread.Sleep(ReconnectDelay);
                 _connectionService.Connect();
-                ConnectToBroker();
+                this.ConnectToBroker();
             });
 
             reconnectThread.Start();
@@ -142,7 +147,7 @@
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"[e] ERROR: {ex.Message}");
+                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: {ex.Message}");
                     Thread.Sleep(ErrorDelay);
                     // optional
                     // Power.RebootDevice();
@@ -200,29 +205,32 @@
             {
                 try
                 {
-                    var data = _dhtService.GetData();
+                    double[] data;
 
-                    if (IsSensorDataValid(data))
+                    data = _dhtService.GetData();
+                    //data = _ahtSensorService.GetData();
+
+                    if (this.IsSensorDataValid(data))
                     {
-                        PublishValidSensorData(data);
+                        this.PublishValidSensorData(data);
                         Thread.Sleep(300000);
                     }
                     else
                     {
-                        PublishError($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                        this.PublishError($"[{GetCurrentTimestamp()}] ERROR:  Unable to read sensor data");
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex.Message);
-                    PublishError(ex.Message);
+                    this.PublishError(ex.Message);
                 }
             }
         }
 
         private void PublishError(string errorMessage)
         {
-            MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
+            this.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
             Thread.Sleep(ErrorInterval);
         }
 
@@ -233,20 +241,23 @@
 
         private void PublishValidSensorData(double[] data)
         {
-            var sensorData = CreateSensorData(data);
+            var sensorData = this.CreateSensorData(data);
             var message = JsonSerializer.SerializeObject(sensorData);
-            MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(message));
+            this.MqttClient.Publish(_dataTopic, Encoding.UTF8.GetBytes(message));
         }
 
         private Sensor CreateSensorData(double[] data)
         {
+            var temp = data[0];
+            temp = (int)((temp * 100) + 0.5) / 100.0;
+
             return new Sensor
             {
                 Data = new Data
                 {
                     Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                    Time = DateTime.UtcNow.ToString("HH:mm:ss"),
-                    Temp = data[0],
+                    Time = GetCurrentTimestamp(),
+                    Temp = temp,
                     Humid = (int)data[1]
                 }
             };

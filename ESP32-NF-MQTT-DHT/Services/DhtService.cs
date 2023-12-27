@@ -9,6 +9,8 @@
 
     using Contracts;
 
+    using static Helpers.TimeHelper;
+
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
     /// </summary>
@@ -38,17 +40,13 @@
         /// </summary>
         public void Start()
         {
-            _logger.LogInformation("[+] Start Reading Sensor Data from DHT21");
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] Start Reading Sensor Data from DHT21");
             _sensorThread.Start();
         }
 
         public double[] GetData()
         {
-            var data = new double[2];
-            data[0] = this._temp;
-            data[1] = this._humidity;
-
-            return data;
+            return new[] {_temp,  _humidity};
         }
 
         public double GetTemp()
@@ -68,12 +66,12 @@
 
             if (dht.IsLastReadSuccessful)
             {
-                _logger.LogInformation($"Temp: {_temp}\nHumid: {_humidity}");
+                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temp}\nHumid: {_humidity}");
                 Thread.Sleep(ReadInterval);
             }
             else
             {
-                _logger.LogWarning($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                 SetErrorValues();
                 Thread.Sleep(ErrorInterval);
             }
@@ -91,7 +89,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Sensor reading error: {ex.Message}");
+                        _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
                         SetErrorValues();
                     }
                 }

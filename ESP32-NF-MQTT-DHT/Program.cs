@@ -40,7 +40,10 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IConnectionService), typeof(ConnectionService));
             services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
             services.AddSingleton(typeof(IRelayService), typeof(RelayService));
+
             services.AddSingleton(typeof(IDhtService), typeof(DhtService));
+            services.AddSingleton(typeof(IAhtSensorService), typeof(AhtSensorService));
+
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new Type[] { typeof(SensorController) }));
@@ -49,6 +52,7 @@ namespace ESP32_NF_MQTT_DHT
 
             // Set the global DhtService instance
             GlobalServices.DhtService = serviceProvider.GetService(typeof(IDhtService)) as IDhtService;
+            //GlobalServices.AhtSensorService = serviceProvider.GetService(typeof(IAhtSensorService)) as IAhtSensorService;
 
             return serviceProvider;
         }
@@ -64,5 +68,7 @@ namespace ESP32_NF_MQTT_DHT
         /// This service is responsible for interacting with the DHT sensor to read temperature and humidity data.
         /// </summary>
         public static IDhtService DhtService { get; set; }
+
+        //public static IAhtSensorService AhtSensorService { get; set; }
     }
 }
