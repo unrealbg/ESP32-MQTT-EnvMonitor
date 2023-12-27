@@ -49,7 +49,7 @@ This project now includes a WebServer that serves API endpoints, making use of C
 
 ### WebServer Features
 
-- **API Endpoints**: The WebServer exposes several API endpoints to interact with the DHT21 sensor and other functionalities.
+- **API Endpoints**: The WebServer exposes several API endpoints to interact with the DHT21/AHT10 sensor and other functionalities.
 - **RESTful Design**: Adhering to REST principles, it enables easy integration with various client-side applications or services.
 - **Real-Time Data Access**: Offers endpoints to fetch real-time temperature and humidity data from the DHT21/AHT10 sensor.
 - **Device Control**: Additional endpoints provide control over certain functionalities of the ESP32 device.
@@ -74,6 +74,14 @@ This project now includes a WebServer that serves API endpoints, making use of C
 ### Integration
 
 The WebServer is designed to be scalable and easily integrable with other systems, providing a seamless interface for data communication and device control. This makes it an ideal solution for IoT applications requiring real-time sensor data monitoring and device management over HTTP.
+
+## Additional Functionalities
+
+### Relay Control
+This project now includes the ability to control a relay module, enabling the ESP32 to manage power to connected devices. You can switch devices on or off based on sensor data or through MQTT commands, allowing for automated environmental control or remote power management.
+
+### AHT10 Sensor Support
+Alongside the DHT21 sensor, the ESP32 is now compatible with the AHT10 sensor. This provides flexibility in choosing the sensor based on your precision and calibration needs for temperature and humidity monitoring.
 
 ## Project Images
 
