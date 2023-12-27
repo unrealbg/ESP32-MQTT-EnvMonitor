@@ -41,6 +41,7 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
             services.AddSingleton(typeof(IRelayService), typeof(RelayService));
             services.AddSingleton(typeof(IDhtService), typeof(DhtService));
+            services.AddSingleton(typeof(IAhtSensorService), typeof(AhtSensorService));
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new Type[] { typeof(SensorController) }));
