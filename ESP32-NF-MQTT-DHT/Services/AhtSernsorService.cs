@@ -17,8 +17,8 @@
         private const int DataPin = 4;
         private const int ClockPin = 5;
 
-        private double _temperature;
-        private double _humidity;
+        private double _temperature = -50;
+        private double _humidity = -100;
         private bool _running;
         private readonly ILogger _logger;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
