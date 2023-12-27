@@ -1,4 +1,7 @@
-﻿namespace ESP32_NF_MQTT_DHT.Services
+﻿//#define USE_DHT_SERVICE
+#define USE_AHT_SERVICE
+
+namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
     using System.Device.Gpio;
@@ -16,7 +19,7 @@
     using static Constants.Constants;
 
     using IMqttClientService = Contracts.IMqttClientService;
-    using ESP32_NF_MQTT_DHT.Models;
+    using Models;
     using nanoFramework.Json;
 
     /// <summary>
@@ -44,6 +47,7 @@
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly IDhtService _dhtService;
+        private readonly IAhtSensorService _ahtSensorService;
         private readonly ILogger _logger;
         private readonly IRelayService _relayService;
 
@@ -54,8 +58,10 @@
         /// <param name="connectionService">Service to manage network connections.</param>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <param name="relayService">Service to control and manage the relay operations.</param>
+        /// <param name="dhtService"> Service to read data from the DHT sensor.</param>
+        /// <param name="ahtSensorService"> Service to read data from the AHT sensor.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService, IDhtService dhtService)
+        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService, IDhtService dhtService, IAhtSensorService ahtSensorService)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
@@ -63,6 +69,7 @@
             _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _gpioController = new GpioController();
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
+            _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
         }
 
         /// <summary>
@@ -110,7 +117,7 @@
                 catch (Exception ex)
                 {
                     _logger.LogError("[ex] ERROR: " + ex.Message);
-                    HandleReconnection();
+                    this.HandleReconnection();
                     _attemptCount++;
                 }
             }
@@ -123,7 +130,7 @@
             {
                 Thread.Sleep(ReconnectDelay);
                 _connectionService.Connect();
-                ConnectToBroker();
+                this.ConnectToBroker();
             });
 
             reconnectThread.Start();
@@ -200,29 +207,34 @@
             {
                 try
                 {
-                    var data = _dhtService.GetData();
+                    double[] data;
+#if USE_DHT_SERVICE
+                    data = _dhtService.GetData();
+#elif USE_AHT_SERVICE
+            data = _ahtSensorService.GetData();
+#endif
 
-                    if (IsSensorDataValid(data))
+                    if (this.IsSensorDataValid(data))
                     {
-                        PublishValidSensorData(data);
+                        this.PublishValidSensorData(data);
                         Thread.Sleep(300000);
                     }
                     else
                     {
-                        PublishError($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                        this.PublishError($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex.Message);
-                    PublishError(ex.Message);
+                    this.PublishError(ex.Message);
                 }
             }
         }
 
         private void PublishError(string errorMessage)
         {
-            MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
+            this.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
             Thread.Sleep(ErrorInterval);
         }
 
@@ -235,7 +247,7 @@
         {
             var sensorData = CreateSensorData(data);
             var message = JsonSerializer.SerializeObject(sensorData);
-            MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(message));
+            this.MqttClient.Publish(Topic, Encoding.UTF8.GetBytes(message));
         }
 
         private Sensor CreateSensorData(double[] data)
