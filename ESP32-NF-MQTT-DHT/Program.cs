@@ -1,3 +1,6 @@
+//#define USE_DHT_SERVICE
+#define USE_AHT_SERVICE
+
 namespace ESP32_NF_MQTT_DHT
 {
     using Microsoft.Extensions.DependencyInjection;
@@ -40,8 +43,11 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IConnectionService), typeof(ConnectionService));
             services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
             services.AddSingleton(typeof(IRelayService), typeof(RelayService));
+#if USE_DHT_SERVICE
             services.AddSingleton(typeof(IDhtService), typeof(DhtService));
-            services.AddSingleton(typeof(IAhtSensorService), typeof(AhtSensorService));
+#elif USE_AHT_SERVICE
+    services.AddSingleton(typeof(IAhtSensorService), typeof(AhtSensorService));
+#endif
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new Type[] { typeof(SensorController) }));
