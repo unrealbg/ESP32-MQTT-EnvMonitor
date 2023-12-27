@@ -71,6 +71,7 @@
             try
             {
                 return GlobalServices.DhtService.GetTemp();
+                //return GlobalServices.AhtSensorService.GetTemp();
             }
             catch (Exception exception)
             {
@@ -84,6 +85,7 @@
             try
             {
                 return GlobalServices.DhtService.GetHumidity();
+                //return GlobalServices.AhtSensorService.GetHumidity();
             }
             catch (Exception exception)
             {
