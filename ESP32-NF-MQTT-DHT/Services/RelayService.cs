@@ -7,6 +7,8 @@
 
     using Microsoft.Extensions.Logging;
 
+    using static Helpers.TimeHelper;
+
     /// <summary>
     /// Provides methods to control a relay connected to a specific GPIO pin.
     /// </summary>
@@ -59,7 +61,7 @@
         public void TurnOn()
         {
             _relayPin.Write(PinValue.High);
-            _logger.LogInformation("Relay turned ON");
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] Relay turned ON");
         }
 
         /// <summary>
@@ -68,7 +70,7 @@
         public void TurnOff()
         {
             _relayPin.Write(PinValue.Low);
-            _logger.LogInformation("Relay turned OFF");
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] Relay turned OFF");
         }
     }
 }

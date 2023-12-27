@@ -1,7 +1,4 @@
-﻿//#define USE_DHT_SERVICE
-#define USE_AHT_SERVICE
-
-namespace ESP32_NF_MQTT_DHT.Services
+﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
     using System.Device.Gpio;
@@ -17,6 +14,7 @@ namespace ESP32_NF_MQTT_DHT.Services
     using Contracts;
 
     using static Constants.Constants;
+    using static Helpers.TimeHelper;
 
     using IMqttClientService = Contracts.IMqttClientService;
     using Models;
@@ -92,7 +90,7 @@ namespace ESP32_NF_MQTT_DHT.Services
             {
                 try
                 {
-                    _logger.LogInformation($"[c] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
+                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
                     this.MqttClient = new MqttClient(Broker);
                     this.MqttClient.Connect(ClientId, MqttClientUsername, MqttClientPassword);
 
@@ -101,7 +99,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                         this.MqttClient.ConnectionClosed += ConnectionClosed;
                         this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
-                        _logger.LogInformation("[+] Connected to MQTT broker.");
+                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
 
                         Thread uptimeThread = new Thread(UptimeLoop);
                         uptimeThread.Start();
@@ -116,7 +114,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError("[ex] ERROR: " + ex.Message);
+                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: {ex.Message}");
                     this.HandleReconnection();
                     _attemptCount++;
                 }
@@ -125,7 +123,7 @@ namespace ESP32_NF_MQTT_DHT.Services
 
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            _logger.LogWarning("[-] Lost connection to MQTT broker, attempting to reconnect...");
+            _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost connection to MQTT broker, attempting to reconnect...");
             Thread reconnectThread = new Thread(() =>
             {
                 Thread.Sleep(ReconnectDelay);
@@ -149,7 +147,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"[e] ERROR: {ex.Message}");
+                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: {ex.Message}");
                     Thread.Sleep(ErrorDelay);
                     // optional
                     // Power.RebootDevice();
@@ -208,11 +206,9 @@ namespace ESP32_NF_MQTT_DHT.Services
                 try
                 {
                     double[] data;
-#if USE_DHT_SERVICE
+
                     data = _dhtService.GetData();
-#elif USE_AHT_SERVICE
-            data = _ahtSensorService.GetData();
-#endif
+                    //data = _ahtSensorService.GetData();
 
                     if (this.IsSensorDataValid(data))
                     {
@@ -221,7 +217,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                     }
                     else
                     {
-                        this.PublishError($"[{DateTime.UtcNow.AddHours(2).ToString("dd-MM-yyyy, HH:mm")}] Unable to read sensor data");
+                        this.PublishError($"[{GetCurrentTimestamp()}] ERROR:  Unable to read sensor data");
                     }
                 }
                 catch (Exception ex)
@@ -257,7 +253,7 @@ namespace ESP32_NF_MQTT_DHT.Services
                 Data = new Data
                 {
                     Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                    Time = DateTime.UtcNow.AddHours(2).ToString("HH:mm:ss"),
+                    Time = GetCurrentTimestamp(),
                     Temp = data[0],
                     Humid = (int)data[1]
                 }

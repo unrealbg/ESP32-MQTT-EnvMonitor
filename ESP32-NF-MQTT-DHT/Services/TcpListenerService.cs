@@ -14,6 +14,7 @@
     using Contracts;
 
     using static ESP32_NF_MQTT_DHT.Constants.Constants;
+    using static Helpers.TimeHelper;
 
     /// <summary>
     /// Provides services for TCP listener functionalities including accepting and handling incoming TCP connections.
@@ -62,14 +63,14 @@
 
             while (true)
             {
-                Debug.WriteLine($"[+] Waiting for an incoming connection on {localIP} port {TcpPort}");
+                Debug.WriteLine($"[{GetCurrentTimestamp()}] Waiting for an incoming connection on {localIP} port {TcpPort}");
 
                 try
                 {
                     using TcpClient client = listener.AcceptTcpClient();
                     IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                     string clientIp = remoteIpEndPoint!.Address.ToString();
-                    Debug.WriteLine($"[+] Client connected on port {TcpPort} from {clientIp}");
+                    Debug.WriteLine($"[{GetCurrentTimestamp()}] Client connected on port {TcpPort} from {clientIp}");
 
                     using NetworkStream stream = client.GetStream();
                     using StreamReader streamReader = new StreamReader(stream);
@@ -80,23 +81,23 @@
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Exception:-{ex.Message}");
+                    Debug.WriteLine($"[{GetCurrentTimestamp()}] Exception:-{ex.Message}");
                 }
             }
         }
 
         private void AuthenticateClient(StreamReader streamReader, StreamWriter sw, string clientIp)
         {
-            sw.Write($"login as: ");
+            sw.Write($"[{GetCurrentTimestamp()}] login as: ");
             sw.Flush();
             var usernameInput = streamReader.ReadLine();
-            sw.Write($"{usernameInput}@{clientIp} password: ");
+            sw.Write($"[{GetCurrentTimestamp()}] {usernameInput}@{clientIp} password: ");
             sw.Flush();
             var passwordInput = streamReader.ReadLine();
 
             if (TcpClientUsername != usernameInput || TcpClientPassword != passwordInput)
             {
-                throw new ArgumentException("Invalid credentials.");
+                throw new ArgumentException($"[{GetCurrentTimestamp()}] Invalid credentials.");
             }
         }
 
@@ -110,20 +111,20 @@
                                 + $"Available commands: uptime, temp, publishUptime, exit, reboot\r\n\r\n  "
                                 + $"Users logged in:       1  IPv4 address for eth0: {NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address}\r\n");
 
-            sw.Write($"[{TcpClientUsername}@{clientIp}]:~# ");
+            sw.Write($"[{GetCurrentTimestamp()}] [{TcpClientUsername}@{clientIp}]:~# ");
             sw.Flush();
 
             while (streamReader.Peek() > -1)
             {
                 var command = streamReader.ReadLine();
-                Debug.WriteLine($"[u] {command}");
+                Debug.WriteLine($"[{GetCurrentTimestamp()}] [u] {command}");
 
                 if (ProcessCommand(command, sw, client))
                 {
                     break;
                 }
 
-                sw.Write($"[{TcpClientUsername}@{clientIp}] ");
+                sw.Write($"[{GetCurrentTimestamp()}] [{TcpClientUsername}@{clientIp}] ");
                 sw.Flush();
             }
         }
@@ -142,14 +143,14 @@
                     _mqttClient.MqttClient.Publish($"home/{Device}/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
                     return false;
                 case "exit":
-                    Debug.WriteLine("[-] Client disconnected!");
+                    Debug.WriteLine($"[{GetCurrentTimestamp()}] Client disconnected!");
                     client.Close();
                     return true;
                 case "reboot":
                     Power.RebootDevice();
                     return true;
                 default:
-                    WriteToStream(sw, "[-] Unrecognized command");
+                    WriteToStream(sw, $"[{GetCurrentTimestamp()}] Unrecognized command");
                     return false;
             }
         }

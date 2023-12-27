@@ -10,6 +10,8 @@
     using Contracts;
     using Microsoft.Extensions.Logging;
 
+    using static Helpers.TimeHelper;
+
     public class AhtSensorService : IAhtSensorService
     {
         private const int DataPin = 4;
@@ -65,12 +67,12 @@
 
                             if (_temperature < 45 && _temperature != -50)
                             {
-                                _logger.LogInformation($"Temp: {_temperature}\nHumidity: {_humidity}");
+                                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temperature}\nHumidity: {_humidity}");
                                 _stopSignal.WaitOne(60000, false);
                             }
                             else
                             {
-                                _logger.LogWarning("Unable to read sensor data");
+                                _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                                 this.SetErrorValues();
                                 _stopSignal.WaitOne(10000, false);
                             }
@@ -78,7 +80,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Sensor reading error: {ex.Message}");
+                        _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(10000, false);
                     }
