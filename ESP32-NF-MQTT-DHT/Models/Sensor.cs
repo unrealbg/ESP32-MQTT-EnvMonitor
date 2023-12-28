@@ -10,7 +10,7 @@
         /// </summary>
         public Sensor()
         {
-            this.Data = new Data();
+            Data = new Data();
         }
 
         /// <summary>
