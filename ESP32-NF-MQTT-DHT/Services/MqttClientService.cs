@@ -1,7 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
-    using System.Device.Gpio;
     using System.Text;
     using System.Threading;
 
@@ -28,8 +27,6 @@
     {
         private const int MaxReconnectAttempts = 20;
         private const int ReconnectDelay = 10000;
-        private const int ErrorDelay = 15000;
-        private const int UptimeDelay = 60000;
         private const int ErrorInterval = 10000;
 
         private static readonly string UptimeTopic = $"home/{Device}/uptime";
@@ -40,7 +37,7 @@
 
         private int _attemptCount = 1;
         private bool _isRunning = true;
-        private static GpioController _gpioController;
+
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly IDhtService _dhtService;
@@ -64,7 +61,6 @@
             _connectionService = connectionService;
             _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
             _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
-            _gpioController = new GpioController();
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
             _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
         }
@@ -100,9 +96,6 @@
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
 
-                        Thread uptimeThread = new Thread(this.UptimeLoop);
-                        uptimeThread.Start();
-
                         Thread sensorDataThread = new Thread(this.SensorDataLoop);
                         sensorDataThread.Start();
 
@@ -133,27 +126,6 @@
             reconnectThread.Start();
         }
 
-        private void UptimeLoop()
-        {
-            while (true)
-            {
-                try
-                {
-                    string uptimeMessage = _uptimeService.GetUptime();
-                    this.MqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
-                    _logger.LogInformation(uptimeMessage);
-                    Thread.Sleep(UptimeDelay);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: {ex.Message}");
-                    Thread.Sleep(ErrorDelay);
-                    // optional
-                    // Power.RebootDevice();
-                }
-            }
-        }
-
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
@@ -175,7 +147,7 @@
             {
                 if (message.Contains("uptime"))
                 {
-                    this.MqttClient.Publish($"home/{Device}/uptime", Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
+                    this.MqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(this._uptimeService.GetUptime()));
                 }
                 else if (message.Contains("reboot"))
                 {
