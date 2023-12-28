@@ -5,9 +5,9 @@
     using System.Net.NetworkInformation;
     using System.Threading;
     
-    using Microsoft.Extensions.Logging;
-    
     using Contracts;
+
+    using Microsoft.Extensions.Logging;
 
     using static Constants.Constants;
     using static Helpers.TimeHelper;
@@ -18,7 +18,7 @@
     public class ConnectionService : IConnectionService
     {
         private readonly ILogger _logger;
-
+        
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionService"/> class.
         /// </summary>
@@ -34,32 +34,23 @@
         /// </summary>
         public void Connect()
         {
-            if (IsAlreadyConnected())
-            {
-                _logger.LogInformation($"[{GetCurrentTimestamp()}] The device is already connected...");
-                Thread.Sleep(5000);
-                return;
-            }
-
             var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
             var count = 0;
 
-            do
+            while (!IsAlreadyConnected())
             {
                 _logger.LogInformation($"[{GetCurrentTimestamp()}] Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(Ssid, WifiReconnectionKind.Automatic, WifiPassword);
+
                 if (result.ConnectionStatus == WifiConnectionStatus.Success)
                 {
                     _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {Ssid}.");
-                    Thread.Sleep(2000);
                     break;
                 }
-                else
-                {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
-                    Thread.Sleep(10000);
-                }
-            } while (true);
+
+                _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
+                Thread.Sleep(10000);
+            }
 
             var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
             _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {Ssid} with IP address {ipAddress}");
