@@ -26,21 +26,20 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService
     {
-        private readonly string _uptimeTopic = $"home/{Device}/uptime";
-        private readonly string _relayTopic = $"home/{Device}/switch";
-        private readonly string _systemTopic = $"home/{Device}/system";
-        private readonly string _dataTopic = $"home/{Device}/messages";
-        private static readonly string ErrorTopic = $"home/{Device}/errors";
-
         private const int MaxReconnectAttempts = 20;
         private const int ReconnectDelay = 10000;
         private const int ErrorDelay = 15000;
         private const int UptimeDelay = 60000;
-        private const int ErrorInterval = 10000; // 10 seconds
+        private const int ErrorInterval = 10000;
+
+        private static readonly string UptimeTopic = $"home/{Device}/uptime";
+        private static readonly string RelayTopic = $"home/{Device}/switch";
+        private static readonly string SystemTopic = $"home/{Device}/system";
+        private static readonly string DataTopic = $"home/{Device}/messages";
+        private static readonly string ErrorTopic = $"home/{Device}/errors";
 
         private int _attemptCount = 1;
         private bool _isRunning = true;
-
         private static GpioController _gpioController;
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
@@ -141,7 +140,7 @@
                 try
                 {
                     string uptimeMessage = _uptimeService.GetUptime();
-                    this.MqttClient.Publish(_uptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
+                    this.MqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptimeMessage));
                     _logger.LogInformation(uptimeMessage);
                     Thread.Sleep(UptimeDelay);
                 }
@@ -159,20 +158,20 @@
         {
             var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
 
-            if (e.Topic == _relayTopic)
+            if (e.Topic == RelayTopic)
             {
                 if (message.Contains("on"))
                 {
                     _relayService.TurnOn();
-                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes("ON"));
+                    this.MqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("ON"));
                 }
                 else if (message.Contains("off"))
                 {
                     _relayService.TurnOff();
-                    this.MqttClient.Publish(_relayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
+                    this.MqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
                 }
             }
-            else if (e.Topic == _systemTopic)
+            else if (e.Topic == SystemTopic)
             {
                 if (message.Contains("uptime"))
                 {
@@ -243,7 +242,7 @@
         {
             var sensorData = this.CreateSensorData(data);
             var message = JsonSerializer.SerializeObject(sensorData);
-            this.MqttClient.Publish(_dataTopic, Encoding.UTF8.GetBytes(message));
+            this.MqttClient.Publish(DataTopic, Encoding.UTF8.GetBytes(message));
         }
 
         private Sensor CreateSensorData(double[] data)

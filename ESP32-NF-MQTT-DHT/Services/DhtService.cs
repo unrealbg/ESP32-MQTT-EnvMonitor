@@ -16,13 +16,14 @@
     /// </summary>
     internal class DhtService : IDhtService
     {
-        private readonly ILogger _logger;
         private const int ReadInterval = 60000; // 1 minute
         private const int ErrorInterval = 30000; // 30 seconds
 
         private Thread _sensorThread;
         private double _temp = -50;
         private double _humidity = -100;
+
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.

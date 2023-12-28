@@ -23,6 +23,7 @@
     {
         private const int TcpPort = 1234;
         private const int Timeout = 1000;
+
         private readonly IUptimeService _uptimeService;
         private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;

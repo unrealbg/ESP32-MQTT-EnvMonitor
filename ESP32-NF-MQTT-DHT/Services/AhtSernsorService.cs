@@ -20,6 +20,7 @@
         private double _temperature = -50;
         private double _humidity = -100;
         private bool _running;
+
         private readonly ILogger _logger;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
