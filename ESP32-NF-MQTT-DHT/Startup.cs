@@ -11,6 +11,7 @@
     /// </summary>
     public class Startup
     {
+        private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;
@@ -27,17 +28,19 @@
         /// <param name="ahtSensorService">AHT sensor service.</param>
         /// <param name="loggerFactory">Factory for creating logger instances.</param>
         /// <param name="webServerService">WebServer service.</param>
+        /// <param name="uptimeService">Uptime service.</param>
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
             IDhtService dhtService,
             ILoggerFactory loggerFactory,
-            IWebServerService webServerService, IAhtSensorService ahtSensorService)
+            IWebServerService webServerService, IAhtSensorService ahtSensorService, IUptimeService uptimeService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
             _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
+            _uptimeService = uptimeService;
             _webServerService = webServerService;
 
             _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -51,6 +54,10 @@
         {
             try
             {
+                _logger.LogInformation("Startup: Starting Uptime service...");
+                _uptimeService.Start();
+                _logger.LogInformation("Startup: Uptime service started.");
+
                 _logger.LogInformation("Startup: Establishing connection...");
                 _connectionService.Connect();
                 _logger.LogInformation("Startup: Connection established.");
