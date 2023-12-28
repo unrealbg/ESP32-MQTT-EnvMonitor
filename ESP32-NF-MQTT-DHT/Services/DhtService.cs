@@ -3,11 +3,11 @@
     using System;
     using System.Threading;
 
+    using Contracts;
+
     using Iot.Device.DHTxx.Esp32;
 
     using Microsoft.Extensions.Logging;
-
-    using Contracts;
 
     using static Helpers.TimeHelper;
 
@@ -47,23 +47,23 @@
 
         public double[] GetData()
         {
-            return new[] {_temp,  _humidity};
+            return new[] { _temp, _humidity };
         }
 
         public double GetTemp()
         {
-            return this._temp;
+            return _temp;
         }
 
         public double GetHumidity()
         {
-            return this._humidity;
+            return _humidity;
         }
 
         private void ReadAndPublishData(Dht21 dht)
         {
-            this._temp = dht.Temperature.Value;
-            this._humidity = dht.Humidity.Value;
+            _temp = dht.Temperature.Value;
+            _humidity = dht.Humidity.Value;
 
             if (dht.IsLastReadSuccessful)
             {
@@ -80,22 +80,23 @@
 
         private void SensorReadLoop()
         {
-            using (Dht21 dht = new Dht21(26, 27))
+            try
             {
-                while (true)
+                using (Dht21 dht = new Dht21(26, 27))
                 {
-                    try
+                    while (true)
                     {
-                        this.ReadAndPublishData(dht);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
-                        SetErrorValues();
+                        ReadAndPublishData(dht);
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
+                SetErrorValues();
+            }
         }
+
         private void SetErrorValues()
         {
             _temp = -50;
