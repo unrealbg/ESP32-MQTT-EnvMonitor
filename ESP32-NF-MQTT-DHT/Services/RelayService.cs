@@ -14,25 +14,12 @@
     /// </summary>
     public class RelayService : IRelayService
     {
-        /// <summary>
-        /// GPIO pin number to which the relay is connected.
-        /// </summary>
         private const int RelayPinNumber = 32;
 
-        /// <summary>
-        /// Controller for managing GPIO pins.
-        /// </summary>
-        private readonly GpioController _gpioController;
-
-        /// <summary>
-        /// Logger for logging relay operation information.
-        /// </summary>
-        private readonly ILogger _logger;
-
-        /// <summary>
-        /// GPIO pin used to control the relay.
-        /// </summary>
         private GpioPin _relayPin;
+
+        private readonly GpioController _gpioController;
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RelayService"/> class.
@@ -44,15 +31,7 @@
             _gpioController = new GpioController();
             _logger = loggerFactory?.CreateLogger(nameof(RelayService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
-            this.InitializeRelayPin();
-        }
-
-        /// <summary>
-        /// Initializes the GPIO pin used for relay control.
-        /// </summary>
-        private void InitializeRelayPin()
-        {
-            _relayPin = _gpioController.OpenPin(RelayPinNumber, PinMode.Output);
+            InitializeRelayPin();
         }
 
         /// <summary>
@@ -71,6 +50,11 @@
         {
             _relayPin.Write(PinValue.Low);
             _logger.LogInformation($"[{GetCurrentTimestamp()}] Relay turned OFF");
+        }
+
+        private void InitializeRelayPin()
+        {
+            _relayPin = _gpioController.OpenPin(RelayPinNumber, PinMode.Output);
         }
     }
 }
