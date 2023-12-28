@@ -4,11 +4,12 @@
     using System.Device.I2c;
     using System.Threading;
 
+    using Microsoft.Extensions.Logging;
+    
     using Iot.Device.Ahtxx;
     using nanoFramework.Hardware.Esp32;
 
     using Contracts;
-    using Microsoft.Extensions.Logging;
 
     using static Helpers.TimeHelper;
 
@@ -74,7 +75,7 @@
                             else
                             {
                                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
-                                this.SetErrorValues();
+                                SetErrorValues();
                                 _stopSignal.WaitOne(10000, false);
                             }
                         }
@@ -82,7 +83,7 @@
                     catch (Exception ex)
                     {
                         _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
-                        this.SetErrorValues();
+                        SetErrorValues();
                         _stopSignal.WaitOne(10000, false);
                     }
                 }
