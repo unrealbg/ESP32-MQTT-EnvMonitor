@@ -1,15 +1,13 @@
 namespace ESP32_NF_MQTT_DHT
 {
+    using Controllers;
+    using Services;
+    using Services.Contracts;
+
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.Logging.Debug;
-
-    using Services;
-    using Services.Contracts;
-    using Controllers;
-
-    using System;
 
     /// <summary>
     /// Main program class.
@@ -46,7 +44,7 @@ namespace ESP32_NF_MQTT_DHT
 
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
-            services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new Type[] { typeof(SensorController) }));
+            services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new[] { typeof(SensorController) }));
 
             var serviceProvider = services.BuildServiceProvider();
 
