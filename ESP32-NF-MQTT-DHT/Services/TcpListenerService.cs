@@ -1,20 +1,19 @@
-﻿namespace ESP32_NF_MQTT_DHT.Services
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using ESP32_NF_MQTT_DHT.Helpers;
+using ESP32_NF_MQTT_DHT.Services.Contracts;
+using nanoFramework.Runtime.Native;
+
+namespace ESP32_NF_MQTT_DHT.Services
 {
-    using System;
-    using System.Diagnostics;
-    using System.IO;
-    using System.Net;
-    using System.Net.NetworkInformation;
-    using System.Net.Sockets;
-    using System.Text;
-    using System.Threading;
-    
-    using nanoFramework.Runtime.Native;
-
-    using Contracts;
-
-    using static ESP32_NF_MQTT_DHT.Constants.Constants;
-    using static Helpers.TimeHelper;
+    using static Constants.Constants;
+    using static TimeHelper;
 
     /// <summary>
     /// Provides services for TCP listener functionalities including accepting and handling incoming TCP connections.
@@ -104,12 +103,12 @@
 
         private void ProcessClientCommands(StreamReader streamReader, StreamWriter sw, TcpClient client, string clientIp)
         {
-            WriteToStream(sw, $"Welcome to EspDuino-32 HW-729 (OpenSocket connection)\r\n\r\n *"
-                                + $" Documentation:  https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n *"
-                                + $" Management:     https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n *"
-                                + $" Support:        https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n\r\n  "
+            WriteToStream(sw, "Welcome to EspDuino-32 HW-729 (OpenSocket connection)\r\n\r\n *"
+                                + " Documentation:  https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n *"
+                                + " Management:     https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n *"
+                                + " Support:        https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n\r\n  "
                                 + $"System information as of {DateTime.Today} {DateTime.Today.Date} {DateTime.Today.Day} EET {DateTime.Today.Year}\r\n\r\n  "
-                                + $"Available commands: uptime, temp, publishUptime, exit, reboot\r\n\r\n  "
+                                + "Available commands: uptime, temp, publishUptime, exit, reboot\r\n\r\n  "
                                 + $"Users logged in:       1  IPv4 address for eth0: {NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address}\r\n");
 
             sw.Write($"[{GetCurrentTimestamp()}] [{TcpClientUsername}@{clientIp}]:~# ");
