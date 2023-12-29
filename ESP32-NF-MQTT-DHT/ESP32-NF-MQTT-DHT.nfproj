@@ -115,7 +115,7 @@
       <HintPath>..\packages\nanoFramework.System.Net.1.10.64\lib\System.Net.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Http">
-      <HintPath>..\packages\nanoFramework.System.Net.Http.Server.1.5.113\lib\System.Net.Http.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Net.Http.1.5.113\lib\System.Net.Http.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Sockets.TcpClient">
       <HintPath>..\packages\nanoframework.System.Net.Sockets.TcpClient.1.1.64\lib\System.Net.Sockets.TcpClient.dll</HintPath>
