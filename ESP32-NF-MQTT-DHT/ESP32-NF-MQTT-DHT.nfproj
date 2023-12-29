@@ -18,7 +18,10 @@
   </PropertyGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
-    <Compile Include="Constants\Constants.cs" />
+    <Compile Include="Constants\DeviceSettings.cs" />
+    <Compile Include="Constants\MqttSettings.cs" />
+    <Compile Include="Constants\TcpSettings.cs" />
+    <Compile Include="Constants\WifiSettings.cs" />
     <Compile Include="Controllers\SensorController.cs" />
     <Compile Include="Helpers\HtmlPages.cs" />
     <Compile Include="Helpers\TimeHelper.cs" />

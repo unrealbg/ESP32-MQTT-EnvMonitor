@@ -62,7 +62,6 @@
                 _connectionService.Connect();
                 _logger.LogInformation("Startup: Connection established.");
 
-
                 _logger.LogInformation("Startup: Starting DHT service...");
                 _dhtService.Start();
                 _logger.LogInformation("Startup: DHT service started.");

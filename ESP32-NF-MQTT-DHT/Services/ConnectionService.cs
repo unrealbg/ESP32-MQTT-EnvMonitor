@@ -9,7 +9,7 @@
 
     using Microsoft.Extensions.Logging;
 
-    using static Constants.Constants;
+    using static Constants.WifiSettings;
     using static Helpers.TimeHelper;
 
     /// <summary>
@@ -40,11 +40,11 @@
             while (!IsAlreadyConnected())
             {
                 _logger.LogInformation($"[{GetCurrentTimestamp()}] Connecting... [Attempt {++count}]");
-                var result = wifiAdapter.Connect(Ssid, WifiReconnectionKind.Automatic, WifiPassword);
+                var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
 
                 if (result.ConnectionStatus == WifiConnectionStatus.Success)
                 {
-                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {Ssid}.");
+                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID}.");
                     break;
                 }
 
@@ -53,7 +53,7 @@
             }
 
             var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {Ssid} with IP address {ipAddress}");
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
         }
 
         private bool IsAlreadyConnected()

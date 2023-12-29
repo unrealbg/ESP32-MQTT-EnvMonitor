@@ -14,7 +14,8 @@
     using Contracts;
     using Models;
 
-    using static Constants.Constants;
+    using static Constants.DeviceSettings;
+    using static Constants.MqttSettings;
     using static Helpers.TimeHelper;
 
     using IMqttClientService = Contracts.IMqttClientService;
@@ -29,11 +30,11 @@
         private const int ReconnectDelay = 10000;
         private const int ErrorInterval = 10000;
 
-        private static readonly string UptimeTopic = $"home/{Device}/uptime";
-        private static readonly string RelayTopic = $"home/{Device}/switch";
-        private static readonly string SystemTopic = $"home/{Device}/system";
-        private static readonly string DataTopic = $"home/{Device}/messages";
-        private static readonly string ErrorTopic = $"home/{Device}/errors";
+        private static readonly string UptimeTopic = $"home/{DeviceName}/uptime";
+        private static readonly string RelayTopic = $"home/{DeviceName}/switch";
+        private static readonly string SystemTopic = $"home/{DeviceName}/system";
+        private static readonly string DataTopic = $"home/{DeviceName}/messages";
+        private static readonly string ErrorTopic = $"home/{DeviceName}/errors";
 
         private int _attemptCount = 1;
         private bool _isRunning = true;
@@ -87,7 +88,7 @@
                 {
                     _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
                     this.MqttClient = new MqttClient(Broker);
-                    this.MqttClient.Connect(ClientId, MqttClientUsername, MqttClientPassword);
+                    this.MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
 
                     if (MqttClient.IsConnected)
                     {
@@ -151,7 +152,7 @@
                 }
                 else if (message.Contains("reboot"))
                 {
-                    this.MqttClient.Publish($"home/{Device}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
+                    this.MqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
