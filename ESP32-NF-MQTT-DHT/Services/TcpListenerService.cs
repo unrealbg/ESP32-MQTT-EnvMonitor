@@ -13,8 +13,8 @@
 
     using Contracts;
 
-    using static Constants.TcpSettings;
-    using static Constants.DeviceSettings;
+    using static Settings.TcpSettings;
+    using static Settings.DeviceSettings;
     using static Helpers.TimeHelper;
 
     /// <summary>

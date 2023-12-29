@@ -14,8 +14,8 @@
     using Contracts;
     using Models;
 
-    using static Constants.DeviceSettings;
-    using static Constants.MqttSettings;
+    using static Settings.DeviceSettings;
+    using static Settings.MqttSettings;
     using static Helpers.TimeHelper;
 
     using IMqttClientService = Contracts.IMqttClientService;

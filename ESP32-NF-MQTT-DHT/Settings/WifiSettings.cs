@@ -1,4 +1,4 @@
-﻿namespace ESP32_NF_MQTT_DHT.Constants
+﻿namespace ESP32_NF_MQTT_DHT.Settings
 {
     public static class WifiSettings
     {

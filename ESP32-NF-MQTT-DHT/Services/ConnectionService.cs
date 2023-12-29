@@ -9,7 +9,7 @@
 
     using Microsoft.Extensions.Logging;
 
-    using static Constants.WifiSettings;
+    using static Settings.WifiSettings;
     using static Helpers.TimeHelper;
 
     /// <summary>

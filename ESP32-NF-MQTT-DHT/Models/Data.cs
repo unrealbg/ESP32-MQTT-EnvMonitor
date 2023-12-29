@@ -1,6 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Models
 {
-    using Constants;
+    using Settings;
 
     /// <summary>
     /// Represents the data collected from the Dht21 sensor.
@@ -50,7 +50,7 @@
         /// <value>
         /// The SSID of the connected WiFi network. This value is obtained from the Constants.SSID.
         /// </value>
-        public string Wifissid => Constants.WifiSettings.SSID;
+        public string Wifissid => WifiSettings.SSID;
 
         /// <summary>
         /// Gets the firmware release information.
