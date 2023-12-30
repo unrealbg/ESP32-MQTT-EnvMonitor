@@ -227,10 +227,11 @@
             {
                 Data = new Data
                 {
+                    SensorType = SensorType,
                     Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
                     Time = GetCurrentTimestamp(),
                     Temp = temp,
-                    Humid = (int)data[1]
+                    Humid = (int)data[1],
                 }
             };
         }
