@@ -10,7 +10,7 @@
         /// <summary>
         /// Gets the name of the sensor.
         /// </summary>
-        public string Sensorname => "Dht21";
+        public string SensorType { get; set; }
 
         /// <summary>
         /// Gets or sets the date when the data was recorded.
@@ -43,18 +43,5 @@
         /// The humidity value recorded by the sensor, as a percentage.
         /// </value>
         public int Humid { get; set; }
-
-        /// <summary>
-        /// Gets the WiFi SSID that the device is connected to.
-        /// </summary>
-        /// <value>
-        /// The SSID of the connected WiFi network. This value is obtained from the Constants.SSID.
-        /// </value>
-        public string Wifissid => WifiSettings.SSID;
-
-        /// <summary>
-        /// Gets the firmware release information.
-        /// </summary>
-        public string Rel => "1.0 Init";
     }
 }
