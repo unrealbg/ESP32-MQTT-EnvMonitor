@@ -105,9 +105,9 @@
 
                     Thread.Sleep(ReconnectDelay);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: {ex.Message}");
+                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: Unable to connect to MQTT broker.");
                     this.HandleReconnection();
                     _attemptCount++;
                 }
