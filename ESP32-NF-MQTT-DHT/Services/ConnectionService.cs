@@ -36,29 +36,32 @@
         {
             var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
             var count = 0;
+            var maxAttempts = 10;
 
-            while (!IsAlreadyConnected())
+            while (!IsAlreadyConnected(out var ipAddress))
             {
                 _logger.LogInformation($"[{GetCurrentTimestamp()}] Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
 
-                if (result.ConnectionStatus == WifiConnectionStatus.Success)
+                for (int waitTime = 0; waitTime < maxAttempts; waitTime++)
                 {
-                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID}.");
-                    break;
+                    if (result.ConnectionStatus == WifiConnectionStatus.Success && IsAlreadyConnected(out ipAddress))
+                    {
+                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
+                        return;
+                    }
+
+                    Thread.Sleep(200);
                 }
 
                 _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
                 Thread.Sleep(10000);
             }
-
-            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
         }
 
-        private bool IsAlreadyConnected()
+        private bool IsAlreadyConnected(out string ipAddress)
         {
-            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
             return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
         }
 
