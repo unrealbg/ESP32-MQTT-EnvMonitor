@@ -69,7 +69,7 @@
 
                             if (_temperature < 45 && _temperature != -50)
                             {
-                                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temperature}\nHumidity: {_humidity}");
+                                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temperature}, Humidity: {_humidity}");
                                 _stopSignal.WaitOne(60000, false);
                             }
                             else
