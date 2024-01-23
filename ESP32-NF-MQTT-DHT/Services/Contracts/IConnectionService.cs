@@ -9,5 +9,7 @@
         /// Initiates a connection to the network.
         /// </summary>
         void Connect();
+
+        bool IsConnected {  get; }
     }
 }

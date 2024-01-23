@@ -84,6 +84,12 @@
         {
             while (_isRunning)
             {
+                if (!_connectionService.IsConnected)
+                {
+                    _logger.LogWarning($"[{GetCurrentTimestamp()}] Device is not connected to the network. Attempting to reconnect...");
+                    _connectionService.Connect();
+                }
+
                 try
                 {
                     _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
