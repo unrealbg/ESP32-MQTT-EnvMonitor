@@ -97,13 +97,11 @@
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
 
-                        Thread sensorDataThread = new Thread(this.SensorDataLoop);
-                        sensorDataThread.Start();
-
+                        StartSensorDataThread();
                         break;
                     }
 
-                    Thread.Sleep(ReconnectDelay);
+                    HandleReconnection();
                 }
                 catch (Exception)
                 {
@@ -112,6 +110,12 @@
                     _attemptCount++;
                 }
             }
+        }
+
+        private void StartSensorDataThread()
+        {
+            Thread sensorDataThread = new Thread(this.SensorDataLoop);
+            sensorDataThread.Start();
         }
 
         private void ConnectionClosed(object sender, EventArgs e)
@@ -163,12 +167,14 @@
         {
             if (_attemptCount > MaxReconnectAttempts)
             {
-                Thread.Sleep(300000);
-                //Power.RebootDevice();
+                Thread.Sleep(ReconnectDelay * _attemptCount);
                 _attemptCount = 1;
             }
-
-            Thread.Sleep(ReconnectDelay);
+            else
+            {
+                Thread.Sleep(ReconnectDelay);
+                _attemptCount++;
+            }
         }
 
         private void SensorDataLoop()
@@ -185,7 +191,7 @@
                     if (this.IsSensorDataValid(data))
                     {
                         this.PublishValidSensorData(data);
-                        Thread.Sleep(300000);
+                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
                     }
                     else
                     {
@@ -194,9 +200,11 @@
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex.Message);
-                    this.PublishError(ex.Message);
+                    _logger.LogError($"[{GetCurrentTimestamp()}] Exception in SensorDataLoop: {ex.Message}");
+                    this.PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
+
+                Thread.Sleep(300000);
             }
         }
 
