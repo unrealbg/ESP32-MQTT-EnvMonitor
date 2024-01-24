@@ -39,6 +39,9 @@
         private int _attemptCount = 1;
         private bool _isRunning = true;
 
+        private Thread _sensorDataThread;
+        private bool _isSensorDataThreadRunning = false;
+
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly IDhtService _dhtService;
@@ -107,34 +110,37 @@
                         break;
                     }
 
+                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: Unable to connect to MQTT broker.");
                     HandleReconnection();
                 }
                 catch (Exception)
                 {
                     _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: Unable to connect to MQTT broker.");
-                    this.HandleReconnection();
-                    _attemptCount++;
+                    HandleReconnection();
                 }
             }
         }
 
         private void StartSensorDataThread()
         {
-            Thread sensorDataThread = new Thread(this.SensorDataLoop);
-            sensorDataThread.Start();
+            if (_isSensorDataThreadRunning) 
+                return;
+
+            _sensorDataThread = new Thread(this.SensorDataLoop);
+            _sensorDataThread.Start();
+            _isSensorDataThreadRunning = true;
         }
 
         private void ConnectionClosed(object sender, EventArgs e)
         {
             _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost connection to MQTT broker, attempting to reconnect...");
-            Thread reconnectThread = new Thread(() =>
-            {
-                Thread.Sleep(ReconnectDelay);
-                _connectionService.Connect();
-                this.ConnectToBroker();
-            });
 
-            reconnectThread.Start();
+            if (_isSensorDataThreadRunning)
+            {
+                _isSensorDataThreadRunning = false;
+            }
+
+            ConnectToBroker();
         }
 
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
@@ -185,14 +191,16 @@
 
         private void SensorDataLoop()
         {
-            while (_isRunning)
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] Starting sensor data loop...");
+
+            while (_isRunning && _isSensorDataThreadRunning)
             {
                 try
                 {
                     double[] data;
 
-                    data = _dhtService.GetData();
-                    //data = _ahtSensorService.GetData();
+                    //data = _dhtService.GetData();
+                    data = _ahtSensorService.GetData();
 
                     if (this.IsSensorDataValid(data))
                     {
