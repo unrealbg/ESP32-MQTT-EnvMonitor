@@ -17,6 +17,8 @@
     {
         private const int DataPin = 4;
         private const int ClockPin = 5;
+        private const int ReadInterval = 60000;
+        private const int ErrorInterval = 30000;
 
         private double _temperature = -50;
         private double _humidity = -100;
@@ -70,13 +72,13 @@
                             if (_temperature < 45 && _temperature != -50)
                             {
                                 _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temperature}, Humidity: {_humidity}");
-                                _stopSignal.WaitOne(60000, false);
+                                _stopSignal.WaitOne(ReadInterval false);
                             }
                             else
                             {
                                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                                 SetErrorValues();
-                                _stopSignal.WaitOne(10000, false);
+                                _stopSignal.WaitOne(ErrorInterval, false);
                             }
                         }
                     }
@@ -84,7 +86,7 @@
                     {
                         _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
                         SetErrorValues();
-                        _stopSignal.WaitOne(10000, false);
+                        _stopSignal.WaitOne(ErrorInterval,false);
                     }
                 }
             }
