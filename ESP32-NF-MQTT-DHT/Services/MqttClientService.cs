@@ -127,8 +127,8 @@
                 return;
 
             _sensorDataThread = new Thread(this.SensorDataLoop);
-            _sensorDataThread.Start();
             _isSensorDataThreadRunning = true;
+            _sensorDataThread.Start();
         }
 
         private void ConnectionClosed(object sender, EventArgs e)
