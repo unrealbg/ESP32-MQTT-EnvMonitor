@@ -29,6 +29,7 @@
         private const int MaxReconnectAttempts = 20;
         private const int ReconnectDelay = 10000;
         private const int ErrorInterval = 10000;
+        private const int SensorDataInterval = 300000;
 
         private static readonly string UptimeTopic = $"home/{DeviceName}/uptime";
         private static readonly string RelayTopic = $"home/{DeviceName}/switch";
@@ -169,6 +170,7 @@
                 else if (message.Contains("reboot"))
                 {
                     this.MqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
+                    _logger.LogWarning($"[{GetCurrentTimestamp()}] Rebooting device...");
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
@@ -199,13 +201,15 @@
                 {
                     double[] data;
 
-                    //data = _dhtService.GetData();
-                    data = _ahtSensorService.GetData();
+                    data = _dhtService.GetData();
+                    //data = _ahtSensorService.GetData();
 
                     if (this.IsSensorDataValid(data))
                     {
                         this.PublishValidSensorData(data);
                         _logger.LogInformation($"[{GetCurrentTimestamp()}] Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
+                        Thread.Sleep(SensorDataInterval);
+
                     }
                     else
                     {
@@ -218,7 +222,7 @@
                     this.PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
 
-                Thread.Sleep(300000);
+                Thread.Sleep(ErrorInterval);
             }
         }
 
