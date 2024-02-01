@@ -70,13 +70,13 @@
       <HintPath>..\packages\nanoFramework.Json.2.2.103\lib\nanoFramework.Json.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.Logging">
-      <HintPath>..\packages\nanoFramework.Logging.1.1.76\lib\nanoFramework.Logging.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.Logging.1.1.81\lib\nanoFramework.Logging.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.M2Mqtt">
-      <HintPath>..\packages\nanoFramework.M2Mqtt.5.1.110\lib\nanoFramework.M2Mqtt.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.M2Mqtt.5.1.116\lib\nanoFramework.M2Mqtt.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.M2Mqtt.Core">
-      <HintPath>..\packages\nanoFramework.M2Mqtt.5.1.110\lib\nanoFramework.M2Mqtt.Core.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.M2Mqtt.5.1.116\lib\nanoFramework.M2Mqtt.Core.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.Runtime.Events">
       <HintPath>..\packages\nanoFramework.Runtime.Events.1.11.15\lib\nanoFramework.Runtime.Events.dll</HintPath>
@@ -91,7 +91,7 @@
       <HintPath>..\packages\nanoFramework.System.Text.1.2.54\lib\nanoFramework.System.Text.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.WebServer">
-      <HintPath>..\packages\nanoFramework.WebServer.1.2.14\lib\nanoFramework.WebServer.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.WebServer.1.2.23\lib\nanoFramework.WebServer.dll</HintPath>
     </Reference>
     <Reference Include="System.Device.Gpio">
       <HintPath>..\packages\nanoFramework.System.Device.Gpio.1.1.38\lib\System.Device.Gpio.dll</HintPath>
@@ -103,7 +103,7 @@
       <HintPath>..\packages\nanoFramework.System.Device.Model.1.2.418\lib\System.Device.Model.dll</HintPath>
     </Reference>
     <Reference Include="System.Device.Wifi">
-      <HintPath>..\packages\nanoFramework.System.Device.Wifi.1.5.71\lib\System.Device.Wifi.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Device.Wifi.1.5.76\lib\System.Device.Wifi.dll</HintPath>
     </Reference>
     <Reference Include="System.Diagnostics.Stopwatch">
       <HintPath>..\packages\nanoFramework.System.Diagnostics.Stopwatch.1.2.418\lib\System.Diagnostics.Stopwatch.dll</HintPath>
@@ -115,13 +115,13 @@
       <HintPath>..\packages\nanoFramework.System.Math.1.5.43\lib\System.Math.dll</HintPath>
     </Reference>
     <Reference Include="System.Net">
-      <HintPath>..\packages\nanoFramework.System.Net.1.10.68\lib\System.Net.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Net.1.10.72\lib\System.Net.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Http">
-      <HintPath>..\packages\nanoFramework.System.Net.Http.1.5.113\lib\System.Net.Http.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Net.Http.Server.1.5.125\lib\System.Net.Http.dll</HintPath>
     </Reference>
     <Reference Include="System.Net.Sockets.TcpClient">
-      <HintPath>..\packages\nanoframework.System.Net.Sockets.TcpClient.1.1.64\lib\System.Net.Sockets.TcpClient.dll</HintPath>
+      <HintPath>..\packages\nanoframework.System.Net.Sockets.TcpClient.1.1.69\lib\System.Net.Sockets.TcpClient.dll</HintPath>
     </Reference>
     <Reference Include="System.Threading">
       <HintPath>..\packages\nanoFramework.System.Threading.1.1.32\lib\System.Threading.dll</HintPath>
