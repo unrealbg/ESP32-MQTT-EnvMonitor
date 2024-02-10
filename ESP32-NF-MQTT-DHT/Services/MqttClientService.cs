@@ -49,6 +49,7 @@
         private readonly IAhtSensorService _ahtSensorService;
         private readonly ILogger _logger;
         private readonly IRelayService _relayService;
+        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
@@ -106,6 +107,8 @@
                         this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
                         this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
                         _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
+
+                        _attemptCount = 1;
 
                         StartSensorDataThread();
                         break;
@@ -181,12 +184,12 @@
         {
             if (_attemptCount > MaxReconnectAttempts)
             {
-                Thread.Sleep(ReconnectDelay * _attemptCount);
+                _stopSignal.WaitOne(ReconnectDelay * _attemptCount, false);
                 _attemptCount = 1;
             }
             else
             {
-                Thread.Sleep(ReconnectDelay);
+                _stopSignal.WaitOne(ReconnectDelay, false);
                 _attemptCount++;
             }
         }
@@ -265,6 +268,7 @@
         private void Stop()
         {
             _isRunning = false;
+            _stopSignal.Set();
         }
     }
 }
