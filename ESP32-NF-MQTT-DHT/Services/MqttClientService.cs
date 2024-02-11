@@ -85,45 +85,33 @@
             connectionThread.Start();
         }
 
-        private void ConnectToBroker()
+        public void ConnectToBroker()
         {
-            while (_isRunning)
+            _isRunning = true;
+            int attemptCount = 0;
+            const int maxAttempts = 1000;
+            int delayBetweenAttempts = 5000;
+
+            while (_isRunning && attemptCount < maxAttempts)
             {
-                if (!_connectionService.IsConnected)
+                if (TryConnectToBroker())
                 {
-                    _logger.LogWarning($"[{GetCurrentTimestamp()}] Device is not connected to the network. Attempting to reconnect...");
-                    _connectionService.Connect();
+                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker");
+                    StartSensorDataThread();
+                    return;
                 }
 
-                try
-                {
-                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {Broker} [Attempt: {_attemptCount}]");
-                    this.MqttClient = new MqttClient(Broker);
-                    this.MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+                attemptCount++;
+                _logger.LogWarning($"[{GetCurrentTimestamp()}] Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / 1000} seconds...");
+                _stopSignal.WaitOne(delayBetweenAttempts, false);
 
-                    if (MqttClient.IsConnected)
-                    {
-                        this.MqttClient.ConnectionClosed += ConnectionClosed;
-                        this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
-                        this.MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
-                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker.");
-
-                        _attemptCount = 1;
-
-                        StartSensorDataThread();
-                        break;
-                    }
-
-                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: Unable to connect to MQTT broker.");
-                    HandleReconnection();
-                }
-                catch (Exception)
-                {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] ERROR: Unable to connect to MQTT broker.");
-                    HandleReconnection();
-                }
+                delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, 120000);
             }
+
+            _logger.LogError($"[{GetCurrentTimestamp()}] Failed to connect to MQTT broker after {maxAttempts} attempts, restarting device...");
+            Power.RebootDevice();
         }
+
 
         private void StartSensorDataThread()
         {
@@ -146,6 +134,55 @@
 
             ConnectToBroker();
         }
+
+        private bool TryConnectToBroker()
+        {
+            DisposeCurrentClient();
+
+            _connectionService.CheckConnection();
+
+            try
+            {
+                _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker...");
+                MqttClient = new MqttClient(Broker);
+                MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+
+                if (MqttClient.IsConnected)
+                {
+                    SetupMqttClient();
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        private void DisposeCurrentClient()
+        {
+            if (MqttClient != null)
+            {
+                if (MqttClient.IsConnected)
+                {
+                    MqttClient.Disconnect();
+                }
+
+                MqttClient.Dispose();
+                MqttClient = null;
+            }
+        }
+
+        private void SetupMqttClient()
+        {
+            MqttClient.ConnectionClosed += ConnectionClosed;
+            MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+            MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
+            _logger.LogInformation($"[{GetCurrentTimestamp()}] MQTT client setup complete");
+        }
+
 
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
@@ -180,64 +217,54 @@
             }
         }
 
-        private void HandleReconnection()
-        {
-            if (_attemptCount > MaxReconnectAttempts)
-            {
-                _stopSignal.WaitOne(ReconnectDelay * _attemptCount, false);
-                _attemptCount = 1;
-            }
-            else
-            {
-                _stopSignal.WaitOne(ReconnectDelay, false);
-                _attemptCount++;
-            }
-        }
-
         private void SensorDataLoop()
         {
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] Starting sensor data loop...");
-
             while (_isRunning && _isSensorDataThreadRunning)
             {
                 try
                 {
-                    double[] data;
-
-                    data = _dhtService.GetData();
-                    //data = _ahtSensorService.GetData();
-
-                    if (this.IsSensorDataValid(data))
-                    {
-                        this.PublishValidSensorData(data);
-                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
-                        Thread.Sleep(SensorDataInterval);
-
-                    }
-                    else
-                    {
-                        this.PublishError($"[{GetCurrentTimestamp()}] ERROR:  Unable to read sensor data");
-                    }
+                    PublishSensorData();
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] Exception in SensorDataLoop: {ex.Message}");
-                    this.PublishError($"SensorDataLoop Exception: {ex.Message}");
+                    _logger.LogError($"[{GetCurrentTimestamp()}] SensorDataLoop Exception: {ex.Message}");
+                    PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
 
-                Thread.Sleep(ErrorInterval);
+                _stopSignal.WaitOne(ErrorInterval, false);
             }
         }
 
         private void PublishError(string errorMessage)
         {
             this.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
-            Thread.Sleep(ErrorInterval);
+            _stopSignal.WaitOne(ErrorInterval, false);
         }
 
         private bool IsSensorDataValid(double[] data)
         {
             return !(data[0] == -50 || data[1] == -100);
+        }
+
+        private void PublishSensorData()
+        {
+            double[] data;
+
+            data = _dhtService.GetData();
+            //data = _ahtSensorService.GetData();
+
+            if (IsSensorDataValid(data))
+            {
+                PublishValidSensorData(data);
+                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
+                _stopSignal.WaitOne(SensorDataInterval, false);
+            }
+            else
+            {
+                PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                _stopSignal.WaitOne(ErrorInterval, false);
+            }
         }
 
         private void PublishValidSensorData(double[] data)
