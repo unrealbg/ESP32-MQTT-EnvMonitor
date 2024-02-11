@@ -48,20 +48,25 @@
                     if (result.ConnectionStatus == WifiConnectionStatus.Success && IsAlreadyConnected(out ipAddress))
                     {
                         _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
-                        IsConnected = true;
                         return;
                     }
 
                     Thread.Sleep(200);
                 }
 
-                IsConnected = false;
                 _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
                 Thread.Sleep(10000);
             }
         }
 
-        public bool IsConnected { get; private set; }
+        public void CheckConnection()
+        {
+            if (!IsAlreadyConnected(out var ipAddress))
+            {
+                _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost network connection. Attempting to reconnect...");
+                Connect();
+            }
+        }
 
         private bool IsAlreadyConnected(out string ipAddress)
         {

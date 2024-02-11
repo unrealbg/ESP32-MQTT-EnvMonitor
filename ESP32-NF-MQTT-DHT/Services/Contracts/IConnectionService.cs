@@ -10,6 +10,6 @@
         /// </summary>
         void Connect();
 
-        bool IsConnected {  get; }
+        void CheckConnection();
     }
 }
