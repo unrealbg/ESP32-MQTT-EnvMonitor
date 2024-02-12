@@ -1,6 +1,5 @@
 namespace ESP32_NF_MQTT_DHT
 {
-    using Controllers;
     using Services;
     using Services.Contracts;
 
@@ -35,7 +34,8 @@ namespace ESP32_NF_MQTT_DHT
 
             // Register individual services
             services.AddSingleton(typeof(Startup));
-            services.AddSingleton(typeof(IConnectionService), typeof(ConnectionService));
+
+            var a = services.AddSingleton(typeof(IConnectionService), typeof(ConnectionService))[0];
             services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
             services.AddSingleton(typeof(IRelayService), typeof(RelayService));
 
@@ -44,7 +44,7 @@ namespace ESP32_NF_MQTT_DHT
 
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
-            services.AddSingleton(typeof(IWebServerService), new WebServerService(80, new[] { typeof(SensorController) }));
+            services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
 
             var serviceProvider = services.BuildServiceProvider();
 
