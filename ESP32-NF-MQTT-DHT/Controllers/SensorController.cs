@@ -88,7 +88,7 @@
         {
             try
             {
-                var temperature = FetchTemperature();
+                var temperature = double.Parse($"{FetchTemperature():f2}");
                 var humidity = FetchHumidity();
                 if (!double.IsNaN(temperature) && !double.IsNaN(humidity))
                 {
