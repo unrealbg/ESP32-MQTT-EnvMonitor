@@ -3,55 +3,142 @@
     public static class HtmlPages
     {
         public static string IndexPage = @"
-            <html>
+            <!DOCTYPE html>
+            <html lang=""en"">
             <head>
-                <title>ESP32 Sensor Dashboard</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        background-color: #f4f4f4;
-                        text-align: center;
-                        padding: 50px;
-                    }
-                    h1 {
-                        color: #333;
-                    }
-                    .sensor-data {
-                        margin-top: 20px;
-                        padding: 10px;
-                        background-color: #e0e0e0;
-                        display: inline-block;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>ESP32 Sensor Dashboard</h1>
-                <div class='sensor-data'>
-                    <h2>Temperature</h2>
-                    <p id='temperature'>Loading...</p>
-                </div>
-                <div class='sensor-data'>
-                    <h2>Humidity</h2>
-                    <p id='humidity'>Loading...</p>
-                </div>
-                <script>
-                    function fetchData(url, elementId) {
-                        var xhr = new XMLHttpRequest();
-                        xhr.onreadystatechange = function() {
-                            if (xhr.readyState === 4 && xhr.status === 200) {
-                                var data = JSON.parse(xhr.responseText);
-                                document.getElementById(elementId).innerText = data[elementId] + (elementId === 'temperature' ? '°C' : '%');
-                            }
-                        };
-                        xhr.open('GET', url, true);
-                        xhr.send();
-                    }
-                    setInterval(function() {
-                        fetchData('/api/temperature', 'temperature');
-                        fetchData('/api/humidity', 'humidity');
-                    }, 5000); // Fetch data every 5 seconds
-                </script>
-            </body>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>ESP32 Sensor Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .sensor-data {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e0e0e0;
+            display: inline-block;
+            border-radius: 10px;
+        }
+        @media (max-width: 600px) {
+            .sensor-data {
+                margin: 20px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Sensor Dashboard</h1>
+    <div class='sensor-data'>
+        <h2>Temperature</h2>
+        <p id='temperature'>Loading...</p>
+    </div>
+    <div class='sensor-data'>
+        <h2>Humidity</h2>
+        <p id='humidity'>Loading...</p>
+    </div>
+<p><a href=""/documentation"">View API Documentation</a></p>
+    <script>
+    function fetchData() {
+        fetch('/api/data')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('temperature').innerText = `${data.Data.Temp}°C`;
+                document.getElementById('humidity').innerText = `${data.Data.Humid}%`;
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                document.getElementById('temperature').innerText = 'Error fetching data';
+                document.getElementById('humidity').innerText = 'Error fetching data';
+            });
+    }
+
+    setInterval(() => {
+        fetchData();
+    }, 5000); // Fetch data every 5 seconds
+</script>
+</body>
             </html>";
+
+
+        public static string DocPage = @"
+<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>ESP32 NanoFramework Sensor API Documentation</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1, h2 { color: #333; }
+        pre { background-color: #f4f4f4; padding: 15px; }
+        .endpoint { background-color: #eee; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>ESP32 NanoFramework Sensor API Documentation</h1>
+    <p>This documentation describes the API endpoints for interacting with the ESP32 NanoFramework Sensor Controller.</p>
+
+    <section class=""endpoint"">
+        <h2>1. Get Index Page</h2>
+        <p><strong>Endpoint:</strong> /</p>
+        <p><strong>Method:</strong> GET</p>
+        <p><strong>Description:</strong> Returns the main index page for the ESP32 nanoFramework Web Server.</p>
+        <p><strong>Response Type:</strong> text/html</p>
+        <pre>&lt;p&gt;ESP32 nanoFramework Web Server&lt;/p&gt;</pre>
+    </section>
+
+    <section class=""endpoint"">
+        <h2>2. Get Temperature</h2>
+        <p><strong>Endpoint:</strong> /api/temperature</p>
+        <p><strong>Method:</strong> GET</p>
+        <p><strong>Description:</strong> Fetches the current temperature reading.</p>
+        <p><strong>Response Type:</strong> application/json</p>
+        <pre>{
+    ""temperature"": 23.45
+}</pre>
+    </section>
+
+    <section class=""endpoint"">
+        <h2>3. Get Humidity</h2>
+        <p><strong>Endpoint:</strong> /api/humidity</p>
+        <p><strong>Method:</strong> GET</p>
+        <p><strong>Description:</strong> Fetches the current humidity level.</p>
+        <p><strong>Response Type:</strong> application/json</p>
+        <pre>{
+    ""humidity"": 56.7
+}</pre>
+    </section>
+
+    <section class=""endpoint"">
+        <h2>4. Get Sensor Data</h2>
+        <p><strong>Endpoint:</strong> /api/data</p>
+        <p><strong>Method:</strong> GET</p>
+        <p><strong>Description:</strong> Fetches the current temperature and humidity readings along with date and time.</p>
+        <p><strong>Response Type:</strong> application/json</p>
+        <pre>{
+    ""Data"": {
+        ""Date"": ""dd/MM/yyyy"",
+        ""Time"": ""HH:mm:ss"",
+        ""Temp"": temperatureValue,
+        ""Humid"": humidityValue
+    }
+}</pre>
+    </section>
+</body>
+</html>";
     }
 }
+
+
