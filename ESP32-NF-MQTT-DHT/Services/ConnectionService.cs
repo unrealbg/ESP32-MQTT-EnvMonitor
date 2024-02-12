@@ -4,7 +4,7 @@
     using System.Device.Wifi;
     using System.Net.NetworkInformation;
     using System.Threading;
-    
+
     using Contracts;
 
     using Microsoft.Extensions.Logging;
@@ -18,7 +18,12 @@
     public class ConnectionService : IConnectionService
     {
         private readonly ILogger _logger;
-        
+
+        private bool _isInitialStart = true;
+
+        public event EventHandler ConnectionRestored;
+        public event EventHandler ConnectionLost;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionService"/> class.
         /// </summary>
@@ -47,7 +52,17 @@
                 {
                     if (result.ConnectionStatus == WifiConnectionStatus.Success && IsAlreadyConnected(out ipAddress))
                     {
-                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
+                        if (_isInitialStart)
+                        {
+                            Thread.Sleep(200);
+                            _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
+                            _isInitialStart = false;
+                            return;
+                        }
+
+                        Thread.Sleep(200);
+                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connection restored to Wifi network {SSID} with IP address {ipAddress}");
+                        ConnectionRestored?.Invoke(this, EventArgs.Empty);
                         return;
                     }
 
@@ -56,6 +71,12 @@
 
                 _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
                 Thread.Sleep(10000);
+
+                if (IsAlreadyConnected(out ipAddress))
+                {
+                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connection restored to Wifi network {SSID} with IP address {ipAddress}");
+                    ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                }
             }
         }
 
@@ -63,6 +84,7 @@
         {
             if (!IsAlreadyConnected(out var ipAddress))
             {
+                ConnectionLost?.Invoke(this, EventArgs.Empty);
                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost network connection. Attempting to reconnect...");
                 Connect();
             }
