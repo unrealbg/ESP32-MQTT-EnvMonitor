@@ -1,33 +1,80 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
-    using nanoFramework.WebServer;
 
+    using Controllers;
     using Contracts;
 
-    /// <summary>
-    /// Represents a service that manages a web server.
-    /// </summary>
+    using Microsoft.Extensions.Logging;
+
+    using nanoFramework.WebServer;
+
     public class WebServerService : IWebServerService
     {
-        private readonly WebServer _server;
+        private readonly IConnectionService _connectionService;
+        private readonly ILogger _logger;
+        private WebServer _server;
+        private bool _isServerRunning = false;
 
-        /// <summary>
-        /// Initializes a new instance of the WebServerService class.
-        /// </summary>
-        /// <param name="port">The port on which the web server listens.</param>
-        /// <param name="controllerTypes">The array of controller types that define web server endpoints.</param>
-        public WebServerService(int port, Type[] controllerTypes)
+        public WebServerService(IConnectionService connectionService, ILoggerFactory loggerFactory)
         {
-            _server = new WebServer(port, HttpProtocol.Http, controllerTypes);
+            _logger = loggerFactory?.CreateLogger(nameof(WebServerService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
+
+            InitializeWebServer();
+
+            _connectionService.ConnectionRestored += ConnectionRestored;
+            _connectionService.ConnectionLost += ConnectionLost;
         }
 
-        /// <summary>
-        /// Starts the web server.
-        /// </summary>
         public void Start()
         {
-            _server.Start();
+            if (!_isServerRunning)
+            {
+                _server.Start();
+                _isServerRunning = true;
+                _logger.LogInformation("Web server started.");
+            }
+        }
+
+        public void Stop()
+        {
+            if (_isServerRunning)
+            {
+                _server.Stop();
+                _isServerRunning = false;
+                _logger.LogInformation("Web server stopped.");
+            }
+        }
+
+        public void Restart()
+        {
+            Stop();
+            InitializeWebServer();
+            Start();
+        }
+
+        private void ConnectionLost(object sender, EventArgs e)
+        {
+            _logger.LogInformation("Connection lost. Stopping the web server.");
+            Stop();
+        }
+
+        private void ConnectionRestored(object sender, EventArgs e)
+        {
+            _logger.LogInformation("Connection restored. Starting the web server.");
+            Restart();
+        }
+
+        private void InitializeWebServer()
+        {
+            if (_server != null)
+            {
+                _server.Dispose();
+                _server = null;
+            }
+
+            _server = new WebServer(80, HttpProtocol.Http, new Type[] { typeof(SensorController) });
         }
     }
 }
