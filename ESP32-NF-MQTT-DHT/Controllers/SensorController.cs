@@ -10,21 +10,34 @@
     using nanoFramework.WebServer;
 
     using System;
+    using System.Collections;
+    using System.Diagnostics;
     using System.Net;
 
     public class SensorController
     {
-        private readonly ILogger _logger;
-
-        public SensorController(ILoggerFactory loggerFactory)
-        {
-            _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
-        }
+        private static Hashtable _lastRequestTimes = new Hashtable();
+        private static readonly TimeSpan MinimumRequestInterval = TimeSpan.FromSeconds(10);
 
         [Route("/")]
         [Method("GET")]
         public void GetIndexPage(WebServerEventArgs e)
         {
+            string clientEndpoint = e.Context.Request.RemoteEndPoint.ToString();
+            string clientAddress = clientEndpoint.Split(':')[0];
+
+            if (_lastRequestTimes.Contains(clientAddress))
+            {
+                DateTime lastRequestTime = (DateTime)_lastRequestTimes[clientAddress];
+                if ((DateTime.UtcNow - lastRequestTime) < MinimumRequestInterval)
+                {
+                    SendResponse(e, "Please wait 10 sec. before making another request.", "text/html");
+                    return;
+                }
+            }
+
+            _lastRequestTimes[clientAddress] = DateTime.UtcNow;
+
             SendPage(e, HtmlPages.IndexPage);
         }
 
@@ -55,7 +68,7 @@
             catch (Exception ex)
             {
                 SendErrorResponse(e, "An unexpected error occurred.", HttpStatusCode.InternalServerError);
-                _logger.LogError($"An unexpected error occurred: {ex.Message}");
+                Debug.WriteLine($"An unexpected error occurred: {ex.Message}");
             }
         }
 
@@ -126,7 +139,7 @@
             }
             catch (Exception exception)
             {
-                _logger.LogError($"Failed to fetch temperature: {exception.Message}");
+                Debug.WriteLine($"Failed to fetch temperature: {exception.Message}");
                 return double.NaN;
             }
         }
@@ -140,7 +153,7 @@
             }
             catch (Exception exception)
             {
-                _logger.LogError($"Failed to fetch humidity: {exception.Message}");
+                Debug.WriteLine($"Failed to fetch humidity: {exception.Message}");
                 return double.NaN;
             }
         }
@@ -154,7 +167,7 @@
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Failed to send response: {ex.Message}");
+                Debug.WriteLine($"Failed to send response: {ex.Message}");
             }
         }
 
@@ -168,7 +181,7 @@
             var clientMessage = "An error occurred. Please try again later.";
             e.Context.Response.StatusCode = (int)statusCode;
             SendResponse(e, $"{{\"error\": \"{clientMessage}\"}}", "application/json");
-            _logger.LogError(logMessage);
+            Debug.WriteLine(logMessage);
         }
 
         private bool IsValidTemperature(double temperature)
