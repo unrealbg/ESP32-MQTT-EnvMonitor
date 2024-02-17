@@ -35,6 +35,7 @@
 </head>
 <body>
     <h1>ESP32 Sensor Dashboard</h1>
+    <p id=""countdown"">Next update in 20 seconds</p>
     <div class='sensor-data'>
         <h2>Temperature</h2>
         <p id='temperature'>Loading...</p>
@@ -45,28 +46,48 @@
     </div>
 <p><a href=""/documentation"">View API Documentation</a></p>
     <script>
-    function fetchData() {
-        fetch('/api/data')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                document.getElementById('temperature').innerText = `${data.Data.Temp}°C`;
-                document.getElementById('humidity').innerText = `${data.Data.Humid}%`;
-            })
-            .catch(error => {
-                console.error('Fetch error:', error);
-                document.getElementById('temperature').innerText = 'Error fetching data';
-                document.getElementById('humidity').innerText = 'Error fetching data';
-            });
-    }
+let countdownInterval;
+const fetchDataInterval = 20000; // 20 seconds
 
-    setInterval(() => {
-        fetchData();
-    }, 5000); // Fetch data every 5 seconds
+function startCountdown() {
+    let remaining = fetchDataInterval / 1000;
+    updateCountdown(remaining);
+    countdownInterval = setInterval(() => {
+        remaining--;
+        updateCountdown(remaining);
+        if (remaining <= 0) {
+            clearInterval(countdownInterval);
+            fetchData();
+            startCountdown();
+        }
+    }, 1000);
+}
+
+function updateCountdown(remaining) {
+    document.getElementById('countdown').innerText = `Next update in ${remaining} seconds`;
+}
+
+function fetchData() {
+    fetch('/api/data')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('temperature').innerText = `${data.Data.Temp}°C`;
+            document.getElementById('humidity').innerText = `${data.Data.Humid}%`;
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            document.getElementById('temperature').innerText = 'Error fetching data';
+            document.getElementById('humidity').innerText = 'Error fetching data';
+        });
+}
+
+fetchData();
+startCountdown();
 </script>
 </body>
             </html>";
