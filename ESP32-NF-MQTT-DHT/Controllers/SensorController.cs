@@ -20,18 +20,6 @@
         private static readonly TimeSpan BanDuration = TimeSpan.FromMinutes(5);
         private static readonly object SyncLock = new object();
 
-        [Route("/")]
-        [Method("GET")]
-        public void GetIndexPage(WebServerEventArgs e)
-        {
-            this.HandleRequest(
-                e,
-                () =>
-                    {
-                        this.SendPage(e, HtmlPages.IndexPage);
-                    });
-        }
-
         [Route("api/temperature")]
         [Method("GET")]
         public void GetTemperature(WebServerEventArgs e)
@@ -133,8 +121,8 @@
         {
             try
             {
-                return GlobalServices.DhtService.GetTemp();
-                //return GlobalServices.AhtSensorService.GetTemp();
+                //return GlobalServices.DhtService.GetTemp();
+                return GlobalServices.AhtSensorService.GetTemp();
             }
             catch (Exception exception)
             {
@@ -147,8 +135,8 @@
         {
             try
             {
-                return GlobalServices.DhtService.GetHumidity();
-                //return GlobalServices.AhtSensorService.GetHumidity();
+                //return GlobalServices.DhtService.GetHumidity();
+                return GlobalServices.AhtSensorService.GetHumidity();
             }
             catch (Exception exception)
             {
