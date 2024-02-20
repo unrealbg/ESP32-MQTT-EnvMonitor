@@ -7,15 +7,18 @@
     /// </summary>
     public interface IConnectionService
     {
+        event EventHandler ConnectionRestored;
+
+        event EventHandler ConnectionLost;
+
         /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         void Connect();
 
+        /// <summary>
+        /// Checks the network connection and attempts to reconnect if it is lost.
+        /// </summary>
         void CheckConnection();
-
-        event EventHandler ConnectionRestored;
-
-        event EventHandler ConnectionLost;
     }
 }

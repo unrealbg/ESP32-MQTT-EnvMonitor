@@ -4,15 +4,19 @@
     using System.Device.I2c;
     using System.Threading;
 
-    using Microsoft.Extensions.Logging;
-    
-    using Iot.Device.Ahtxx;
-    using nanoFramework.Hardware.Esp32;
-
     using Contracts;
+
+    using Iot.Device.Ahtxx;
+
+    using Microsoft.Extensions.Logging;
+
+    using nanoFramework.Hardware.Esp32;
 
     using static Helpers.TimeHelper;
 
+    /// <summary>
+    /// Provides services for reading data from an AHT sensor.
+    /// </summary>
     public class AhtSensorService : IAhtSensorService
     {
         private const int DataPin = 4;
@@ -20,18 +24,25 @@
         private const int ReadInterval = 60000;
         private const int ErrorInterval = 30000;
 
+        private readonly ILogger _logger;
+        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
+
         private double _temperature = -50;
         private double _humidity = -100;
         private bool _running;
 
-        private readonly ILogger _logger;
-        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AhtSensorService"/> class.
+        /// </summary>
+        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         public AhtSensorService(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger(nameof(AhtSensorService));
         }
 
+        /// <summary>
+        /// Starts the service to continuously read sensor data.
+        /// </summary>
         public void Start()
         {
             _running = true;
@@ -42,16 +53,31 @@
             sensorReadThread.Start();
         }
 
+        /// <summary>
+        /// Stops the service from reading sensor data.
+        /// </summary>
         public void Stop()
         {
             _running = false;
             _stopSignal.Set();
         }
 
+        /// <summary>
+        /// Gets the temperature and humidity data.
+        /// </summary>
+        /// <returns>An array containing the temperature and humidity data.</returns>
         public double[] GetData() => new[] { _temperature, _humidity };
 
+        /// <summary>
+        /// Gets the temperature data.
+        /// </summary>
+        /// <returns>The temperature data.</returns>
         public double GetTemp() => _temperature;
 
+        /// <summary>
+        /// Gets the humidity data.
+        /// </summary>
+        /// <returns>The humidity data.</returns>
         public double GetHumidity() => _humidity;
 
         private void StartReceivingData()
@@ -77,7 +103,7 @@
                             else
                             {
                                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
-                                SetErrorValues();
+                                this.SetErrorValues();
                                 _stopSignal.WaitOne(ErrorInterval, false);
                             }
                         }
@@ -85,7 +111,7 @@
                     catch (Exception ex)
                     {
                         _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
-                        SetErrorValues();
+                        this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval,false);
                     }
                 }

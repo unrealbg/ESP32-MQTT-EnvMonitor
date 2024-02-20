@@ -8,9 +8,9 @@
     using Contracts;
 
     using Microsoft.Extensions.Logging;
-
-    using static Settings.WifiSettings;
+    
     using static Helpers.TimeHelper;
+    using static Settings.WifiSettings;
 
     /// <summary>
     /// Service responsible for managing the network connection of the device.
@@ -21,7 +21,14 @@
 
         private bool _isInitialStart = true;
 
+        /// <summary>
+        /// Event that is triggered when the connection is restored.
+        /// </summary>
         public event EventHandler ConnectionRestored;
+
+        /// <summary>
+        /// Event that is triggered when the connection is lost.
+        /// </summary>
         public event EventHandler ConnectionLost;
 
         /// <summary>
@@ -80,13 +87,16 @@
             }
         }
 
+        /// <summary>
+        /// Checks the network connection and attempts to reconnect if it is lost.
+        /// </summary>
         public void CheckConnection()
         {
-            if (!IsAlreadyConnected(out var ipAddress))
+            if (!this.IsAlreadyConnected(out var ipAddress))
             {
                 ConnectionLost?.Invoke(this, EventArgs.Empty);
                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost network connection. Attempting to reconnect...");
-                Connect();
+                this.Connect();
             }
         }
 

@@ -1,7 +1,5 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Models
 {
-    using Settings;
-
     /// <summary>
     /// Represents the data collected from the Dht21 sensor.
     /// </summary>

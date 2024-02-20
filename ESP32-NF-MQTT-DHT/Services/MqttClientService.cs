@@ -4,21 +4,22 @@
     using System.Text;
     using System.Threading;
 
+    using Contracts;
+
     using Microsoft.Extensions.Logging;
 
+    using Models;
+
+    using nanoFramework.Json;
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
-    using nanoFramework.Json;
 
-    using Contracts;
-    using Models;
-
+    using static Helpers.TimeHelper;
     using static Settings.DeviceSettings;
     using static Settings.MqttSettings;
-    using static Helpers.TimeHelper;
 
-    using IMqttClientService = Contracts.IMqttClientService;
+    using IMqttClientService = ESP32_NF_MQTT_DHT.Services.Contracts.IMqttClientService;
 
     /// <summary>
     /// Service to handle MQTT client functionalities including connecting to the broker,
@@ -37,12 +38,6 @@
         private static readonly string DataTopic = $"home/{DeviceName}/messages";
         private static readonly string ErrorTopic = $"home/{DeviceName}/errors";
 
-        private int _attemptCount = 1;
-        private bool _isRunning = true;
-
-        private Thread _sensorDataThread;
-        private bool _isSensorDataThreadRunning = false;
-
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
         private readonly IDhtService _dhtService;
@@ -50,6 +45,12 @@
         private readonly ILogger _logger;
         private readonly IRelayService _relayService;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
+
+        private int _attemptCount = 1;
+        private bool _isRunning = true;
+
+        private Thread _sensorDataThread;
+        private bool _isSensorDataThreadRunning = false;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
@@ -81,23 +82,26 @@
         /// </summary>
         public void Start()
         {
-            Thread connectionThread = new Thread(ConnectToBroker);
+            Thread connectionThread = new Thread(this.ConnectToBroker);
             connectionThread.Start();
         }
 
+        /// <summary>
+        /// Connects to the MQTT broker.
+        /// </summary>
         public void ConnectToBroker()
         {
             _isRunning = true;
             int attemptCount = 0;
-            const int maxAttempts = 1000;
+            const int MaxAttempts = 1000;
             int delayBetweenAttempts = 5000;
 
-            while (_isRunning && attemptCount < maxAttempts)
+            while (_isRunning && attemptCount < MaxAttempts)
             {
-                if (TryConnectToBroker())
+                if (this.TryConnectToBroker())
                 {
                     _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker");
-                    StartSensorDataThread();
+                    this.StartSensorDataThread();
                     return;
                 }
 
@@ -108,15 +112,17 @@
                 delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, 120000);
             }
 
-            _logger.LogError($"[{GetCurrentTimestamp()}] Failed to connect to MQTT broker after {maxAttempts} attempts, restarting device...");
+            _logger.LogError($"[{GetCurrentTimestamp()}] Failed to connect to MQTT broker after {MaxAttempts} attempts, restarting device...");
             Power.RebootDevice();
         }
 
 
         private void StartSensorDataThread()
         {
-            if (_isSensorDataThreadRunning) 
+            if (_isSensorDataThreadRunning)
+            {
                 return;
+            }
 
             _sensorDataThread = new Thread(this.SensorDataLoop);
             _isSensorDataThreadRunning = true;
@@ -132,24 +138,24 @@
                 _isSensorDataThreadRunning = false;
             }
 
-            ConnectToBroker();
+            this.ConnectToBroker();
         }
 
         private bool TryConnectToBroker()
         {
-            DisposeCurrentClient();
+            this.DisposeCurrentClient();
 
             _connectionService.CheckConnection();
 
             try
             {
                 _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker...");
-                MqttClient = new MqttClient(Broker);
-                MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+                this.MqttClient = new MqttClient(Broker);
+                this.MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
 
                 if (MqttClient.IsConnected)
                 {
-                    SetupMqttClient();
+                    this.SetupMqttClient();
                     return true;
                 }
             }
@@ -163,23 +169,23 @@
 
         private void DisposeCurrentClient()
         {
-            if (MqttClient != null)
+            if (this.MqttClient != null)
             {
-                if (MqttClient.IsConnected)
+                if (this.MqttClient.IsConnected)
                 {
-                    MqttClient.Disconnect();
+                    this.MqttClient.Disconnect();
                 }
 
-                MqttClient.Dispose();
-                MqttClient = null;
+                this.MqttClient.Dispose();
+                this.MqttClient = null;
             }
         }
 
         private void SetupMqttClient()
         {
-            MqttClient.ConnectionClosed += ConnectionClosed;
-            MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
-            MqttClient.MqttMsgPublishReceived += HandleIncomingMessage;
+            this.MqttClient.ConnectionClosed += this.ConnectionClosed;
+            this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+            this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
             _logger.LogInformation($"[{GetCurrentTimestamp()}] MQTT client setup complete");
         }
 
@@ -223,12 +229,12 @@
             {
                 try
                 {
-                    PublishSensorData();
+                    this.PublishSensorData();
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError($"[{GetCurrentTimestamp()}] SensorDataLoop Exception: {ex.Message}");
-                    PublishError($"SensorDataLoop Exception: {ex.Message}");
+                    this.PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
 
                 _stopSignal.WaitOne(ErrorInterval, false);
@@ -253,15 +259,15 @@
             data = _dhtService.GetData();
             //data = _ahtSensorService.GetData();
 
-            if (IsSensorDataValid(data))
+            if (this.IsSensorDataValid(data))
             {
-                PublishValidSensorData(data);
+                this.PublishValidSensorData(data);
                 _logger.LogInformation($"[{GetCurrentTimestamp()}] Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
                 _stopSignal.WaitOne(SensorDataInterval, false);
             }
             else
             {
-                PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                 _stopSignal.WaitOne(ErrorInterval, false);
             }

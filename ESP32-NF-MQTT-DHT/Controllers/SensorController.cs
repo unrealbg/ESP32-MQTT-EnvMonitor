@@ -1,8 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Controllers
 {
     using System;
-    using System.Collections;
-    using System.Diagnostics;
     using System.Net;
 
     using ESP32_NF_MQTT_DHT.Services.Contracts;

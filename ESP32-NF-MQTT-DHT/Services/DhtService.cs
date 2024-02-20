@@ -45,21 +45,37 @@
             _sensorThread.Start();
         }
 
+        /// <summary>
+        /// Gets the temperature and humidity data.
+        /// </summary>
+        /// <returns>An array containing the temperature and humidity data.</returns>
         public double[] GetData()
         {
             return new[] { _temp, _humidity };
         }
 
+        /// <summary>
+        /// Gets the temperature data.
+        /// </summary>
+        /// <returns>The temperature data.</returns>
         public double GetTemp()
         {
             return _temp;
         }
 
+        /// <summary>
+        /// Gets the humidity data.
+        /// </summary>
+        /// <returns>The humidity data.</returns>
         public double GetHumidity()
         {
             return _humidity;
         }
 
+        /// <summary>
+        /// Reads and publishes the data from the DHT21 sensor.
+        /// </summary>
+        /// <param name="dht">The DHT21 sensor.</param>
         private void ReadAndPublishData(Dht21 dht)
         {
             _temp = dht.Temperature.Value;
@@ -73,11 +89,14 @@
             else
             {
                 _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
-                SetErrorValues();
+                this.SetErrorValues();
                 Thread.Sleep(ErrorInterval);
             }
         }
 
+        /// <summary>
+        /// The loop that continuously reads data from the sensor.
+        /// </summary>
         private void SensorReadLoop()
         {
             try
@@ -97,6 +116,9 @@
             }
         }
 
+        /// <summary>
+        /// Sets the temperature and humidity values to error values.
+        /// </summary>
         private void SetErrorValues()
         {
             _temp = -50;
