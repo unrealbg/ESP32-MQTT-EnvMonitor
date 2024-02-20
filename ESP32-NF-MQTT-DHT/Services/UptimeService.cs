@@ -5,10 +5,10 @@
     using System.Text;
     using System.Threading;
 
+    using Contracts;
+
     using Microsoft.Extensions.Logging;
 
-    using Contracts;
-    
     using static Helpers.TimeHelper;
 
     /// <summary>
@@ -32,16 +32,16 @@
             _logger = loggerFactory?.CreateLogger(nameof(UptimeService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
         }
 
+        /// <summary>
+        /// Gets the stopwatch used to measure uptime.
+        /// </summary>
+        public Stopwatch Stopwatch { get; private set; }
+
         public void Start()
         {
             var uptimeThread = new Thread(UptimeLoop);
             uptimeThread.Start();
         }
-
-        /// <summary>
-        /// Gets the stopwatch used to measure uptime.
-        /// </summary>
-        public Stopwatch Stopwatch { get; private set; }
 
         /// <summary>
         /// Gets the total uptime of the system in a human-readable format.

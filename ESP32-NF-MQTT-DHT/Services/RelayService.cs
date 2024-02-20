@@ -16,10 +16,10 @@
     {
         private const int RelayPinNumber = 32;
 
-        private GpioPin _relayPin;
-
         private readonly GpioController _gpioController;
         private readonly ILogger _logger;
+
+        private GpioPin _relayPin;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RelayService"/> class.
@@ -31,7 +31,7 @@
             _gpioController = new GpioController();
             _logger = loggerFactory?.CreateLogger(nameof(RelayService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
-            InitializeRelayPin();
+            this.InitializeRelayPin();
         }
 
         /// <summary>

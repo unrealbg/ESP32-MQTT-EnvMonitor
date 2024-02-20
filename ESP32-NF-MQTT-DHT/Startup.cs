@@ -1,10 +1,10 @@
 ﻿namespace ESP32_NF_MQTT_DHT
 {
+    using System;
+
     using Microsoft.Extensions.Logging;
 
     using Services.Contracts;
-
-    using System;
 
     /// <summary>
     /// Represents the startup process of the application.
