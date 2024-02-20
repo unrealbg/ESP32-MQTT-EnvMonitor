@@ -146,8 +146,8 @@
         {
             try
             {
-                //return _dhtService.GetTemp();
-                return _ahtSensorService.GetTemp();
+                return _dhtService.GetTemp();
+                //return _ahtSensorService.GetTemp();
             }
             catch (Exception exception)
             {
@@ -160,8 +160,8 @@
         {
             try
             {
-                //return _dhtService.GetHumidity();
-                return _ahtSensorService.GetHumidity();
+                return _dhtService.GetHumidity();
+                //return _ahtSensorService.GetHumidity();
             }
             catch (Exception exception)
             {
