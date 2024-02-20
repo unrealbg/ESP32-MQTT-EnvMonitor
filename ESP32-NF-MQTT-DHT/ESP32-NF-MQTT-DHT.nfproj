@@ -18,12 +18,12 @@
   </PropertyGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
+    <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Settings\DeviceSettings.cs" />
     <Compile Include="Settings\MqttSettings.cs" />
     <Compile Include="Settings\TcpSettings.cs" />
     <Compile Include="Settings\WifiSettings.cs" />
     <Compile Include="Controllers\SensorController.cs" />
-    <Compile Include="Helpers\HtmlPages.cs" />
     <Compile Include="Helpers\TimeHelper.cs" />
     <Compile Include="Models\Sensor.cs" />
     <Compile Include="Models\Data.cs" />
@@ -46,6 +46,7 @@
     <Compile Include="Services\UptimeService.cs" />
     <Compile Include="Services\WebServerService.cs" />
     <Compile Include="Startup.cs" />
+    <Compile Include="Services\WebServerDi.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Iot.Device.Ahtxx">

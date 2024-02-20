@@ -5,20 +5,38 @@
     using System.Diagnostics;
     using System.Net;
 
-    using Helpers;
+    using ESP32_NF_MQTT_DHT.Services.Contracts;
+
+    using Microsoft.Extensions.Logging;
 
     using Models;
 
     using nanoFramework.Json;
     using nanoFramework.WebServer;
 
-    public class SensorController
+    [Authentication("Basic:user p@ssw0rd")]
+    public class SensorController : BaseController
     {
-        private static readonly Hashtable LastRequestTimes = new Hashtable();
-        private static readonly Hashtable BanList = new Hashtable();
-        private static readonly TimeSpan RequestInterval = TimeSpan.FromSeconds(10);
-        private static readonly TimeSpan BanDuration = TimeSpan.FromMinutes(5);
-        private static readonly object SyncLock = new object();
+        private readonly IDhtService _dhtService;
+        private readonly ILogger _logger;
+
+        public SensorController(IDhtService dhtService, ILoggerFactory loggerFactory)
+        {
+            _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
+            _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+        }
+
+        [Route("/")]
+        [Method("GET")]
+        public void Index(WebServerEventArgs e)
+        {
+            this.HandleRequest(
+                e,
+                () =>
+                    {
+                        this.SendPage(e, "Welcome to the sensor API.");
+                    });
+        }
 
         [Route("api/temperature")]
         [Method("GET")]
@@ -39,12 +57,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Temperature data is out of expected range.", HttpStatusCode.InternalServerError);
+                                _logger.LogWarning("Temperature data is out of expected range.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, "An unexpected error occurred.", HttpStatusCode.InternalServerError);
-                            Debug.WriteLine($"An unexpected error occurred: {ex.Message}");
+                            _logger.LogError(ex, "An unexpected error occurred.");
                         }
                     });
         }
@@ -68,11 +87,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Humidity data is unavailable.", HttpStatusCode.InternalServerError);
+                                _logger.LogWarning("Humidity data is unavailable.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
+                            _logger.LogError(ex, "An unexpected error occurred.");
                         }
                     });
         }
@@ -108,155 +129,46 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Sensor data is unavailable.", HttpStatusCode.InternalServerError);
+                                _logger.LogWarning("Sensor data is unavailable.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
+                            _logger.LogError(ex, "An unexpected error occurred.");
                         }
                     });
         }
 
-        private static double FetchTemperature()
+        private double FetchTemperature()
         {
             try
             {
-                //return GlobalServices.DhtService.GetTemp();
-                return GlobalServices.AhtSensorService.GetTemp();
+                return _dhtService.GetTemp();
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"Failed to fetch temperature: {exception.Message}");
+                _logger.LogError(exception, "Failed to fetch temperature.");
                 return double.NaN;
             }
         }
 
-        private static double FetchHumidity()
+        private double FetchHumidity()
         {
             try
             {
-                //return GlobalServices.DhtService.GetHumidity();
-                return GlobalServices.AhtSensorService.GetHumidity();
+                return _dhtService.GetHumidity();
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"Failed to fetch humidity: {exception.Message}");
+                _logger.LogError(exception, "Failed to fetch humidity.");
                 return double.NaN;
             }
-        }
-
-        private void SendResponse(WebServerEventArgs e, string content, string contentType, HttpStatusCode statusCode = HttpStatusCode.OK)
-        {
-            try
-            {
-                e.Context.Response.StatusCode = (int)statusCode;
-                e.Context.Response.ContentType = contentType;
-                WebServer.OutPutStream(e.Context.Response, content);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to send response: {ex.Message}");
-            }
-        }
-
-        private void SendPage(WebServerEventArgs e, string page)
-        {
-            this.SendResponse(e, page, "text/html");
-        }
-
-        private void SendErrorResponse(WebServerEventArgs e, string logMessage, HttpStatusCode statusCode)
-        {
-            var clientMessage = "An error occurred. Please try again later.";
-            e.Context.Response.StatusCode = (int)statusCode;
-            this.SendResponse(e, $"{{\"error\": \"{clientMessage}\"}}", "application/json");
-            Debug.WriteLine(logMessage);
         }
 
         private bool IsValidTemperature(double temperature)
         {
             return temperature >= -40 && temperature <= 85;
-        }
-
-        private void HandleRequest(WebServerEventArgs e, Action action)
-        {
-            string clientIp = e.Context.Request.RemoteEndPoint.Address.ToString();
-
-            lock (SyncLock)
-            {
-                if (this.IsBanned(clientIp))
-                {
-                    this.SendForbiddenResponse(e);
-                    return;
-                }
-
-                if (this.ShouldThrottle(clientIp))
-                {
-                    this.BanClient(clientIp);
-                    this.SendThrottleResponse(e);
-                    return;
-                }
-            }
-
-            action.Invoke();
-            this.UpdateLastRequestTime(clientIp);
-        }
-
-        private bool IsBanned(string clientIp)
-        {
-            if (BanList.Contains(clientIp))
-            {
-                DateTime banEndTime = (DateTime)BanList[clientIp];
-                if (DateTime.UtcNow <= banEndTime)
-                {
-                    Debug.WriteLine($"Access denied for {clientIp}. Still banned.");
-                    return true;
-                }
-
-                BanList.Remove(clientIp);
-            }
-
-            return false;
-        }
-
-        private bool ShouldThrottle(string clientIp)
-        {
-            if (LastRequestTimes.Contains(clientIp))
-            {
-                DateTime lastRequestTime = (DateTime)LastRequestTimes[clientIp];
-                return DateTime.UtcNow - lastRequestTime < RequestInterval;
-            }
-
-            return false;
-        }
-
-        private void BanClient(string clientIp)
-        {
-            // Add clientIP to banList
-            BanList[clientIp] = DateTime.UtcNow.Add(BanDuration);
-            Debug.WriteLine($"Client {clientIp} has been banned until {BanList[clientIp]}.");
-        }
-
-        private void UpdateLastRequestTime(string clientIp)
-        {
-            LastRequestTimes[clientIp] = DateTime.UtcNow;
-        }
-
-        private void SendForbiddenResponse(WebServerEventArgs e)
-        {
-            string responseMessage = "Your access is temporarily suspended due to excessive requests.";
-            e.Context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
-            e.Context.Response.ContentType = "text/plain";
-            WebServer.OutPutStream(e.Context.Response, responseMessage);
-            Debug.WriteLine($"Forbidden response sent to {e.Context.Request.RemoteEndPoint}");
-        }
-
-        private void SendThrottleResponse(WebServerEventArgs e)
-        {
-            string responseMessage = "Too many requests. You have been temporarily banned. Please wait 5 minutes.";
-            e.Context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            e.Context.Response.ContentType = "text/plain";
-            WebServer.OutPutStream(e.Context.Response, responseMessage);
-            Debug.WriteLine($"Throttle response sent to {e.Context.Request.RemoteEndPoint}");
         }
     }
 }
