@@ -1,12 +1,12 @@
 namespace ESP32_NF_MQTT_DHT
 {
-    using Services;
-    using Services.Contracts;
-
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.Logging.Debug;
+
+    using Services;
+    using Services.Contracts;
 
     /// <summary>
     /// Main program class.
@@ -48,25 +48,7 @@ namespace ESP32_NF_MQTT_DHT
 
             var serviceProvider = services.BuildServiceProvider();
 
-            // Set the global DhtService instance
-            GlobalServices.DhtService = serviceProvider.GetService(typeof(IDhtService)) as IDhtService;
-            //GlobalServices.AhtSensorService = serviceProvider.GetService(typeof(IAhtSensorService)) as IAhtSensorService;
-
             return serviceProvider;
         }
-    }
-
-    /// <summary>
-    /// Provides a global access point to shared services across the application.
-    /// </summary>
-    public static class GlobalServices
-    {
-        /// <summary>
-        /// Gets or sets the globally available instance of the DHT sensor service.
-        /// This service is responsible for interacting with the DHT sensor to read temperature and humidity data.
-        /// </summary>
-        public static IDhtService DhtService { get; set; }
-
-        //public static IAhtSensorService AhtSensorService { get; set; }
     }
 }
