@@ -50,8 +50,8 @@
                     {
                         try
                         {
-                            var temperature = FetchTemperature();
-                            if (IsValidTemperature(temperature))
+                            var temperature = this.FetchTemperature();
+                            if (this.IsValidTemperature(temperature))
                             {
                                 var jsonResponse = $"{{\"temperature\": {temperature:f2}}}";
                                 this.SendResponse(e, jsonResponse, "application/json");
@@ -80,7 +80,7 @@
                     {
                         try
                         {
-                            var humidity = FetchHumidity();
+                            var humidity = this.FetchHumidity();
                             if (!double.IsNaN(humidity))
                             {
                                 var jsonResponse = $"{{\"humidity\": {humidity:f1}}}";
@@ -110,8 +110,8 @@
                     {
                         try
                         {
-                            var temperature = double.Parse($"{FetchTemperature():f2}");
-                            var humidity = FetchHumidity();
+                            var temperature = double.Parse($"{this.FetchTemperature():f2}");
+                            var humidity = this.FetchHumidity();
                             if (!double.IsNaN(temperature) && !double.IsNaN(humidity))
                             {
                                 var sensorData = new Sensor
@@ -146,8 +146,8 @@
         {
             try
             {
-                //return _dhtService.GetTemp();
-                return _ahtSensorService.GetTemp();
+                return _dhtService.GetTemp();
+                //return _ahtSensorService.GetTemp();
             }
             catch (Exception exception)
             {
@@ -160,8 +160,8 @@
         {
             try
             {
-                //return _dhtService.GetHumidity();
-                return _ahtSensorService.GetHumidity();
+                return _dhtService.GetHumidity();
+                //return _ahtSensorService.GetHumidity();
             }
             catch (Exception exception)
             {
