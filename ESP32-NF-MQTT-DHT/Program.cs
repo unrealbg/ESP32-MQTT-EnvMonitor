@@ -1,5 +1,8 @@
 namespace ESP32_NF_MQTT_DHT
 {
+    using System;
+    using System.Diagnostics;
+
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
@@ -18,10 +21,17 @@ namespace ESP32_NF_MQTT_DHT
         /// </summary>
         public static void Main()
         {
-            var services = ConfigureServices();
-            var application = (Startup)services.GetService(typeof(Startup));
+            try
+            {
+                var services = ConfigureServices();
+                var application = services.GetService(typeof(Startup)) as Startup;
 
-            application.Run();
+                application?.Run();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"An error occurred: {ex.Message}");
+            }
         }
 
         /// <summary>
