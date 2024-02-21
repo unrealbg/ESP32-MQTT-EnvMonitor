@@ -18,12 +18,18 @@
     {
         private const int ReadInterval = 60000; // 1 minute
         private const int ErrorInterval = 30000; // 30 seconds
-
-        private Thread _sensorThread;
-        private double _temp = -50;
-        private double _humidity = -100;
+        private const int PinEcho = 26;
+        private const int PinTrigger = 27;
+        private const int TempErrorValue = -50;
+        private const int HumidityErrorValue = -100;
 
         private readonly ILogger _logger;
+
+        private Thread _sensorThread;
+
+        private double _temp = TempErrorValue;
+        private double _humidity = HumidityErrorValue;
+
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
@@ -78,8 +84,8 @@
         /// <param name="dht">The DHT21 sensor.</param>
         private void ReadAndPublishData(Dht21 dht)
         {
-            _temp = dht.Temperature.Value;
-            _humidity = dht.Humidity.Value;
+            _temp = dht.Temperature.DegreesCelsius;
+            _humidity = dht.Humidity.Percent;
 
             if (dht.IsLastReadSuccessful)
             {
@@ -101,18 +107,18 @@
         {
             try
             {
-                using (Dht21 dht = new Dht21(26, 27))
+                using (Dht21 dht = new Dht21(PinEcho, PinTrigger))
                 {
                     while (true)
                     {
-                        ReadAndPublishData(dht);
+                        this.ReadAndPublishData(dht);
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
-                SetErrorValues();
+                this.SetErrorValues();
             }
         }
 
@@ -121,8 +127,8 @@
         /// </summary>
         private void SetErrorValues()
         {
-            _temp = -50;
-            _humidity = -100;
+            _temp = TempErrorValue;
+            _humidity = HumidityErrorValue;
         }
     }
 }
