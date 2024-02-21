@@ -23,12 +23,14 @@
         private const int ClockPin = 5;
         private const int ReadInterval = 60000;
         private const int ErrorInterval = 30000;
+        private const int TempErrorValue = -50;
+        private const int HumidityErrorValue = -100;
 
         private readonly ILogger _logger;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
-        private double _temperature = -50;
-        private double _humidity = -100;
+        private double _temperature = TempErrorValue;
+        private double _humidity = HumidityErrorValue;
         private bool _running;
 
         /// <summary>
@@ -49,7 +51,7 @@
             Configuration.SetPinFunction(DataPin, DeviceFunction.I2C1_DATA);
             Configuration.SetPinFunction(ClockPin, DeviceFunction.I2C1_CLOCK);
 
-            Thread sensorReadThread = new Thread(StartReceivingData);
+            Thread sensorReadThread = new Thread(this.StartReceivingData);
             sensorReadThread.Start();
         }
 
@@ -120,8 +122,8 @@
 
         private void SetErrorValues()
         {
-            _temperature = -50;
-            _humidity = -100;
+            _temperature = TempErrorValue;
+            _humidity = HumidityErrorValue;
         }
     }
 }
