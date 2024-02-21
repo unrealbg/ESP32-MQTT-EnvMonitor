@@ -301,6 +301,19 @@
         private void Stop()
         {
             _isRunning = false;
+            _isSensorDataThreadRunning = false;
+
+            if (_sensorDataThread != null && _sensorDataThread.IsAlive)
+            {
+                _sensorDataThread.Join();
+            }
+
+            if (this.MqttClient != null && this.MqttClient.IsConnected)
+            {
+                this.MqttClient.Disconnect();
+            }
+
+            this.MqttClient?.Dispose();
             _stopSignal.Set();
         }
     }
