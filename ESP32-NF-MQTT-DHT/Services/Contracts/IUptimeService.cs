@@ -18,12 +18,5 @@
         /// this method might return "2 days, 3 hours, 4 minutes".
         /// </example>
         string GetUptime();
-
-        // write summary
-
-        /// <summary>
-        /// Starts the service for measuring uptime.
-        /// </summary>
-        void Start();
     }
 }

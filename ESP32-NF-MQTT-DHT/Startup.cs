@@ -54,10 +54,6 @@
         {
             try
             {
-                _logger.LogInformation("Startup: Starting Uptime service...");
-                _uptimeService.Start();
-                _logger.LogInformation("Startup: Uptime service started.");
-
                 _logger.LogInformation("Startup: Establishing connection...");
                 _connectionService.Connect();
                 _logger.LogInformation("Startup: Connection established.");

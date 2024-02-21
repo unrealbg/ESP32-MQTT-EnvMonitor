@@ -2,81 +2,47 @@
 {
     using System;
     using System.Diagnostics;
-    using System.Text;
     using System.Threading;
 
-    using Contracts;
+    using ESP32_NF_MQTT_DHT.Services.Contracts;
 
     using Microsoft.Extensions.Logging;
 
     using static Helpers.TimeHelper;
 
-    /// <summary>
-    /// Provides functionality to measure the uptime of the system.
-    /// </summary>
     public class UptimeService : IUptimeService
     {
         private const int UptimeDelay = 60000;
-        private const int ErrorDelay = 15000;
 
         private readonly ILogger _logger;
+        private Timer _uptimeTimer;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="UptimeService"/> class.
-        /// </summary>
         public UptimeService(ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory?.CreateLogger(nameof(UptimeService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             Stopwatch = new Stopwatch();
             Stopwatch.Start();
-
-            _logger = loggerFactory?.CreateLogger(nameof(UptimeService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _uptimeTimer = new Timer(this.UptimeTimerCallback, null, 0, UptimeDelay);
         }
 
-        /// <summary>
-        /// Gets the stopwatch used to measure uptime.
-        /// </summary>
         public Stopwatch Stopwatch { get; private set; }
 
-        public void Start()
-        {
-            var uptimeThread = new Thread(UptimeLoop);
-            uptimeThread.Start();
-        }
-
-        /// <summary>
-        /// Gets the total uptime of the system in a human-readable format.
-        /// </summary>
-        /// <returns>A string representing the total uptime.</returns>
         public string GetUptime()
         {
             var elapsed = Stopwatch.Elapsed;
-            var uptimeStringBuilder = new StringBuilder();
-            uptimeStringBuilder.Append(elapsed.Days).Append(" days, ");
-            uptimeStringBuilder.Append(elapsed.Hours).Append(" hours, ");
-            uptimeStringBuilder.Append(elapsed.Minutes).Append(" minutes, ");
-            uptimeStringBuilder.Append(elapsed.Seconds).Append(" seconds");
-
-            return uptimeStringBuilder.ToString();
+            return $"{elapsed.Days} days, {elapsed.Hours} hours, {elapsed.Minutes} minutes, {elapsed.Seconds} seconds";
         }
 
-        private void UptimeLoop()
+        private void UptimeTimerCallback(object state)
         {
-            while (true)
+            try
             {
-                try
-                {
-                    var uptimeMessage = GetUptime();
-
-                    _logger.LogInformation($"[{GetCurrentTimestamp()}] {uptimeMessage}");
-                    Thread.Sleep(UptimeDelay);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] {ex.Message}");
-                    Thread.Sleep(ErrorDelay);
-                    // optional
-                    // Power.RebootDevice();
-                }
+                var uptimeMessage = this.GetUptime();
+                _logger.LogInformation($"[{GetCurrentTimestamp()}] {uptimeMessage}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[{GetCurrentTimestamp()}] {ex.Message}");
             }
         }
     }
