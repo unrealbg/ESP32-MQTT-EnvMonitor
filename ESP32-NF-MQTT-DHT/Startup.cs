@@ -12,6 +12,9 @@
     public class Startup
     {
         private readonly IUptimeService _uptimeService;
+
+        private readonly IShtc3SensorService _shtc3SensorService;
+
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
         private readonly IDhtService _dhtService;
@@ -34,13 +37,14 @@
             IMqttClientService mqttClient,
             IDhtService dhtService,
             ILoggerFactory loggerFactory,
-            IWebServerService webServerService, IAhtSensorService ahtSensorService, IUptimeService uptimeService)
+            IWebServerService webServerService, IAhtSensorService ahtSensorService, IUptimeService uptimeService, IShtc3SensorService shtc3SensorService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
             _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
             _uptimeService = uptimeService;
+            _shtc3SensorService = shtc3SensorService ?? throw new ArgumentNullException(nameof(shtc3SensorService));
             _webServerService = webServerService;
 
             _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -58,13 +62,17 @@
                 _connectionService.Connect();
                 _logger.LogInformation("Startup: Connection established.");
 
-                _logger.LogInformation("Startup: Starting DHT service...");
-                _dhtService.Start();
-                _logger.LogInformation("Startup: DHT service started.");
+                //_logger.LogInformation("Startup: Starting DHT service...");
+                //_dhtService.Start();
+                //_logger.LogInformation("Startup: DHT service started.");
 
                 //_logger.LogInformation("Startup: Starting AHT sensor service...");
                 //_ahtSensorService.Start();
                 //_logger.LogInformation("Startup: AHT sensor service started.");
+
+                _logger.LogInformation("Startup: Starting SHTC3 sensor service...");
+                _shtc3SensorService.Start();
+                _logger.LogInformation("Startup: SHTC3 sensor service started.");
 
                 _logger.LogInformation("Startup: Starting MQTT client...");
                 _mqttClient.Start();
