@@ -15,16 +15,18 @@
     [Authentication("Basic:user p@ssw0rd")]
     public class SensorController : BaseController
     {
-        private readonly IDhtService _dhtService;
+        //private readonly IDhtService _dhtService;
         //private readonly IAhtSensorService _ahtSensorService;
+        private readonly IShtc3SensorService _shtc3SensorService;
         private readonly ILogger _logger;
 
         public SensorController(
             ILoggerFactory loggerFactory,
-            IDhtService dhtService) //, IAhtSensorService ahtSensorService)
+            IShtc3SensorService shtc3SensorService) //IDhtService dhtService) , IAhtSensorService ahtSensorService)
         {
-            _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
+            //_dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
             //_ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
+            _shtc3SensorService = shtc3SensorService ?? throw new ArgumentNullException(nameof(shtc3SensorService));
             _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
         }
 
@@ -146,8 +148,9 @@
         {
             try
             {
-                return _dhtService.GetTemp();
+                //return _dhtService.GetTemp();
                 //return _ahtSensorService.GetTemp();
+                return _shtc3SensorService.GetTemp();
             }
             catch (Exception exception)
             {
@@ -160,8 +163,9 @@
         {
             try
             {
-                return _dhtService.GetHumidity();
+                //return _dhtService.GetHumidity();
                 //return _ahtSensorService.GetHumidity();
+                return _shtc3SensorService.GetHumidity();
             }
             catch (Exception exception)
             {

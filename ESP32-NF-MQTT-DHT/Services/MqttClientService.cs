@@ -42,6 +42,8 @@
         private readonly IConnectionService _connectionService;
         private readonly IDhtService _dhtService;
         private readonly IAhtSensorService _ahtSensorService;
+        private readonly IShtc3SensorService _shtc3SensorService;
+
         private readonly ILogger _logger;
         private readonly IRelayService _relayService;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
@@ -61,8 +63,15 @@
         /// <param name="relayService">Service to control and manage the relay operations.</param>
         /// <param name="dhtService"> Service to read data from the DHT sensor.</param>
         /// <param name="ahtSensorService"> Service to read data from the AHT sensor.</param>
+        /// <param name="shtc3SensorService">Service to read data from the SHTC3 sensor.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public MqttClientService(IUptimeService uptimeService, IConnectionService connectionService, ILoggerFactory loggerFactory, IRelayService relayService, IDhtService dhtService, IAhtSensorService ahtSensorService)
+        public MqttClientService(IUptimeService uptimeService,
+                                 IConnectionService connectionService,
+                                 ILoggerFactory loggerFactory,
+                                 IRelayService relayService,
+                                 IDhtService dhtService,
+                                 IAhtSensorService ahtSensorService,
+                                 IShtc3SensorService shtc3SensorService)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
@@ -70,6 +79,7 @@
             _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
             _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
+            _shtc3SensorService = shtc3SensorService ?? throw new ArgumentNullException(nameof(shtc3SensorService));
         }
 
         /// <summary>
@@ -256,8 +266,9 @@
         {
             double[] data;
 
-            data = _dhtService.GetData();
+            //data = _dhtService.GetData();
             //data = _ahtSensorService.GetData();
+            data = _shtc3SensorService.GetData();
 
             if (this.IsSensorDataValid(data))
             {
