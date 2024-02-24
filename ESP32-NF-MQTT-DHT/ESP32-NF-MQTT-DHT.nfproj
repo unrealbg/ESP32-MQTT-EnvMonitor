@@ -144,6 +144,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="libs\Shtc3\Iot.Device.Shtc3.dll" />
+    <None Include="libs\Shtc3\Iot.Device.Shtc3.pe" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.CSharp.targets" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.CSharp.targets')" />
