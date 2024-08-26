@@ -52,15 +52,6 @@
     <Compile Include="Services\WebServerDi.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="CCSWE.nanoFramework.Collections.Concurrent">
-      <HintPath>..\packages\CCSWE.nanoFramework.Collections.Concurrent.1.0.28\lib\CCSWE.nanoFramework.Collections.Concurrent.dll</HintPath>
-    </Reference>
-    <Reference Include="CCSWE.nanoFramework.Core">
-      <HintPath>..\packages\CCSWE.nanoFramework.Core.1.0.29\lib\CCSWE.nanoFramework.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="CCSWE.nanoFramework.Threading">
-      <HintPath>..\packages\CCSWE.nanoFramework.Threading.1.0.47\lib\CCSWE.nanoFramework.Threading.dll</HintPath>
-    </Reference>
     <Reference Include="Iot.Device.Ahtxx">
       <HintPath>..\packages\nanoFramework.Iot.Device.Ahtxx.1.2.613\lib\Iot.Device.Ahtxx.dll</HintPath>
     </Reference>
