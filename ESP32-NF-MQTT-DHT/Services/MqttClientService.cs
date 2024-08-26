@@ -5,6 +5,7 @@
     using System.Threading;
 
     using Contracts;
+    using ESP32_NF_MQTT_DHT.Helpers;
 
     using Microsoft.Extensions.Logging;
 
@@ -31,6 +32,8 @@
         private const int ReconnectDelay = 10000;
         private const int ErrorInterval = 10000;
         private const int SensorDataInterval = 300000;
+        private const double InvalidTemperature = -50;
+        private const double InvalidHumidity = -100;
 
         private static readonly string UptimeTopic = $"home/{DeviceName}/uptime";
         private static readonly string RelayTopic = $"home/{DeviceName}/switch";
@@ -44,7 +47,7 @@
         private readonly IAhtSensorService _ahtSensorService;
         private readonly IShtc3SensorService _shtc3SensorService;
 
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
         private readonly IRelayService _relayService;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
@@ -76,7 +79,7 @@
             _uptimeService = uptimeService;
             _connectionService = connectionService;
             _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
-            _logger = loggerFactory?.CreateLogger(nameof(MqttClientService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logHelper = new LogHelper(loggerFactory, nameof(MqttClientService));
             _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
             _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
             _shtc3SensorService = shtc3SensorService ?? throw new ArgumentNullException(nameof(shtc3SensorService));
@@ -105,31 +108,34 @@
             int attemptCount = 0;
             const int MaxAttempts = 1000;
             int delayBetweenAttempts = 5000;
+            Random random = new Random();
 
             while (_isRunning && attemptCount < MaxAttempts)
             {
                 if (this.TryConnectToBroker())
                 {
-                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to MQTT broker");
+                    this._logHelper.LogWithTimestamp(LogLevel.Information, "Starting sensor data thread...");
                     this.StartSensorDataThread();
                     return;
                 }
 
                 attemptCount++;
-                _logger.LogWarning($"[{GetCurrentTimestamp()}] Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / 1000} seconds...");
-                _stopSignal.WaitOne(delayBetweenAttempts, false);
+                _logHelper.LogWithTimestamp(LogLevel.Warning, $"Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / 1000} seconds...");
+
+                int randomValue = random.Next() % 4000 + 1000;
+                _stopSignal.WaitOne(delayBetweenAttempts + randomValue, false);
 
                 delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, 120000);
             }
 
-            _logger.LogError($"[{GetCurrentTimestamp()}] Failed to connect to MQTT broker after {MaxAttempts} attempts, restarting device...");
+            this._logHelper.LogWithTimestamp(LogLevel.Warning, "Rebooting device...");
             Power.RebootDevice();
         }
 
 
         private void StartSensorDataThread()
         {
-            if (_isSensorDataThreadRunning)
+            if (_isSensorDataThreadRunning || (_sensorDataThread != null && _sensorDataThread.IsAlive))
             {
                 return;
             }
@@ -141,7 +147,7 @@
 
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost connection to MQTT broker, attempting to reconnect...");
+            _logHelper.LogWithTimestamp(LogLevel.Warning, "Lost connection to MQTT broker, attempting to reconnect...");
 
             if (_isSensorDataThreadRunning)
             {
@@ -159,7 +165,7 @@
 
             try
             {
-                _logger.LogInformation($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker...");
+                _logHelper.LogWithTimestamp(LogLevel.Information, $"Attempting to connect to MQTT broker: {Broker}");
                 this.MqttClient = new MqttClient(Broker);
                 this.MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
 
@@ -171,7 +177,7 @@
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[{GetCurrentTimestamp()}] Attempting to connect to MQTT broker: {ex.Message}");
+                _logHelper.LogWithTimestamp(LogLevel.Error, $"Attempting to connect to MQTT broker: {ex.Message}");
             }
 
             return false;
@@ -196,7 +202,7 @@
             this.MqttClient.ConnectionClosed += this.ConnectionClosed;
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] MQTT client setup complete");
+            _logHelper.LogWithTimestamp(LogLevel.Information, "MQTT client setup complete");
         }
 
 
@@ -226,7 +232,7 @@
                 else if (message.Contains("reboot"))
                 {
                     this.MqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
-                    _logger.LogWarning($"[{GetCurrentTimestamp()}] Rebooting device...");
+                    _logHelper.LogWithTimestamp(LogLevel.Warning, "Rebooting device...");
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
@@ -243,7 +249,7 @@
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"[{GetCurrentTimestamp()}] SensorDataLoop Exception: {ex.Message}");
+                    _logHelper.LogWithTimestamp(LogLevel.Error, $"SensorDataLoop Exception: {ex.Message}");
                     this.PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
 
@@ -259,7 +265,7 @@
 
         private bool IsSensorDataValid(double[] data)
         {
-            return !(data[0] == -50 || data[1] == -100);
+            return !(data[0] == InvalidTemperature || data[1] == InvalidHumidity);
         }
 
         private void PublishSensorData()
@@ -273,13 +279,13 @@
             if (this.IsSensorDataValid(data))
             {
                 this.PublishValidSensorData(data);
-                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
+                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
                 _stopSignal.WaitOne(SensorDataInterval, false);
             }
             else
             {
                 this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
-                _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                _logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
                 _stopSignal.WaitOne(ErrorInterval, false);
             }
         }
