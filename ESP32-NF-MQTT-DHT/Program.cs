@@ -3,6 +3,8 @@ namespace ESP32_NF_MQTT_DHT
     using System;
     using System.Diagnostics;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
+
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
@@ -56,6 +58,8 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
+
+            services.AddTransient(typeof(LogHelper));
 
             var serviceProvider = services.BuildServiceProvider();
 
