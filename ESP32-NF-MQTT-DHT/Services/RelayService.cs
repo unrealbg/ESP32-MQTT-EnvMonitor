@@ -4,10 +4,9 @@
     using System.Device.Gpio;
 
     using Contracts;
+    using ESP32_NF_MQTT_DHT.Helpers;
 
     using Microsoft.Extensions.Logging;
-
-    using static Helpers.TimeHelper;
 
     /// <summary>
     /// Provides methods to control a relay connected to a specific GPIO pin.
@@ -17,7 +16,7 @@
         private const int RelayPinNumber = 32;
 
         private readonly GpioController _gpioController;
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
 
         private GpioPin _relayPin;
 
@@ -29,7 +28,7 @@
         public RelayService(ILoggerFactory loggerFactory)
         {
             _gpioController = new GpioController();
-            _logger = loggerFactory?.CreateLogger(nameof(RelayService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logHelper = new LogHelper(loggerFactory, nameof(RelayService));
 
             this.InitializeRelayPin();
         }
@@ -40,7 +39,7 @@
         public void TurnOn()
         {
             _relayPin.Write(PinValue.High);
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] Relay turned ON");
+            _logHelper.LogWithTimestamp(LogLevel.Information, "Relay turned ON");
         }
 
         /// <summary>
@@ -49,7 +48,7 @@
         public void TurnOff()
         {
             _relayPin.Write(PinValue.Low);
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] Relay turned OFF");
+            _logHelper.LogWithTimestamp(LogLevel.Information, "Relay turned OFF");
         }
 
         private void InitializeRelayPin()

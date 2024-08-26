@@ -3,6 +3,7 @@
     using System;
     using System.Device.I2c;
     using System.Threading;
+    using ESP32_NF_MQTT_DHT.Helpers;
 
     using Iot.Device.Shtc3;
 
@@ -21,17 +22,18 @@
         private const int TempErrorValue = -50;
         private const int HumidityErrorValue = -100;
 
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
         private double _temperature = TempErrorValue;
         private double _humidity = HumidityErrorValue;
         private bool _isRunning;
+        private I2cDevice _device;
 
 
         public Shtc3SensorService(ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger(nameof(Shtc3SensorService));
+            _logHelper = new LogHelper(loggerFactory, nameof(Shtc3SensorService));
         }
 
         public void Start()
@@ -46,6 +48,9 @@
             Configuration.SetPinFunction(DataPin, DeviceFunction.I2C1_DATA);
             Configuration.SetPinFunction(ClockPin, DeviceFunction.I2C1_CLOCK);
 
+            I2cConnectionSettings settings = new I2cConnectionSettings(1, Shtc3.DefaultI2cAddress);
+            _device = I2cDevice.Create(settings);
+
             Thread sensorReadThread = new Thread(this.StartReceivingData);
             sensorReadThread.Start();
         }
@@ -55,6 +60,7 @@
             _isRunning = false;
 
             _stopSignal.Set();
+            _device.Dispose();
         }
 
         public double[] GetData()
@@ -74,10 +80,7 @@
 
         private void StartReceivingData()
         {
-            I2cConnectionSettings settings = new I2cConnectionSettings(1, Shtc3.DefaultI2cAddress);
-            I2cDevice device = I2cDevice.Create(settings);
-
-            using (Shtc3 sensor = new Shtc3(device))
+            using (Shtc3 sensor = new Shtc3(_device))
             {
                 while (_isRunning)
                 {
@@ -90,7 +93,7 @@
                                 _temperature = temperature.DegreesCelsius;
                                 _humidity = relativeHumidity.Percent;
 
-                                _logger.LogInformation($"Temp: {_temperature}\nHumid: {_humidity}");
+                                this._logHelper.LogWithTimestamp(LogLevel.Information, $"Temp: {_temperature}\nHumid: {_humidity}");
 
                                 _stopSignal.WaitOne(ReadInterval, false);
                             }
@@ -103,7 +106,7 @@
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Error reading sensor data");
+                        this._logHelper.LogWithTimestamp(LogLevel.Error, "Unable to read sensor data");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }

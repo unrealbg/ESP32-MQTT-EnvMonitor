@@ -5,6 +5,7 @@
     using System.Threading;
 
     using Contracts;
+    using ESP32_NF_MQTT_DHT.Helpers;
 
     using Iot.Device.Ahtxx;
 
@@ -26,7 +27,7 @@
         private const int TempErrorValue = -50;
         private const int HumidityErrorValue = -100;
 
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
         private double _temperature = TempErrorValue;
@@ -39,7 +40,7 @@
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         public AhtSensorService(ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger(nameof(AhtSensorService));
+            _logHelper = new LogHelper(loggerFactory, nameof(AhtSensorService));
         }
 
         /// <summary>
@@ -99,12 +100,12 @@
 
                             if (_temperature < 45 && _temperature != -50)
                             {
-                                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temperature}, Humidity: {_humidity}");
+                                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temp: {_temperature}\nHumid: {_humidity}");
                                 _stopSignal.WaitOne(ReadInterval,false);
                             }
                             else
                             {
-                                _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                                this._logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
                                 this.SetErrorValues();
                                 _stopSignal.WaitOne(ErrorInterval, false);
                             }
@@ -112,7 +113,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
+                        _logHelper.LogWithTimestamp(LogLevel.Error, "Unable to read sensor data");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }

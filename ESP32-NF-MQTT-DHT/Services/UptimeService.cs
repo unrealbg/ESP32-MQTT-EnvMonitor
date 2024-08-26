@@ -4,22 +4,21 @@
     using System.Diagnostics;
     using System.Threading;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
 
     using Microsoft.Extensions.Logging;
-
-    using static Helpers.TimeHelper;
 
     public class UptimeService : IUptimeService
     {
         private const int UptimeDelay = 60000;
 
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
         private Timer _uptimeTimer;
 
         public UptimeService(ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory?.CreateLogger(nameof(UptimeService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logHelper = new LogHelper(loggerFactory, nameof(UptimeService));
             Stopwatch = new Stopwatch();
             Stopwatch.Start();
             _uptimeTimer = new Timer(this.UptimeTimerCallback, null, 0, UptimeDelay);
@@ -38,11 +37,11 @@
             try
             {
                 var uptimeMessage = this.GetUptime();
-                _logger.LogInformation($"[{GetCurrentTimestamp()}] {uptimeMessage}");
+                _logHelper.LogWithTimestamp(LogLevel.Information, uptimeMessage);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[{GetCurrentTimestamp()}] {ex.Message}");
+                _logHelper.LogWithTimestamp(LogLevel.Error, ex.Message);
             }
         }
     }

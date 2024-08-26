@@ -5,11 +5,11 @@
 
     using Contracts;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
+
     using Iot.Device.DHTxx.Esp32;
 
     using Microsoft.Extensions.Logging;
-
-    using static Helpers.TimeHelper;
 
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
@@ -23,7 +23,7 @@
         private const int TempErrorValue = -50;
         private const int HumidityErrorValue = -100;
 
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
 
         private Thread _sensorThread;
 
@@ -38,7 +38,7 @@
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public DhtService(ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory?.CreateLogger(nameof(DhtService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logHelper = new LogHelper(loggerFactory, nameof(DhtService));
             _sensorThread = new Thread(SensorReadLoop);
         }
 
@@ -47,7 +47,7 @@
         /// </summary>
         public void Start()
         {
-            _logger.LogInformation($"[{GetCurrentTimestamp()}] Start Reading Sensor Data from DHT21");
+            this._logHelper.LogWithTimestamp(LogLevel.Information, "Start Reading Sensor Data from DHT21");
             _sensorThread.Start();
         }
 
@@ -89,12 +89,12 @@
 
             if (dht.IsLastReadSuccessful)
             {
-                _logger.LogInformation($"[{GetCurrentTimestamp()}] Temp: {_temp}\nHumid: {_humidity}");
+                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temp: {_temp}\nHumid: {_humidity}");
                 Thread.Sleep(ReadInterval);
             }
             else
             {
-                _logger.LogWarning($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                _logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
                 this.SetErrorValues();
                 Thread.Sleep(ErrorInterval);
             }
@@ -117,7 +117,7 @@
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[{GetCurrentTimestamp()}] Sensor reading error: {ex.Message}");
+                this._logHelper.LogWithTimestamp(LogLevel.Error, "Unable to read sensor data");
                 this.SetErrorValues();
             }
         }

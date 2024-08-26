@@ -6,6 +6,8 @@
 
     using Controllers;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
+
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.WebServer;
@@ -17,7 +19,7 @@
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IConnectionService _connectionService;
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
         private WebServer _server;
         private bool _isServerRunning = false;
 
@@ -29,7 +31,7 @@
         /// <param name="serviceProvider">The service provider.</param>
         public WebServerService(IConnectionService connectionService, ILoggerFactory loggerFactory, IServiceProvider serviceProvider)
         {
-            _logger = loggerFactory?.CreateLogger(nameof(WebServerService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logHelper = new LogHelper(loggerFactory, nameof(WebServerService));
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _serviceProvider = serviceProvider;
 
@@ -47,7 +49,7 @@
                 this.InitializeWebServer();
                 _server.Start();
                 _isServerRunning = true;
-                _logger.LogInformation("Web server started.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Web server started.");
             }
         }
 
@@ -62,7 +64,7 @@
                 _server.Dispose();
                 _server = null;
                 _isServerRunning = false;
-                _logger.LogInformation("Web server stopped.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Web server stopped.");
             }
         }
 
@@ -77,13 +79,13 @@
 
         private void ConnectionLost(object sender, EventArgs e)
         {
-            _logger.LogInformation("Connection lost. Stopping the web server.");
+            _logHelper.LogWithTimestamp(LogLevel.Information, "Connection lost. Stopping the web server.");
             this.Stop();
         }
 
         private void ConnectionRestored(object sender, EventArgs e)
         {
-            _logger.LogInformation("Connection restored. Starting the web server.");
+            _logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored. Starting the web server.");
             this.Restart();
         }
 
@@ -95,7 +97,7 @@
             if (_server == null)
             {
                 _server = new WebServerDi(80, HttpProtocol.Http, new Type[] { typeof(SensorController) }, _serviceProvider);
-                _logger.LogInformation("Web server initialized.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Web server initialized.");
             }
         }
     }

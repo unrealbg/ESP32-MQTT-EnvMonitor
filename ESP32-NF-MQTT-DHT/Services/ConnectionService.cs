@@ -6,10 +6,10 @@
     using System.Threading;
 
     using Contracts;
+    using ESP32_NF_MQTT_DHT.Helpers;
 
     using Microsoft.Extensions.Logging;
-    
-    using static Helpers.TimeHelper;
+
     using static Settings.WifiSettings;
 
     /// <summary>
@@ -17,8 +17,7 @@
     /// </summary>
     public class ConnectionService : IConnectionService
     {
-        private readonly ILogger _logger;
-
+        private readonly LogHelper _logHelper;
         private bool _isInitialStart = true;
 
         /// <summary>
@@ -38,7 +37,7 @@
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public ConnectionService(ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory?.CreateLogger(nameof(ConnectionService)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logHelper = new LogHelper(loggerFactory, nameof(ConnectionService));
         }
 
         /// <summary>
@@ -52,7 +51,7 @@
 
             while (!IsAlreadyConnected(out var ipAddress))
             {
-                _logger.LogInformation($"[{GetCurrentTimestamp()}] Connecting... [Attempt {++count}]");
+                this._logHelper.LogWithTimestamp(LogLevel.Information, $"Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
 
                 for (int waitTime = 0; waitTime < maxAttempts; waitTime++)
@@ -62,13 +61,13 @@
                         if (_isInitialStart)
                         {
                             Thread.Sleep(200);
-                            _logger.LogInformation($"[{GetCurrentTimestamp()}] Connected to Wifi network {SSID} with IP address {ipAddress}");
+                            _logHelper.LogWithTimestamp(LogLevel.Information, $"Connection established. IP address: {ipAddress}");
                             _isInitialStart = false;
                             return;
                         }
 
                         Thread.Sleep(200);
-                        _logger.LogInformation($"[{GetCurrentTimestamp()}] Connection restored to Wifi network {SSID} with IP address {ipAddress}");
+                        this._logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored.");
                         ConnectionRestored?.Invoke(this, EventArgs.Empty);
                         return;
                     }
@@ -76,12 +75,12 @@
                     Thread.Sleep(200);
                 }
 
-                _logger.LogError($"[{GetCurrentTimestamp()}] Connection failed [{GetErrorMessage(result.ConnectionStatus)}]");
+                this._logHelper.LogWithTimestamp(LogLevel.Warning, "Connection failed. Retrying in 10 seconds...");
                 Thread.Sleep(10000);
 
                 if (IsAlreadyConnected(out ipAddress))
                 {
-                    _logger.LogInformation($"[{GetCurrentTimestamp()}] Connection restored to Wifi network {SSID} with IP address {ipAddress}");
+                    this._logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored.");
                     ConnectionRestored?.Invoke(this, EventArgs.Empty);
                 }
             }
@@ -95,7 +94,7 @@
             if (!this.IsAlreadyConnected(out var ipAddress))
             {
                 ConnectionLost?.Invoke(this, EventArgs.Empty);
-                _logger.LogWarning($"[{GetCurrentTimestamp()}] Lost network connection. Attempting to reconnect...");
+                this._logHelper.LogWithTimestamp(LogLevel.Warning, "Lost network connection. Attempting to reconnect...");
                 this.Connect();
             }
         }
