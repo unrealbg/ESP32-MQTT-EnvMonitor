@@ -14,8 +14,8 @@
 
     internal class Shtc3SensorService : IShtc3SensorService
     {
-        private const int DataPin = 4;
-        private const int ClockPin = 5;
+        private const int DataPin = 21;
+        private const int ClockPin = 22;
         private const int ReadInterval = 60000;
         private const int ErrorInterval = 30000;
         private const int TempErrorValue = -50;
