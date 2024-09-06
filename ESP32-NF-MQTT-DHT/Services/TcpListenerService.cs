@@ -27,19 +27,19 @@
 
         private readonly IUptimeService _uptimeService;
         private readonly IMqttClientService _mqttClient;
-        private readonly IDhtService _dhtService;
+        private readonly ISensorService _sensorService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpListenerService"/> class.
         /// </summary>
         /// <param name="uptimeService">Service to get uptime information.</param>
         /// <param name="mqttClient">Service to handle MQTT client functionalities.</param>
-        /// <param name="dhtService">Service to interact with a DHT sensor.</param>
-        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, IDhtService dhtService)
+        /// <param name="sensorService">Service to interact with a DHT sensor.</param>
+        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService)
         {
             _uptimeService = uptimeService;
             _mqttClient = mqttClient;
-            _dhtService = dhtService;
+            _sensorService = sensorService;
         }
 
         /// <summary>
@@ -139,7 +139,7 @@
                     WriteToStream(sw, _uptimeService.GetUptime());
                     return false;
                 case "temp":
-                    WriteToStream(sw, _dhtService.GetTemp().ToString());
+                    WriteToStream(sw, _sensorService.GetTemp().ToString());
                     return false;
                 case "publishUptime":
                     _mqttClient.MqttClient.Publish($"home/{DeviceName}/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
