@@ -19,8 +19,13 @@
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Helpers\Constants.cs" />
     <Compile Include="Helpers\LogHelper.cs" />
-    <Compile Include="Services\Contracts\IShtc3SensorService.cs" />
+    <Compile Include="Helpers\LogMessages.cs" />
+    <Compile Include="Helpers\MqttConstants.cs" />
+    <Compile Include="Helpers\SensorType.cs" />
+    <Compile Include="Models\Device.cs" />
+    <Compile Include="Services\Contracts\ISensorService.cs" />
     <Compile Include="Services\Shtc3SensorService.cs" />
     <Compile Include="Settings\DeviceSettings.cs" />
     <Compile Include="Settings\MqttSettings.cs" />
@@ -34,9 +39,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\AhtSernsorService.cs" />
     <Compile Include="Services\ConnectionService.cs" />
-    <Compile Include="Services\Contracts\IAhtSensorService.cs" />
     <Compile Include="Services\Contracts\IConnectionService.cs" />
-    <Compile Include="Services\Contracts\IDhtService.cs" />
     <Compile Include="Services\Contracts\IMqttClientService.cs" />
     <Compile Include="Services\Contracts\IRelayService.cs" />
     <Compile Include="Services\Contracts\ITcpListenerService.cs" />
@@ -53,13 +56,13 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Iot.Device.Ahtxx">
-      <HintPath>..\packages\nanoFramework.Iot.Device.Ahtxx.1.2.613\lib\Iot.Device.Ahtxx.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.Iot.Device.Ahtxx.1.2.631\lib\Iot.Device.Ahtxx.dll</HintPath>
     </Reference>
     <Reference Include="Iot.Device.Dhtxx.Esp32">
-      <HintPath>..\packages\nanoFramework.Iot.Device.Dhtxx.Esp32.1.2.613\lib\Iot.Device.Dhtxx.Esp32.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.Iot.Device.Dhtxx.Esp32.1.2.631\lib\Iot.Device.Dhtxx.Esp32.dll</HintPath>
     </Reference>
     <Reference Include="Iot.Device.Shtc3">
-      <HintPath>..\packages\nanoFramework.Iot.Device.Shtc3.1.2.613\lib\Iot.Device.Shtc3.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.Iot.Device.Shtc3.1.2.631\lib\Iot.Device.Shtc3.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib">
       <HintPath>..\packages\nanoFramework.CoreLibrary.1.15.5\lib\mscorlib.dll</HintPath>
@@ -104,7 +107,7 @@
       <HintPath>..\packages\nanoFramework.WebServer.1.2.56\lib\nanoFramework.WebServer.dll</HintPath>
     </Reference>
     <Reference Include="System.Buffers.Binary.BinaryPrimitives">
-      <HintPath>..\packages\nanoFramework.System.Buffers.Binary.BinaryPrimitives.1.2.586\lib\System.Buffers.Binary.BinaryPrimitives.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Buffers.Binary.BinaryPrimitives.1.2.628\lib\System.Buffers.Binary.BinaryPrimitives.dll</HintPath>
     </Reference>
     <Reference Include="System.Device.Gpio">
       <HintPath>..\packages\nanoFramework.System.Device.Gpio.1.1.41\lib\System.Device.Gpio.dll</HintPath>
@@ -113,13 +116,13 @@
       <HintPath>..\packages\nanoFramework.System.Device.I2c.1.1.16\lib\System.Device.I2c.dll</HintPath>
     </Reference>
     <Reference Include="System.Device.Model">
-      <HintPath>..\packages\nanoFramework.System.Device.Model.1.2.586\lib\System.Device.Model.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Device.Model.1.2.628\lib\System.Device.Model.dll</HintPath>
     </Reference>
     <Reference Include="System.Device.Wifi">
       <HintPath>..\packages\nanoFramework.System.Device.Wifi.1.5.91\lib\System.Device.Wifi.dll</HintPath>
     </Reference>
     <Reference Include="System.Diagnostics.Stopwatch">
-      <HintPath>..\packages\nanoFramework.System.Diagnostics.Stopwatch.1.2.586\lib\System.Diagnostics.Stopwatch.dll</HintPath>
+      <HintPath>..\packages\nanoFramework.System.Diagnostics.Stopwatch.1.2.628\lib\System.Diagnostics.Stopwatch.dll</HintPath>
     </Reference>
     <Reference Include="System.IO.Streams">
       <HintPath>..\packages\nanoFramework.System.IO.Streams.1.1.59\lib\System.IO.Streams.dll</HintPath>
@@ -143,10 +146,10 @@
       <HintPath>libs\Shtc3\Iot.Device.Shtc3.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.RelativeHumidity">
-      <HintPath>..\packages\UnitsNet.nanoFramework.RelativeHumidity.5.56.0\lib\UnitsNet.RelativeHumidity.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.RelativeHumidity.5.57.0\lib\UnitsNet.RelativeHumidity.dll</HintPath>
     </Reference>
     <Reference Include="UnitsNet.Temperature">
-      <HintPath>..\packages\UnitsNet.nanoFramework.Temperature.5.56.0\lib\UnitsNet.Temperature.dll</HintPath>
+      <HintPath>..\packages\UnitsNet.nanoFramework.Temperature.5.57.0\lib\UnitsNet.Temperature.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
