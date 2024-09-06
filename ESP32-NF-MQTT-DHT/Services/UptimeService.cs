@@ -4,10 +4,11 @@
     using System.Diagnostics;
     using System.Threading;
 
-    using ESP32_NF_MQTT_DHT.Helpers;
-    using ESP32_NF_MQTT_DHT.Services.Contracts;
+    using Helpers;
 
     using Microsoft.Extensions.Logging;
+
+    using Services.Contracts;
 
     public class UptimeService : IUptimeService
     {
