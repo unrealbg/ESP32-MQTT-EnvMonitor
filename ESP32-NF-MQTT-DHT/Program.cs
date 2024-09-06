@@ -25,7 +25,9 @@ namespace ESP32_NF_MQTT_DHT
         {
             try
             {
-                var services = ConfigureServices();
+                SensorType sensorType = SensorType.SHTC3;
+
+                var services = ConfigureServices(sensorType);
                 var application = services.GetService(typeof(Startup)) as Startup;
 
                 application?.Run();
@@ -40,7 +42,7 @@ namespace ESP32_NF_MQTT_DHT
         /// Configures services for the application.
         /// </summary>
         /// <returns>Configured service provider.</returns>
-        private static ServiceProvider ConfigureServices()
+        private static ServiceProvider ConfigureServices(SensorType sensorType)
         {
             var services = new ServiceCollection();
 
@@ -51,9 +53,23 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
             services.AddSingleton(typeof(IRelayService), typeof(RelayService));
 
-            services.AddSingleton(typeof(IDhtService), typeof(DhtService));
-            services.AddSingleton(typeof(IAhtSensorService), typeof(AhtSensorService));
-            services.AddSingleton(typeof(IShtc3SensorService), typeof(Shtc3SensorService));
+            switch (sensorType)
+            {
+                case SensorType.DHT:
+                    services.AddSingleton(typeof(ISensorService), typeof(DhtService));
+                    break;
+
+                case SensorType.AHT:
+                    services.AddSingleton(typeof(ISensorService), typeof(AhtSensorService));
+                    break;
+
+                case SensorType.SHTC3:
+                    services.AddSingleton(typeof(ISensorService), typeof(Shtc3SensorService));
+                    break;
+
+                default:
+                    throw new ArgumentException("Unknown sensor type", nameof(sensorType));
+            }
 
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
