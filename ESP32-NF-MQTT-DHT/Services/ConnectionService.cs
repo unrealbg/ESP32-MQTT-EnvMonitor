@@ -6,7 +6,8 @@
     using System.Threading;
 
     using Contracts;
-    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using Helpers;
 
     using Microsoft.Extensions.Logging;
 
@@ -41,6 +42,11 @@
         }
 
         /// <summary>
+        /// Represents the current connection status.
+        /// </summary>
+        public bool IsConnected { get; set; }
+
+        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         public void Connect()
@@ -62,6 +68,7 @@
                         {
                             Thread.Sleep(200);
                             _logHelper.LogWithTimestamp(LogLevel.Information, $"Connection established. IP address: {ipAddress}");
+                            this.IsConnected = true;
                             _isInitialStart = false;
                             return;
                         }
@@ -69,6 +76,7 @@
                         Thread.Sleep(200);
                         this._logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored.");
                         ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                        this.IsConnected = true;
                         return;
                     }
 
@@ -78,10 +86,10 @@
                 this._logHelper.LogWithTimestamp(LogLevel.Warning, "Connection failed. Retrying in 10 seconds...");
                 Thread.Sleep(10000);
 
-                if (IsAlreadyConnected(out ipAddress))
+                if (this.IsAlreadyConnected(out ipAddress))
                 {
-                    this._logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored.");
-                    ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                    _logHelper.LogWithTimestamp(LogLevel.Information, $"Connection restored. IP Address: {ipAddress}");
+                    this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
                 }
             }
         }
@@ -93,7 +101,7 @@
         {
             if (!this.IsAlreadyConnected(out var ipAddress))
             {
-                ConnectionLost?.Invoke(this, EventArgs.Empty);
+                this.ConnectionLost?.Invoke(this, EventArgs.Empty);
                 this._logHelper.LogWithTimestamp(LogLevel.Warning, "Lost network connection. Attempting to reconnect...");
                 this.Connect();
             }
@@ -102,6 +110,7 @@
         private bool IsAlreadyConnected(out string ipAddress)
         {
             ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            this.IsConnected = true;
             return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
         }
 

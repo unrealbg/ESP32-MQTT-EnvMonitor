@@ -12,6 +12,11 @@
         event EventHandler ConnectionLost;
 
         /// <summary>
+        /// Checks if the device is connected to the network.
+        /// </summary>
+        bool IsConnected { get; set; }
+
+        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         void Connect();
