@@ -4,7 +4,8 @@
     using System.Device.Gpio;
 
     using Contracts;
-    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using Helpers;
 
     using Microsoft.Extensions.Logging;
 
