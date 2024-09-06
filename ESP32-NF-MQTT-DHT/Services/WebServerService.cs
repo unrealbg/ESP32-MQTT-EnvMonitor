@@ -85,8 +85,11 @@
 
         private void ConnectionRestored(object sender, EventArgs e)
         {
-            _logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored. Starting the web server.");
-            this.Restart();
+            if (!_isServerRunning)
+            {
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored. Starting the web server.");
+                this.Start();
+            }
         }
 
         /// <summary>
