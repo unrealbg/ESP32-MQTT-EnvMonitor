@@ -3,7 +3,8 @@
     using System;
     using System.Device.I2c;
     using System.Threading;
-    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using Helpers;
 
     using Iot.Device.Shtc3;
 
@@ -13,7 +14,7 @@
 
     using Services.Contracts;
 
-    internal class Shtc3SensorService : IShtc3SensorService
+    internal class Shtc3SensorService : ISensorService
     {
         private const int DataPin = 21;
         private const int ClockPin = 22;
@@ -29,7 +30,6 @@
         private double _humidity = HumidityErrorValue;
         private bool _isRunning;
         private I2cDevice _device;
-
 
         public Shtc3SensorService(ILoggerFactory loggerFactory)
         {
@@ -93,7 +93,7 @@
                                 _temperature = temperature.DegreesCelsius;
                                 _humidity = relativeHumidity.Percent;
 
-                                this._logHelper.LogWithTimestamp(LogLevel.Information, $"Temp: {_temperature}\nHumid: {_humidity}");
+                                this._logHelper.LogWithTimestamp(LogLevel.Information, "Data read from SHTC3 sensor");
 
                                 _stopSignal.WaitOne(ReadInterval, false);
                             }

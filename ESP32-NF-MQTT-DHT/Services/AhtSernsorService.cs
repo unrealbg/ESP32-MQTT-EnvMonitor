@@ -5,7 +5,7 @@
     using System.Threading;
 
     using Contracts;
-    using ESP32_NF_MQTT_DHT.Helpers;
+    using Helpers;
 
     using Iot.Device.Ahtxx;
 
@@ -13,15 +13,13 @@
 
     using nanoFramework.Hardware.Esp32;
 
-    using static Helpers.TimeHelper;
-
     /// <summary>
     /// Provides services for reading data from an AHT sensor.
     /// </summary>
-    public class AhtSensorService : IAhtSensorService
+    public class AhtSensorService : ISensorService
     {
-        private const int DataPin = 4;
-        private const int ClockPin = 5;
+        private const int DataPin = 22;
+        private const int ClockPin = 23;
         private const int ReadInterval = 60000;
         private const int ErrorInterval = 30000;
         private const int TempErrorValue = -50;
@@ -100,7 +98,7 @@
 
                             if (_temperature < 45 && _temperature != -50)
                             {
-                                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temp: {_temperature}\nHumid: {_humidity}");
+                                 _logHelper.LogWithTimestamp(LogLevel.Information, "Data read from AHT10 sensor");
                                 _stopSignal.WaitOne(ReadInterval,false);
                             }
                             else

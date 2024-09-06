@@ -5,7 +5,7 @@
 
     using Contracts;
 
-    using ESP32_NF_MQTT_DHT.Helpers;
+    using Helpers;
 
     using Iot.Device.DHTxx.Esp32;
 
@@ -14,7 +14,7 @@
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
     /// </summary>
-    internal class DhtService : IDhtService
+    internal class DhtService : ISensorService
     {
         private const int ReadInterval = 60000; // 1 minute
         private const int ErrorInterval = 30000; // 30 seconds
@@ -29,7 +29,6 @@
 
         private double _temp = TempErrorValue;
         private double _humidity = HumidityErrorValue;
-
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
@@ -49,6 +48,11 @@
         {
             this._logHelper.LogWithTimestamp(LogLevel.Information, "Start Reading Sensor Data from DHT21");
             _sensorThread.Start();
+        }
+
+        public void Stop()
+        {
+            _sensorThread.Abort();
         }
 
         /// <summary>
@@ -89,7 +93,7 @@
 
             if (dht.IsLastReadSuccessful)
             {
-                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temp: {_temp}\nHumid: {_humidity}");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Data read from DHT21 sensor.");
                 Thread.Sleep(ReadInterval);
             }
             else
