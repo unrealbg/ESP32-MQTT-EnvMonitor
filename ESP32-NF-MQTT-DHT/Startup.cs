@@ -2,6 +2,8 @@
 {
     using System;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
+
     using Microsoft.Extensions.Logging;
 
     using Services.Contracts;
@@ -11,44 +13,35 @@
     /// </summary>
     public class Startup
     {
-        private readonly IUptimeService _uptimeService;
-
-        private readonly IShtc3SensorService _shtc3SensorService;
-
+        private readonly ISensorService _sensorService;
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
-        private readonly IDhtService _dhtService;
-        private readonly IAhtSensorService _ahtSensorService;
         private readonly IWebServerService _webServerService;
-        private readonly ILogger _logger;
+        private readonly LogHelper _logHelper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Startup"/> class.
         /// </summary>
         /// <param name="connectionService">Service for managing connections.</param>
         /// <param name="mqttClient">MQTT client service.</param>
-        /// <param name="dhtService">DHT sensor service.</param>
-        /// <param name="ahtSensorService">AHT sensor service.</param>
+        /// <param name="sensorService">DHT sensor service.</param>
         /// <param name="loggerFactory">Factory for creating logger instances.</param>
         /// <param name="webServerService">WebServer service.</param>
-        /// <param name="uptimeService">Uptime service.</param>
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
-            IDhtService dhtService,
+            ISensorService sensorService,
             ILoggerFactory loggerFactory,
-            IWebServerService webServerService, IAhtSensorService ahtSensorService, IUptimeService uptimeService, IShtc3SensorService shtc3SensorService)
+            IWebServerService webServerService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
-            _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
-            _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
-            _uptimeService = uptimeService;
-            _shtc3SensorService = shtc3SensorService ?? throw new ArgumentNullException(nameof(shtc3SensorService));
-            _webServerService = webServerService;
+            _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
+            _webServerService = webServerService ?? throw new ArgumentNullException(nameof(webServerService));
 
-            _logger = loggerFactory?.CreateLogger(nameof(Startup)) ?? throw new ArgumentNullException(nameof(loggerFactory));
-            _logger.LogInformation("Startup: Initializing application...");
+            _logHelper = new LogHelper(loggerFactory, nameof(Startup));
+
+            _logHelper.LogWithTimestamp(LogLevel.Information, "Initializing application...");
         }
 
         /// <summary>
@@ -58,33 +51,25 @@
         {
             try
             {
-                _logger.LogInformation("Startup: Establishing connection...");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Establishing connection...");
                 _connectionService.Connect();
-                _logger.LogInformation("Startup: Connection established.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Connection established.");
 
-                //_logger.LogInformation("Startup: Starting DHT service...");
-                //_dhtService.Start();
-                //_logger.LogInformation("Startup: DHT service started.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Starting sensor service...");
+                _sensorService.Start();
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Sensor service started.");
 
-                //_logger.LogInformation("Startup: Starting AHT sensor service...");
-                //_ahtSensorService.Start();
-                //_logger.LogInformation("Startup: AHT sensor service started.");
-
-                _logger.LogInformation("Startup: Starting SHTC3 sensor service...");
-                _shtc3SensorService.Start();
-                _logger.LogInformation("Startup: SHTC3 sensor service started.");
-
-                _logger.LogInformation("Startup: Starting MQTT client...");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Starting MQTT client...");
                 _mqttClient.Start();
-                _logger.LogInformation("Startup: MQTT client started.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "MQTT client started.");
 
-                _logger.LogInformation("Startup: Starting WebServer service...");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "Starting WebServer service...");
                 _webServerService.Start();
-                _logger.LogInformation("Startup: WebServer service started.");
+                _logHelper.LogWithTimestamp(LogLevel.Information, "WebServer service started.");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"An error occurred during startup: {ex.Message}");
+                _logHelper.LogWithTimestamp(LogLevel.Error, $"An error occurred during startup: {ex.Message}");
             }
         }
     }
