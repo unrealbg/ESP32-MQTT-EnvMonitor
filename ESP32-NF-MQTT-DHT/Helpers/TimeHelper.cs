@@ -6,7 +6,7 @@
     {
         public static string GetCurrentTimestamp()
         {
-            return DateTime.UtcNow.AddHours(2).ToString("HH:mm:ss");
+            return DateTime.UtcNow.AddHours(3).ToString("dd-MM-yyy HH:mm:ss");
         }
     }
 }
