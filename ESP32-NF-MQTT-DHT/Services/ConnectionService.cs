@@ -42,11 +42,6 @@
         }
 
         /// <summary>
-        /// Represents the current connection status.
-        /// </summary>
-        public bool IsConnected { get; set; }
-
-        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         public void Connect()
@@ -68,15 +63,15 @@
                         {
                             Thread.Sleep(200);
                             _logHelper.LogWithTimestamp(LogLevel.Information, $"Connection established. IP address: {ipAddress}");
-                            this.IsConnected = true;
                             _isInitialStart = false;
+                            ConnectionRestored?.Invoke(this, EventArgs.Empty);
+
                             return;
                         }
 
                         Thread.Sleep(200);
                         this._logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored.");
                         ConnectionRestored?.Invoke(this, EventArgs.Empty);
-                        this.IsConnected = true;
                         return;
                     }
 
@@ -110,7 +105,6 @@
         private bool IsAlreadyConnected(out string ipAddress)
         {
             ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
-            this.IsConnected = true;
             return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
         }
 
