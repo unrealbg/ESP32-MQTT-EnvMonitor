@@ -1,10 +1,12 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
     using System;
+    using System.Net;
     using System.Text;
     using System.Threading;
 
     using Contracts;
+
     using ESP32_NF_MQTT_DHT.Helpers;
 
     using Microsoft.Extensions.Logging;
@@ -20,7 +22,7 @@
     using static Settings.DeviceSettings;
     using static Settings.MqttSettings;
 
-    using IMqttClientService = ESP32_NF_MQTT_DHT.Services.Contracts.IMqttClientService;
+    using IMqttClientService = Contracts.IMqttClientService;
 
     /// <summary>
     /// Service to handle MQTT client functionalities including connecting to the broker,
@@ -43,9 +45,7 @@
 
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
-        private readonly IDhtService _dhtService;
-        private readonly IAhtSensorService _ahtSensorService;
-        private readonly IShtc3SensorService _shtc3SensorService;
+        private readonly ISensorService _sensorService;
 
         private readonly LogHelper _logHelper;
         private readonly IRelayService _relayService;
@@ -64,25 +64,19 @@
         /// <param name="connectionService">Service to manage network connections.</param>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <param name="relayService">Service to control and manage the relay operations.</param>
-        /// <param name="dhtService"> Service to read data from the DHT sensor.</param>
-        /// <param name="ahtSensorService"> Service to read data from the AHT sensor.</param>
-        /// <param name="shtc3SensorService">Service to read data from the SHTC3 sensor.</param>
+        /// <param name="sensorService"> Service to read data from the sensor.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public MqttClientService(IUptimeService uptimeService,
                                  IConnectionService connectionService,
                                  ILoggerFactory loggerFactory,
                                  IRelayService relayService,
-                                 IDhtService dhtService,
-                                 IAhtSensorService ahtSensorService,
-                                 IShtc3SensorService shtc3SensorService)
+                                 ISensorService sensorService)
         {
             _uptimeService = uptimeService;
             _connectionService = connectionService;
             _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
             _logHelper = new LogHelper(loggerFactory, nameof(MqttClientService));
-            _dhtService = dhtService ?? throw new ArgumentNullException(nameof(dhtService));
-            _ahtSensorService = ahtSensorService ?? throw new ArgumentNullException(nameof(ahtSensorService));
-            _shtc3SensorService = shtc3SensorService ?? throw new ArgumentNullException(nameof(shtc3SensorService));
+            _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
         }
 
         /// <summary>
@@ -112,11 +106,20 @@
 
             while (_isRunning && attemptCount < MaxAttempts)
             {
-                if (this.TryConnectToBroker())
+                if (this.IsInternetAvailable() && this._connectionService.IsConnected)
                 {
-                    this._logHelper.LogWithTimestamp(LogLevel.Information, "Starting sensor data thread...");
-                    this.StartSensorDataThread();
-                    return;
+                    if (this.TryConnectToBroker())
+                    {
+                        _logHelper.LogWithTimestamp(LogLevel.Information, "Starting sensor data thread...");
+                        this.StartSensorDataThread();
+                        return;
+                    }
+                }
+                else
+                {
+                    _logHelper.LogWithTimestamp(LogLevel.Warning, "No internet connection. Retrying in 10 seconds...");
+                    _stopSignal.WaitOne(10000, false);
+                    _connectionService.CheckConnection();
                 }
 
                 attemptCount++;
@@ -128,10 +131,22 @@
                 delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, 120000);
             }
 
-            this._logHelper.LogWithTimestamp(LogLevel.Warning, "Rebooting device...");
+            this._logHelper.LogWithTimestamp(LogLevel.Warning, "Max reconnect attempts reached. Rebooting device...");
             Power.RebootDevice();
         }
 
+        private bool IsInternetAvailable()
+        {
+            try
+            {
+                var addresses = Dns.GetHostEntry("www.google.com");
+                return addresses != null && addresses.AddressList.Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         private void StartSensorDataThread()
         {
@@ -161,7 +176,17 @@
         {
             this.DisposeCurrentClient();
 
-            _connectionService.CheckConnection();
+            if (!this._connectionService.IsConnected)
+            {
+                _logHelper.LogWithTimestamp(LogLevel.Warning, "No network connection. Retrying later.");
+                return false;
+            }
+
+            if (!this.IsInternetAvailable())
+            {
+                _logHelper.LogWithTimestamp(LogLevel.Warning, "No internet connection available.");
+                return false;
+            }
 
             try
             {
@@ -185,6 +210,8 @@
 
         private void DisposeCurrentClient()
         {
+            _logHelper.LogWithTimestamp(LogLevel.Information, "Disposing current MQTT client...");
+
             if (this.MqttClient != null)
             {
                 if (this.MqttClient.IsConnected)
@@ -204,7 +231,6 @@
             this.MqttClient.MqttMsgPublishReceived += this.HandleIncomingMessage;
             _logHelper.LogWithTimestamp(LogLevel.Information, "MQTT client setup complete");
         }
-
 
         private void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
@@ -259,8 +285,11 @@
 
         private void PublishError(string errorMessage)
         {
-            this.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
-            _stopSignal.WaitOne(ErrorInterval, false);
+            if (this.EnsureConnected())
+            {
+                this.MqttClient.Publish(ErrorTopic, Encoding.UTF8.GetBytes(errorMessage));
+                _stopSignal.WaitOne(ErrorInterval, false);
+            }
         }
 
         private bool IsSensorDataValid(double[] data)
@@ -272,15 +301,16 @@
         {
             double[] data;
 
-            //data = _dhtService.GetData();
-            //data = _ahtSensorService.GetData();
-            data = _shtc3SensorService.GetData();
+            data = this._sensorService.GetData();
 
             if (this.IsSensorDataValid(data))
             {
-                this.PublishValidSensorData(data);
-                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
-                _stopSignal.WaitOne(SensorDataInterval, false);
+                if (this.EnsureConnected())
+                {
+                    this.PublishValidSensorData(data);
+                    _logHelper.LogWithTimestamp(LogLevel.Information, $"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
+                    _stopSignal.WaitOne(SensorDataInterval, false);
+                }
             }
             else
             {
@@ -294,24 +324,47 @@
         {
             var sensorData = this.CreateSensorData(data);
             var message = JsonSerializer.SerializeObject(sensorData);
-            this.MqttClient.Publish(DataTopic, Encoding.UTF8.GetBytes(message));
+
+            if (this.EnsureConnected())
+            {
+                this.MqttClient.Publish(DataTopic, Encoding.UTF8.GetBytes(message));
+            }
         }
 
-        private Sensor CreateSensorData(double[] data)
+        private bool EnsureConnected()
+        {
+            if (!this.IsInternetAvailable() || !this._connectionService.IsConnected || !this.MqttClient.IsConnected)
+            {
+                _logHelper.LogWithTimestamp(LogLevel.Warning, "No internet connection or broker is disconnected. Reconnecting...");
+
+                this.DisposeCurrentClient();
+
+                this.ConnectToBroker();
+
+                if (!this.MqttClient.IsConnected)
+                {
+                    _logHelper.LogWithTimestamp(LogLevel.Error, "Unable to reconnect to broker.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private Device CreateSensorData(double[] data)
         {
             var temp = data[0];
             temp = (int)((temp * 100) + 0.5) / 100.0;
 
-            return new Sensor
+            return new Device
             {
-                Data = new Data
-                {
-                    SensorType = SensorType,
-                    Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                    Time = GetCurrentTimestamp(),
-                    Temp = temp,
-                    Humid = (int)data[1],
-                }
+                DeviceName = DeviceName,
+                Location = Location,
+                SensorType = SensorTypeName,
+                Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
+                Time = DateTime.UtcNow.AddHours(3).ToString("HH:mm:ss"),
+                Temp = temp,
+                Humid = (int)data[1],
             };
         }
 
