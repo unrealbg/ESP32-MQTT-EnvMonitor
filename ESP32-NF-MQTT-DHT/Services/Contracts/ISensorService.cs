@@ -1,0 +1,15 @@
+﻿namespace ESP32_NF_MQTT_DHT.Services.Contracts
+{
+    public interface ISensorService
+    {
+        void Start();
+
+        void Stop();
+
+        double[] GetData();
+
+        double GetTemp();
+
+        double GetHumidity();
+    }
+}
