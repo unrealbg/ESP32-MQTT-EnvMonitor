@@ -11,5 +11,7 @@
         double GetTemp();
 
         double GetHumidity();
+
+        string GetSensorType();
     }
 }
