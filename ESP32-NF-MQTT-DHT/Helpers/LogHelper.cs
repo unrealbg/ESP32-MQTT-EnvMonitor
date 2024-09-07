@@ -15,7 +15,9 @@
 
         public void LogWithTimestamp(LogLevel level, string message)
         {
+#if DEBUG
             _logger.Log(level, $"[{GetCurrentTimestamp()}] {message}");
+#endif
         }
     }
 }
