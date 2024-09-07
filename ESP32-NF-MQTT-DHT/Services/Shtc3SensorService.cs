@@ -78,6 +78,11 @@
             return _humidity;
         }
 
+        public string GetSensorType()
+        {
+            return "SHTC3";
+        }
+
         private void StartReceivingData()
         {
             using (Shtc3 sensor = new Shtc3(_device))

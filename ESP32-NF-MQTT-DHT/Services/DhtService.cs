@@ -82,6 +82,11 @@
             return _humidity;
         }
 
+        public string GetSensorType()
+        {
+            return "DHT21";
+        }
+
         /// <summary>
         /// Reads and publishes the data from the DHT21 sensor.
         /// </summary>

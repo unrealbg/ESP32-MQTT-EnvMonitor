@@ -81,6 +81,11 @@
         /// <returns>The humidity data.</returns>
         public double GetHumidity() => _humidity;
 
+        public string GetSensorType()
+        {
+            return "AHT10";
+        }
+
         private void StartReceivingData()
         {
             I2cConnectionSettings i2CSettings = new I2cConnectionSettings(1, AhtBase.DefaultI2cAddress);
