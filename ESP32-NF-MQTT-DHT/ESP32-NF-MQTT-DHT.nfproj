@@ -25,7 +25,12 @@
     <Compile Include="Helpers\MqttConstants.cs" />
     <Compile Include="Helpers\SensorType.cs" />
     <Compile Include="Models\Device.cs" />
+    <Compile Include="Services\Contracts\IInternetConnectionService.cs" />
     <Compile Include="Services\Contracts\ISensorService.cs" />
+    <Compile Include="Services\InternetConnectionService.cs" />
+    <Compile Include="Services\MQTT\Contracts\IMqttPublishService.cs" />
+    <Compile Include="Services\MQTT\MqttMessageHandler.cs" />
+    <Compile Include="Services\MQTT\MqttPublishService.cs" />
     <Compile Include="Services\Shtc3SensorService.cs" />
     <Compile Include="Settings\DeviceSettings.cs" />
     <Compile Include="Settings\MqttSettings.cs" />
