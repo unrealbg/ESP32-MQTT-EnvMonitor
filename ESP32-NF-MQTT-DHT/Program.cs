@@ -11,7 +11,6 @@ namespace ESP32_NF_MQTT_DHT
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.Logging.Debug;
-    using nanoFramework.M2Mqtt;
 
     using Services;
     using Services.Contracts;
