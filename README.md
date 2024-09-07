@@ -1,4 +1,4 @@
-# C# NanoFramework for ESP32 with DHT21/AHT10 Sensors, MQTT Client and WebServer
+# ESP32-MQTT Environmental Monitor
 
 This project showcases the integration of an ESP32 device with DHT21 and AHT10 temperature and humidity sensors, employing C# and the nanoFramework for development. Featuring MQTT client capabilities, it facilitates remote data communication, allowing for real-time monitoring and data publishing over MQTT. Additionally, the project includes a WebServer component, providing RESTful API endpoints for direct sensor data access and device control via HTTP requests. This dual functionality enhances the project's ability to interact with sensors and control device operations remotely, making it an ideal framework for IoT applications that require a versatile communication interface.
 
