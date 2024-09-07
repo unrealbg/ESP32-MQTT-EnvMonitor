@@ -15,6 +15,9 @@
 
     using static ESP32_NF_MQTT_DHT.Settings.DeviceSettings;
 
+    /// <summary>
+    /// Handles incoming MQTT messages and performs actions based on the message content and topic.
+    /// </summary>
     public class MqttMessageHandler
     {
         private static readonly string RelayTopic = $"home/{DeviceName}/switch";
@@ -24,22 +27,39 @@
 
         private readonly IRelayService _relayService;
         private readonly IUptimeService _uptimeService;
+        private readonly IConnectionService _connectionService;
         private readonly LogHelper _logHelper;
         private MqttClient _mqttClient;
 
-        public MqttMessageHandler( IRelayService relayService, IUptimeService uptimeService, LogHelper logHelper)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MqttMessageHandler"/> class.
+        /// </summary>
+        /// <param name="relayService">The relay service for controlling relays.</param>
+        /// <param name="uptimeService">The uptime service for retrieving system uptime.</param>
+        /// <param name="logHelper">The log helper for logging messages.</param>
+        /// <param name="connectionService">The connection service for retrieving network information.</param>
+        public MqttMessageHandler(IRelayService relayService, IUptimeService uptimeService, LogHelper logHelper, IConnectionService connectionService)
         {
             this._relayService = relayService;
             this._uptimeService = uptimeService;
             this._logHelper = logHelper;
+            this._connectionService = connectionService;
         }
 
-
+        /// <summary>
+        /// Sets the MQTT client to be used for handling messages.
+        /// </summary>
+        /// <param name="mqttClient">The MQTT client instance.</param>
         public void SetMqttClient(MqttClient mqttClient)
         {
             _mqttClient = mqttClient;
         }
 
+        /// <summary>
+        /// Handles incoming MQTT messages and performs actions based on the message content and topic.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="MqttMsgPublishEventArgs"/> instance containing the event data.</param>
         public void HandleIncomingMessage(object sender, MqttMsgPublishEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.Message, 0, e.Message.Length);
@@ -73,6 +93,12 @@
                     this._logHelper.LogWithTimestamp(LogLevel.Warning, "Rebooting system...");
                     Thread.Sleep(2000);
                     Power.RebootDevice();
+                }
+                else if (message.Contains("getip"))
+                {
+                    string ipAddress = this._connectionService.GetIpAddress();
+                    this._mqttClient.Publish(SystemTopic + "/ip", Encoding.UTF8.GetBytes(ipAddress));
+                    this._logHelper.LogWithTimestamp(LogLevel.Information, $"IP address requested, published: {ipAddress}");
                 }
             }
             else if (e.Topic == ErrorTopic)

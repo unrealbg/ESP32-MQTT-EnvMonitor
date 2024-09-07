@@ -2,12 +2,26 @@
 {
     using nanoFramework.M2Mqtt;
 
-    internal interface IMqttPublishService
+    /// <summary>
+    /// Interface for a service that publishes messages to an MQTT broker.
+    /// </summary>
+    public interface IMqttPublishService
     {
-       public void PublishSensorData();
+        /// <summary>
+        /// Publishes sensor data to the MQTT broker.
+        /// </summary>
+        void PublishSensorData();
 
-       public void PublishError(string errorMessage);
+        /// <summary>
+        /// Publishes an error message to the MQTT broker.
+        /// </summary>
+        /// <param name="errorMessage">The error message to be published.</param>
+        void PublishError(string errorMessage);
 
-       public void SetMqttClient(MqttClient mqttClient);
+        /// <summary>
+        /// Sets the MQTT client to be used for publishing messages.
+        /// </summary>
+        /// <param name="mqttClient">The MQTT client instance.</param>
+        void SetMqttClient(MqttClient mqttClient);
     }
 }
