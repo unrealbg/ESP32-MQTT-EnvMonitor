@@ -13,6 +13,10 @@
 
     using Contracts;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using Microsoft.Extensions.Logging;
+
     using static Settings.TcpSettings;
     using static Settings.DeviceSettings;
     using static Helpers.TimeHelper;
@@ -28,6 +32,7 @@
         private readonly IUptimeService _uptimeService;
         private readonly IMqttClientService _mqttClient;
         private readonly ISensorService _sensorService;
+        private readonly LogHelper _logHelper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpListenerService"/> class.
@@ -35,11 +40,12 @@
         /// <param name="uptimeService">Service to get uptime information.</param>
         /// <param name="mqttClient">Service to handle MQTT client functionalities.</param>
         /// <param name="sensorService">Service to interact with a DHT sensor.</param>
-        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService)
+        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService, LogHelper logHelper)
         {
             _uptimeService = uptimeService;
             _mqttClient = mqttClient;
             _sensorService = sensorService;
+            this._logHelper = logHelper;
         }
 
         /// <summary>
@@ -65,14 +71,17 @@
 
             while (true)
             {
-                Debug.WriteLine($"[{GetCurrentTimestamp()}] Waiting for an incoming connection on {localIP} port {TcpPort}");
+                this._logHelper.LogWithTimestamp(
+                    LogLevel.Information,
+                    $"Waiting for an incoming connection on {localIP} port {TcpPort}");
 
                 try
                 {
                     using TcpClient client = listener.AcceptTcpClient();
                     IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                     string clientIp = remoteIpEndPoint!.Address.ToString();
-                    Debug.WriteLine($"[{GetCurrentTimestamp()}] Client connected on port {TcpPort} from {clientIp}");
+                    this._logHelper
+                        .LogWithTimestamp(LogLevel.Information, $"Client connected on port {TcpPort} from {clientIp}");
 
                     using NetworkStream stream = client.GetStream();
                     using StreamReader streamReader = new StreamReader(stream);
@@ -83,35 +92,42 @@
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[{GetCurrentTimestamp()}] Exception:-{ex.Message}");
+                    this._logHelper
+                        .LogWithTimestamp(LogLevel.Error, $"Exception occurred while processing client request: {ex.Message}");
                 }
             }
         }
 
         private void AuthenticateClient(StreamReader streamReader, StreamWriter sw, string clientIp)
         {
-            sw.Write($"[{GetCurrentTimestamp()}] login as: ");
-            sw.Flush();
-            var usernameInput = streamReader.ReadLine();
-            sw.Write($"[{GetCurrentTimestamp()}] {usernameInput}@{clientIp} password: ");
-            sw.Flush();
-            var passwordInput = streamReader.ReadLine();
-
-            if (ClientUsername != usernameInput || ClientPassword != passwordInput)
+            try
             {
-                throw new ArgumentException($"[{GetCurrentTimestamp()}] Invalid credentials.");
+                sw.Write($"[{GetCurrentTimestamp()}] login as: ");
+                sw.Flush();
+                var usernameInput = streamReader.ReadLine();
+                sw.Write($"[{GetCurrentTimestamp()}] {usernameInput}@{clientIp} password: ");
+                sw.Flush();
+                var passwordInput = streamReader.ReadLine();
+
+                if (ClientUsername != usernameInput || ClientPassword != passwordInput)
+                {
+                    throw new ArgumentException($"[{GetCurrentTimestamp()}] Invalid credentials.");
+                }
             }
+            catch (Exception e)
+            {
+                this._logHelper
+                    .LogWithTimestamp(LogLevel.Warning, $"Login incorrect");
+                sw.WriteLine("Login incorrect");
+                sw.Flush();
+                throw;
+            }
+            
         }
 
         private void ProcessClientCommands(StreamReader streamReader, StreamWriter sw, TcpClient client, string clientIp)
         {
-            WriteToStream(sw, "Welcome to EspDuino-32 HW-729 (OpenSocket connection)\r\n\r\n *"
-                                + " Documentation:  https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n *"
-                                + " Management:     https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n *"
-                                + " Support:        https://github.com/unrealbg/NF.Esp32.Mqtt.Dht21\r\n\r\n  "
-                                + $"System information as of {DateTime.Today} {DateTime.Today.Date} {DateTime.Today.Day} EET {DateTime.Today.Year}\r\n\r\n  "
-                                + "Available commands: uptime, temp, publishUptime, exit, reboot\r\n\r\n  "
-                                + $"Users logged in:       1  IPv4 address for eth0: {NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address}\r\n");
+            SendWelcomeMessage(sw);
 
             sw.Write($"[{GetCurrentTimestamp()}] [{ClientUsername}@{clientIp}]:~# ");
             sw.Flush();
@@ -119,9 +135,10 @@
             while (streamReader.Peek() > -1)
             {
                 var command = streamReader.ReadLine();
-                Debug.WriteLine($"[{GetCurrentTimestamp()}] [u] {command}");
+                this._logHelper
+                    .LogWithTimestamp(LogLevel.Information, $"Command received: {command}");
 
-                if (ProcessCommand(command, sw, client))
+                if (ProcessCommand(command, sw))
                 {
                     break;
                 }
@@ -131,7 +148,7 @@
             }
         }
 
-        private bool ProcessCommand(string command, StreamWriter sw, TcpClient client)
+        private bool ProcessCommand(string command, StreamWriter sw)
         {
             switch (command)
             {
@@ -141,18 +158,28 @@
                 case "temp":
                     WriteToStream(sw, _sensorService.GetTemp().ToString());
                     return false;
+                case "humidity":
+                    WriteToStream(sw, _sensorService.GetHumidity().ToString());
+                    return false;
+                case "publishTemp":
+                    _mqttClient.MqttClient.Publish($"home/{DeviceName}/temperature", Encoding.UTF8.GetBytes(_sensorService.GetTemp().ToString()));
+                    return false;
+                case "status":
+                    WriteToStream(sw, $"Temp: {_sensorService.GetTemp()} C, Humidity: {_sensorService.GetHumidity()} %, Uptime: {_uptimeService.GetUptime()}");
+                    return false;
                 case "publishUptime":
                     _mqttClient.MqttClient.Publish($"home/{DeviceName}/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
                     return false;
+                case "getIpAddress":
+                    WriteToStream(sw, NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address);
+                    return false;
                 case "exit":
-                    Debug.WriteLine($"[{GetCurrentTimestamp()}] Client disconnected!");
-                    client.Close();
                     return true;
                 case "reboot":
                     Power.RebootDevice();
                     return true;
                 default:
-                    WriteToStream(sw, $"[{GetCurrentTimestamp()}] Unrecognized command");
+                    WriteToStream(sw, "Unrecognized command");
                     return false;
             }
         }
@@ -161,6 +188,32 @@
         {
             writer.WriteLine(text);
             writer.Flush();
+        }
+
+        private void SendWelcomeMessage(StreamWriter sw)
+        {
+            var welcomeMessage = $@"
+             Welcome to ESP32-NF MQTT EnvMonitor!
+
+             * Device: {DeviceName}
+             * Firmware Version: 1.0.0
+             * IP Address: {NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address}
+
+             Available commands:
+             - uptime          : Shows the system uptime
+             - temp            : Displays the current temperature
+             - humidity        : Displays the current humidity
+             - publishTemp     : Publishes the temperature to MQTT
+             - status          : Shows system status (temp, humidity, uptime)
+             - publishUptime   : Publishes the uptime to MQTT
+             - getIpAddress    : Returns the device IP address
+             - exit            : Exits the session
+             - reboot          : Reboots the device
+
+             Type a command:
+             ";
+
+            WriteToStream(sw, welcomeMessage);
         }
     }
 }
