@@ -12,7 +12,7 @@
     {
         private static readonly Hashtable LastRequestTimes = new Hashtable();
         private static readonly Hashtable BanList = new Hashtable();
-        private static readonly TimeSpan RequestInterval = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan RequestInterval = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan BanDuration = TimeSpan.FromMinutes(5);
         private static readonly object SyncLock = new object();
 
