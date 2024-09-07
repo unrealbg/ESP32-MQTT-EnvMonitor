@@ -3,6 +3,7 @@
     using System;
     using System.Net;
 
+    using ESP32_NF_MQTT_DHT.HTML;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
 
     using Microsoft.Extensions.Logging;
@@ -15,14 +16,14 @@
     [Authentication("Basic:user p@ssw0rd")]
     public class SensorController : BaseController
     {
-        private readonly ISensorService __sensorService;
+        private readonly ISensorService _sensorService;
         private readonly ILogger _logger;
 
         public SensorController(
             ILoggerFactory loggerFactory,
             ISensorService sensorService)
         {
-            __sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
+            _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
             _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
         }
 
@@ -31,11 +32,21 @@
         public void Index(WebServerEventArgs e)
         {
             this.HandleRequest(
-                e,
-                () =>
-                    {
-                        this.SendPage(e, "Welcome to the sensor API.");
-                    });
+        e,
+        () =>
+        {
+            try
+            {
+                string htmlContent = Html.GetIndexContent();
+
+                this.SendResponse(e, htmlContent, "text/html");
+            }
+            catch (Exception ex)
+            {
+                this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
+                _logger.LogError(ex, "Failed to load index page.");
+            }
+        });
         }
 
         [Route("api/temperature")]
@@ -110,6 +121,8 @@
                         {
                             var temperature = double.Parse($"{this.FetchTemperature():f2}");
                             var humidity = this.FetchHumidity();
+                            var sensorType = _sensorService.GetSensorType();
+
                             if (!double.IsNaN(temperature) && !double.IsNaN(humidity))
                             {
                                 var sensorData = new Sensor
@@ -119,7 +132,8 @@
                                         Date = DateTime.UtcNow.ToString("dd/MM/yyyy"),
                                         Time = DateTime.UtcNow.ToString("HH:mm:ss"),
                                         Temp = temperature,
-                                        Humid = (int)humidity
+                                        Humid = (int)humidity,
+                                        SensorType = sensorType
                                     }
                                 };
 
@@ -144,7 +158,7 @@
         {
             try
             {
-                return __sensorService.GetTemp();
+                return _sensorService.GetTemp();
             }
             catch (Exception exception)
             {
@@ -157,7 +171,7 @@
         {
             try
             {
-                return __sensorService.GetHumidity();
+                return _sensorService.GetHumidity();
             }
             catch (Exception exception)
             {
