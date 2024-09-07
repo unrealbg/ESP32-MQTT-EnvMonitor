@@ -4,11 +4,14 @@ namespace ESP32_NF_MQTT_DHT
     using System.Diagnostics;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Services.MQTT;
+    using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
     using nanoFramework.Logging.Debug;
+    using nanoFramework.M2Mqtt;
 
     using Services;
     using Services.Contracts;
@@ -74,6 +77,9 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
+            services.AddSingleton(typeof(IInternetConnectionService), typeof(InternetConnectionService));
+            services.AddSingleton(typeof(MqttMessageHandler));
+            services.AddSingleton(typeof(IMqttPublishService), typeof(MqttPublishService));
 
             services.AddTransient(typeof(LogHelper));
 
