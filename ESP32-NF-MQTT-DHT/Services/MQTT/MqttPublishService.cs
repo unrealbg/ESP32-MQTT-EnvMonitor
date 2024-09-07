@@ -65,15 +65,15 @@
         {
             double[] data = _sensorService.GetData();
 
-            if (IsSensorDataValid(data))
+            if (this.IsSensorDataValid(data))
             {
-                PublishValidSensorData(data);
+                this.PublishValidSensorData(data);
                 _logHelper.LogWithTimestamp(LogLevel.Information, $"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
                 _stopSignal.WaitOne(SensorDataInterval, false);
             }
             else
             {
-                PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                 _logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
                 _stopSignal.WaitOne(ErrorInterval, false);
             }
@@ -85,7 +85,7 @@
         /// <param name="errorMessage">The error message to be published.</param>
         public void PublishError(string errorMessage)
         {
-            CheckInternetAndPublish(ErrorTopic, errorMessage);
+            this.CheckInternetAndPublish(ErrorTopic, errorMessage);
             _stopSignal.WaitOne(ErrorInterval, false);
         }
 
@@ -122,9 +122,9 @@
         /// <param name="data">The valid sensor data to be published.</param>
         private void PublishValidSensorData(double[] data)
         {
-            var sensorData = CreateSensorData(data);
+            var sensorData = this.CreateSensorData(data);
             var message = JsonSerializer.SerializeObject(sensorData);
-            CheckInternetAndPublish(DataTopic, message);
+            this.CheckInternetAndPublish(DataTopic, message);
         }
 
         /// <summary>
@@ -134,9 +134,6 @@
         /// <returns>A <see cref="Device"/> object containing the sensor data.</returns>
         private Device CreateSensorData(double[] data)
         {
-            var temp = data[0];
-            temp = (int)((temp * 100) + 0.5) / 100.0;
-
             return new Device
             {
                 DeviceName = DeviceName,
@@ -144,7 +141,7 @@
                 SensorType = SensorTypeName,
                 Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
                 Time = DateTime.UtcNow.AddHours(3).ToString("HH:mm:ss"),
-                Temp = temp,
+                Temp = data?[0].ToString("F2"),
                 Humid = (int)data[1],
             };
         }
