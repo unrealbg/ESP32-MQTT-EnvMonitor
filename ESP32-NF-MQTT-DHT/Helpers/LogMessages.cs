@@ -14,5 +14,18 @@
         public const string UnableToPublishError = "Unable to publish error message. No connection.";
         public const string InvalidSensorData = "Invalid sensor data.";
         public const string NoNetworkConnection = "No network connection. Retrying later.";
+        public const string NetworkConnectionRestored = "Network connection restored.";
+        public const string NetworkConnectionLost = "Network connection lost. Reconnecting...";
+        public const string StartingWifiConnection = "Starting WiFi connection...";
+        public const string WifiConnectionFailed = "WiFi connection failed. Retrying...";
+        public const string WifiConnectionRestored = "WiFi connection restored.";
+        public const string WifiConnectionLost = "WiFi connection lost. Reconnecting...";
+        public const string StartingMqttConnection = "Starting MQTT connection...";
+        public const string MqttConnectionFailed = "MQTT connection failed. Retrying...";
+        public const string MqttConnectionRestored = "MQTT connection restored.";
+        public const string MqttConnectionLost = "MQTT connection lost. Reconnecting...";
+        public const string StartingSensorDataThread = "Starting sensor data thread...";
+        public const string SensorDataThreadStarted = "Sensor data thread started.";
+        public const string SensorDataThreadStopped = "Sensor data thread stopped.";
     }
 }
