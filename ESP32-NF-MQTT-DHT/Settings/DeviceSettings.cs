@@ -2,8 +2,10 @@
 {
     public static class DeviceSettings
     {
-        public const string DeviceName = "DeviceName";
+        public const string DeviceName = "ESP32-S3";
 
-        public const string SensorType = "SensorType";
+        public const string Location = "Test room";
+
+        public const string SensorTypeName = "SHTC3";
     }
 }
