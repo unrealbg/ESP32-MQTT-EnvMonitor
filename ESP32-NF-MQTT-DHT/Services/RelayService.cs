@@ -7,8 +7,6 @@
 
     using Helpers;
 
-    using Microsoft.Extensions.Logging;
-
     /// <summary>
     /// Provides methods to control a relay connected to a specific GPIO pin.
     /// </summary>
@@ -26,10 +24,10 @@
         /// </summary>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public RelayService(ILoggerFactory loggerFactory)
+        public RelayService()
         {
             _gpioController = new GpioController();
-            _logHelper = new LogHelper(loggerFactory, nameof(RelayService));
+            _logHelper = new LogHelper();
 
             this.InitializeRelayPin();
         }
@@ -40,7 +38,7 @@
         public void TurnOn()
         {
             _relayPin.Write(PinValue.High);
-            _logHelper.LogWithTimestamp(LogLevel.Information, "Relay turned ON");
+            _logHelper.LogWithTimestamp("Relay turned ON");
         }
 
         /// <summary>
@@ -49,7 +47,7 @@
         public void TurnOff()
         {
             _relayPin.Write(PinValue.Low);
-            _logHelper.LogWithTimestamp(LogLevel.Information, "Relay turned OFF");
+            _logHelper.LogWithTimestamp("Relay turned OFF");
         }
 
         private void InitializeRelayPin()

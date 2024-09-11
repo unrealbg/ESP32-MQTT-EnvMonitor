@@ -1,23 +1,21 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Helpers
 {
-    using Microsoft.Extensions.Logging;
+    using System;
+    using System.Diagnostics;
+
 
     using static TimeHelper;
 
     public class LogHelper
     {
-        private readonly ILogger _logger;
-
-        public LogHelper(ILoggerFactory loggerFactory, string loggerName)
+        public void LogWithTimestamp(string message)
         {
-            _logger = loggerFactory.CreateLogger(loggerName);
+            Debug.WriteLine($"[{GetCurrentTimestamp()}] {message}");
         }
 
-        public void LogWithTimestamp(LogLevel level, string message)
+        public void LogWithTimestamp(Exception ex, string message)
         {
-#if DEBUG
-            _logger.Log(level, $"[{GetCurrentTimestamp()}] {message}");
-#endif
+            Debug.WriteLine($"{GetCurrentTimestamp()} - {ex} - {message}");
         }
     }
 }

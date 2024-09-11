@@ -6,8 +6,6 @@
 
     using Helpers;
 
-    using Microsoft.Extensions.Logging;
-
     using Services.Contracts;
 
     public class UptimeService : IUptimeService
@@ -17,9 +15,9 @@
         private readonly LogHelper _logHelper;
         private Timer _uptimeTimer;
 
-        public UptimeService(ILoggerFactory loggerFactory)
+        public UptimeService()
         {
-            _logHelper = new LogHelper(loggerFactory, nameof(UptimeService));
+            _logHelper = new LogHelper();
             Stopwatch = new Stopwatch();
             Stopwatch.Start();
             _uptimeTimer = new Timer(this.UptimeTimerCallback, null, 0, UptimeDelay);
@@ -38,11 +36,11 @@
             try
             {
                 var uptimeMessage = this.GetUptime();
-                _logHelper.LogWithTimestamp(LogLevel.Information, uptimeMessage);
+                _logHelper.LogWithTimestamp(uptimeMessage);
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp(LogLevel.Error, ex.Message);
+                _logHelper.LogWithTimestamp(ex.Message);
             }
         }
     }

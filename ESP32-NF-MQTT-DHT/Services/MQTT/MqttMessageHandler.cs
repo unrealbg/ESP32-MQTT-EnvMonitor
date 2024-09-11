@@ -7,8 +7,6 @@
     using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
 
-    using Microsoft.Extensions.Logging;
-
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
@@ -68,15 +66,15 @@
             {
                 if (message.Contains("on"))
                 {
-                    this._relayService.TurnOn();
-                    this._mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("ON"));
-                    this._logHelper.LogWithTimestamp(LogLevel.Information, "Relay turned ON and message published");
+                    _relayService.TurnOn();
+                    _mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("ON"));
+                    _logHelper.LogWithTimestamp("Relay turned ON and message published");
                 }
                 else if (message.Contains("off"))
                 {
-                    this._relayService.TurnOff();
-                    this._mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
-                    this._logHelper.LogWithTimestamp(LogLevel.Information, "Relay turned OFF and message published");
+                    _relayService.TurnOff();
+                    _mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
+                    _logHelper.LogWithTimestamp("Relay turned OFF and message published");
                 }
             }
             else if (e.Topic == SystemTopic)
@@ -84,21 +82,21 @@
                 if (message.Contains("uptime"))
                 {
                     string uptime = this._uptimeService.GetUptime();
-                    this._mqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptime));
-                    this._logHelper.LogWithTimestamp(LogLevel.Information, $"Uptime requested, published: {uptime}");
+                    _mqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptime));
+                    _logHelper.LogWithTimestamp($"Uptime requested, published: {uptime}");
                 }
                 else if (message.Contains("reboot"))
                 {
-                    this._mqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
-                    this._logHelper.LogWithTimestamp(LogLevel.Warning, "Rebooting system...");
+                    _mqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
+                    _logHelper.LogWithTimestamp("Rebooting system...");
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
                 else if (message.Contains("getip"))
                 {
                     string ipAddress = this._connectionService.GetIpAddress();
-                    this._mqttClient.Publish(SystemTopic + "/ip", Encoding.UTF8.GetBytes(ipAddress));
-                    this._logHelper.LogWithTimestamp(LogLevel.Information, $"IP address requested, published: {ipAddress}");
+                    _mqttClient.Publish(SystemTopic + "/ip", Encoding.UTF8.GetBytes(ipAddress));
+                    _logHelper.LogWithTimestamp($"IP address requested, published: {ipAddress}");
                 }
             }
             else if (e.Topic == ErrorTopic)

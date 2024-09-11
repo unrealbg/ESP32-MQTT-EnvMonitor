@@ -8,9 +8,6 @@ namespace ESP32_NF_MQTT_DHT
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.Extensions.Logging;
-
-    using nanoFramework.Logging.Debug;
 
     using Services;
     using Services.Contracts;
@@ -74,7 +71,6 @@ namespace ESP32_NF_MQTT_DHT
             }
 
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
-            services.AddSingleton(typeof(ILoggerFactory), typeof(DebugLoggerFactory));
             services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
             services.AddSingleton(typeof(IInternetConnectionService), typeof(InternetConnectionService));
             services.AddSingleton(typeof(MqttMessageHandler));

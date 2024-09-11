@@ -7,9 +7,6 @@
 
     using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
-
-    using Microsoft.Extensions.Logging;
-
     public class InternetConnectionService : IInternetConnectionService
     {
         private readonly LogHelper _logHelper;
@@ -44,7 +41,7 @@
                 if (!_isInternetThreadRunning)
                 {
                     _isInternetThreadRunning = true;
-                    _logHelper.LogWithTimestamp(LogLevel.Warning, "No internet connection, starting internet check thread...");
+                    _logHelper.LogWithTimestamp("No internet connection, starting internet check thread...");
 
                     this.OnInternetLost();
 
@@ -60,11 +57,11 @@
         {
             while (!IsInternetAvailable())
             {
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "Internet not available, checking again in 10 seconds...");
+                _logHelper.LogWithTimestamp("Internet not available, checking again in 10 seconds...");
                 _stopSignal.WaitOne(10000, false);
             }
 
-            _logHelper.LogWithTimestamp(LogLevel.Information, "Internet is back.");
+            _logHelper.LogWithTimestamp("Internet is back.");
 
             this.OnInternetRestored();
 

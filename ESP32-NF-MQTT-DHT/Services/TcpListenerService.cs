@@ -15,8 +15,6 @@
 
     using ESP32_NF_MQTT_DHT.Helpers;
 
-    using Microsoft.Extensions.Logging;
-
     using static Settings.TcpSettings;
     using static Settings.DeviceSettings;
     using static Helpers.TimeHelper;
@@ -72,7 +70,6 @@
             while (true)
             {
                 this._logHelper.LogWithTimestamp(
-                    LogLevel.Information,
                     $"Waiting for an incoming connection on {localIP} port {TcpPort}");
 
                 try
@@ -81,7 +78,7 @@
                     IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                     string clientIp = remoteIpEndPoint!.Address.ToString();
                     this._logHelper
-                        .LogWithTimestamp(LogLevel.Information, $"Client connected on port {TcpPort} from {clientIp}");
+                        .LogWithTimestamp($"Client connected on port {TcpPort} from {clientIp}");
 
                     using NetworkStream stream = client.GetStream();
                     using StreamReader streamReader = new StreamReader(stream);
@@ -93,7 +90,7 @@
                 catch (Exception ex)
                 {
                     this._logHelper
-                        .LogWithTimestamp(LogLevel.Error, $"Exception occurred while processing client request: {ex.Message}");
+                        .LogWithTimestamp($"Exception occurred while processing client request: {ex.Message}");
                 }
             }
         }
@@ -117,12 +114,12 @@
             catch (Exception e)
             {
                 this._logHelper
-                    .LogWithTimestamp(LogLevel.Warning, $"Login incorrect");
+                    .LogWithTimestamp("Login incorrect");
                 sw.WriteLine("Login incorrect");
                 sw.Flush();
                 throw;
             }
-            
+
         }
 
         private void ProcessClientCommands(StreamReader streamReader, StreamWriter sw, TcpClient client, string clientIp)
@@ -136,7 +133,7 @@
             {
                 var command = streamReader.ReadLine();
                 this._logHelper
-                    .LogWithTimestamp(LogLevel.Information, $"Command received: {command}");
+                    .LogWithTimestamp($"Command received: {command}");
 
                 if (ProcessCommand(command, sw))
                 {

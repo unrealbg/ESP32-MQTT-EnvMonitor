@@ -3,10 +3,9 @@
     using System;
     using System.Net;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.HTML;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
-
-    using Microsoft.Extensions.Logging;
 
     using Models;
 
@@ -17,14 +16,13 @@
     public class SensorController : BaseController
     {
         private readonly ISensorService _sensorService;
-        private readonly ILogger _logger;
+        private readonly LogHelper _logger;
 
         public SensorController(
-            ILoggerFactory loggerFactory,
             ISensorService sensorService)
         {
             _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
-            _logger = loggerFactory?.CreateLogger(nameof(SensorController)) ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logger = new LogHelper();
         }
 
         [Route("/")]
@@ -44,7 +42,7 @@
             catch (Exception ex)
             {
                 this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
-                _logger.LogError(ex, "Failed to load index page.");
+                _logger.LogWithTimestamp("Failed to load index page.");
             }
         });
         }
@@ -68,13 +66,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Temperature data is out of expected range.", HttpStatusCode.InternalServerError);
-                                _logger.LogWarning("Temperature data is out of expected range.");
+                                _logger.LogWithTimestamp("Temperature data is out of expected range.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, "An unexpected error occurred.", HttpStatusCode.InternalServerError);
-                            _logger.LogError(ex, "An unexpected error occurred.");
+                            _logger.LogWithTimestamp("An unexpected error occurred.");
                         }
                     });
         }
@@ -98,13 +96,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Humidity data is unavailable.", HttpStatusCode.InternalServerError);
-                                _logger.LogWarning("Humidity data is unavailable.");
+                                _logger.LogWithTimestamp("Humidity data is unavailable.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
-                            _logger.LogError(ex, "An unexpected error occurred.");
+                            _logger.LogWithTimestamp("An unexpected error occurred: { ex.Message}");
                         }
                     });
         }
@@ -143,13 +141,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Sensor data is unavailable.", HttpStatusCode.InternalServerError);
-                                _logger.LogWarning("Sensor data is unavailable.");
+                                _logger.LogWithTimestamp("Sensor data is unavailable.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
-                            _logger.LogError(ex, "An unexpected error occurred.");
+                            _logger.LogWithTimestamp("An unexpected error occurred.");
                         }
                     });
         }
@@ -162,7 +160,7 @@
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "Failed to fetch temperature.");
+                _logger.LogWithTimestamp(exception, "Failed to fetch temperature.");
                 return double.NaN;
             }
         }
@@ -175,7 +173,7 @@
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "Failed to fetch humidity.");
+                _logger.LogWithTimestamp(exception, "Failed to fetch humidity.");
                 return double.NaN;
             }
         }

@@ -8,8 +8,6 @@
 
     using Iot.Device.Shtc3;
 
-    using Microsoft.Extensions.Logging;
-
     using nanoFramework.Hardware.Esp32;
 
     using Services.Contracts;
@@ -31,9 +29,9 @@
         private bool _isRunning;
         private I2cDevice _device;
 
-        public Shtc3SensorService(ILoggerFactory loggerFactory)
+        public Shtc3SensorService()
         {
-            _logHelper = new LogHelper(loggerFactory, nameof(Shtc3SensorService));
+            _logHelper = new LogHelper();
         }
 
         public void Start()
@@ -98,7 +96,7 @@
                                 _temperature = temperature.DegreesCelsius;
                                 _humidity = relativeHumidity.Percent;
 
-                                this._logHelper.LogWithTimestamp(LogLevel.Information, "Data read from SHTC3 sensor");
+                                this._logHelper.LogWithTimestamp("Data read from SHTC3 sensor");
 
                                 _stopSignal.WaitOne(ReadInterval, false);
                             }
@@ -111,7 +109,7 @@
                     }
                     catch (Exception e)
                     {
-                        this._logHelper.LogWithTimestamp(LogLevel.Error, "Unable to read sensor data");
+                        this._logHelper.LogWithTimestamp("Unable to read sensor data");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }

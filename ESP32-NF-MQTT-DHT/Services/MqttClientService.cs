@@ -9,8 +9,6 @@
     using ESP32_NF_MQTT_DHT.Services.MQTT;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
-    using Microsoft.Extensions.Logging;
-
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
@@ -54,18 +52,16 @@
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
         /// </summary>
         /// <param name="connectionService">Service to manage network connections.</param>
-        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <param name="sensorService"> Service to read data from the sensor.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public MqttClientService(IConnectionService connectionService,
-                                 ILoggerFactory loggerFactory,
                                  ISensorService sensorService,
                                  IInternetConnectionService internetConnectionService,
                                  MqttMessageHandler mqttMessageHandler,
                                  IMqttPublishService mqttPublishService)
         {
             _connectionService = connectionService;
-            _logHelper = new LogHelper(loggerFactory, nameof(MqttClientService));
+            _logHelper = new LogHelper();
             _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
             _internetConnectionService = internetConnectionService ?? throw new ArgumentNullException(nameof(internetConnectionService));
             _mqttMessageHandler = mqttMessageHandler;
@@ -108,13 +104,13 @@
             {
                 if (this.TryConnectToBroker())
                 {
-                    _logHelper.LogWithTimestamp(LogLevel.Information, "Starting sensor data thread...");
+                    _logHelper.LogWithTimestamp("Starting sensor data thread...");
                     this.StartSensorDataThread();
                     return;
                 }
 
                 attemptCount++;
-                _logHelper.LogWithTimestamp(LogLevel.Warning, $"Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / MaxAttempts} seconds...");
+                _logHelper.LogWithTimestamp($"Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / MaxAttempts} seconds...");
 
                 int randomValue = random.Next() % 4000 + 1000;
                 _stopSignal.WaitOne(delayBetweenAttempts + randomValue, false);
@@ -122,7 +118,7 @@
                 delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, MaxReconnectDelay);
             }
 
-            this._logHelper.LogWithTimestamp(LogLevel.Warning, "Max reconnect attempts reached. Rebooting device...");
+            this._logHelper.LogWithTimestamp("Max reconnect attempts reached. Rebooting device...");
             Power.RebootDevice();
         }
 
@@ -130,7 +126,7 @@
         {
             if (_isSensorDataThreadRunning || (_sensorDataThread != null && _sensorDataThread.IsAlive))
             {
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "Sensor data thread is already running.");
+                _logHelper.LogWithTimestamp("Sensor data thread is already running.");
                 return;
             }
 
@@ -141,7 +137,7 @@
 
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            _logHelper.LogWithTimestamp(LogLevel.Warning, "Lost connection to MQTT broker, attempting to reconnect...");
+            _logHelper.LogWithTimestamp("Lost connection to MQTT broker, attempting to reconnect...");
 
             if (_isSensorDataThreadRunning)
             {
@@ -154,7 +150,7 @@
             }
             else
             {
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "Internet check thread is running, waiting for it to finish...");
+                _logHelper.LogWithTimestamp("Internet check thread is running, waiting for it to finish...");
             }
         }
 
@@ -175,7 +171,7 @@
         {
             if (!_internetConnectionService.IsInternetAvailable())
             {
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "No internet connection, cannot connect to MQTT broker.");
+                _logHelper.LogWithTimestamp("No internet connection, cannot connect to MQTT broker.");
                 return false;
             }
 
@@ -183,7 +179,7 @@
 
             try
             {
-                _logHelper.LogWithTimestamp(LogLevel.Information, $"Attempting to connect to MQTT broker: {Broker}");
+                _logHelper.LogWithTimestamp($"Attempting to connect to MQTT broker: {Broker}");
                 this.MqttClient = new MqttClient(Broker);
                 this.MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
 
@@ -198,7 +194,7 @@
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp(LogLevel.Error, $"MQTT connection failed: {ex.Message}");
+                _logHelper.LogWithTimestamp($"MQTT connection failed: {ex.Message}");
             }
 
             return false;
@@ -210,7 +206,7 @@
             {
                 if (this.MqttClient.IsConnected)
                 {
-                    _logHelper.LogWithTimestamp(LogLevel.Information, "Disposing current MQTT client...");
+                    _logHelper.LogWithTimestamp("Disposing current MQTT client...");
                     this.MqttClient.Disconnect();
                 }
 
@@ -224,7 +220,7 @@
             this.MqttClient.ConnectionClosed += this.ConnectionClosed;
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
-            _logHelper.LogWithTimestamp(LogLevel.Information, "MQTT client setup complete");
+            _logHelper.LogWithTimestamp("MQTT client setup complete");
         }
 
         private void SensorDataLoop()
@@ -237,7 +233,7 @@
                 }
                 catch (Exception ex)
                 {
-                    _logHelper.LogWithTimestamp(LogLevel.Error, $"SensorDataLoop Exception: {ex.Message}");
+                    _logHelper.LogWithTimestamp($"SensorDataLoop Exception: {ex.Message}");
                     _mqttPublishService.PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
 

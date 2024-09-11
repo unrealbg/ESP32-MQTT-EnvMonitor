@@ -9,8 +9,6 @@
 
     using Iot.Device.Ahtxx;
 
-    using Microsoft.Extensions.Logging;
-
     using nanoFramework.Hardware.Esp32;
 
     /// <summary>
@@ -36,9 +34,9 @@
         /// Initializes a new instance of the <see cref="AhtSensorService"/> class.
         /// </summary>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
-        public AhtSensorService(ILoggerFactory loggerFactory)
+        public AhtSensorService()
         {
-            _logHelper = new LogHelper(loggerFactory, nameof(AhtSensorService));
+            _logHelper = new LogHelper();
         }
 
         /// <summary>
@@ -103,12 +101,12 @@
 
                             if (_temperature < 45 && _temperature != -50)
                             {
-                                 _logHelper.LogWithTimestamp(LogLevel.Information, "Data read from AHT10 sensor");
+                                 _logHelper.LogWithTimestamp("Data read from AHT10 sensor");
                                 _stopSignal.WaitOne(ReadInterval,false);
                             }
                             else
                             {
-                                this._logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
+                                this._logHelper.LogWithTimestamp("Unable to read sensor data");
                                 this.SetErrorValues();
                                 _stopSignal.WaitOne(ErrorInterval, false);
                             }
@@ -116,7 +114,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logHelper.LogWithTimestamp(LogLevel.Error, "Unable to read sensor data");
+                        _logHelper.LogWithTimestamp("Unable to read sensor data");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }

@@ -9,8 +9,6 @@
     using ESP32_NF_MQTT_DHT.Services.Contracts;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
-    using Microsoft.Extensions.Logging;
-
     using nanoFramework.Json;
     using nanoFramework.M2Mqtt;
 
@@ -68,13 +66,13 @@
             if (this.IsSensorDataValid(data))
             {
                 this.PublishValidSensorData(data);
-                _logHelper.LogWithTimestamp(LogLevel.Information, $"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
+                _logHelper.LogWithTimestamp($"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
                 _stopSignal.WaitOne(SensorDataInterval, false);
             }
             else
             {
                 this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
+                _logHelper.LogWithTimestamp("Unable to read sensor data");
                 _stopSignal.WaitOne(ErrorInterval, false);
             }
         }
@@ -112,7 +110,7 @@
             }
             else
             {
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "No internet connection.");
+                _logHelper.LogWithTimestamp("No internet connection.");
             }
         }
 

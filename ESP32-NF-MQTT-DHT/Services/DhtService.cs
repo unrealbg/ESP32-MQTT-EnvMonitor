@@ -9,8 +9,6 @@
 
     using Iot.Device.DHTxx.Esp32;
 
-    using Microsoft.Extensions.Logging;
-
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
     /// </summary>
@@ -33,12 +31,10 @@
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
         /// </summary>
-        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
-        /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public DhtService(ILoggerFactory loggerFactory)
+        public DhtService()
         {
-            _logHelper = new LogHelper(loggerFactory, nameof(DhtService));
-            _sensorThread = new Thread(SensorReadLoop);
+            _logHelper = new LogHelper();
+            _sensorThread = new Thread(this.SensorReadLoop);
         }
 
         /// <summary>
@@ -46,7 +42,7 @@
         /// </summary>
         public void Start()
         {
-            this._logHelper.LogWithTimestamp(LogLevel.Information, "Start Reading Sensor Data from DHT21");
+            this._logHelper.LogWithTimestamp("Start Reading Sensor Data from DHT21");
             _sensorThread.Start();
         }
 
@@ -98,12 +94,13 @@
 
             if (dht.IsLastReadSuccessful)
             {
-                _logHelper.LogWithTimestamp(LogLevel.Information, "Data read from DHT21 sensor.");
+                _logHelper.LogWithTimestamp("Data read from DHT21 sensor.");
+                _logHelper.LogWithTimestamp($"Temperature: {_temp}°C, Humidity: {_humidity}%");
                 Thread.Sleep(ReadInterval);
             }
             else
             {
-                _logHelper.LogWithTimestamp(LogLevel.Warning, "Unable to read sensor data");
+                _logHelper.LogWithTimestamp("Unable to read sensor data");
                 this.SetErrorValues();
                 Thread.Sleep(ErrorInterval);
             }
@@ -126,7 +123,7 @@
             }
             catch (Exception ex)
             {
-                this._logHelper.LogWithTimestamp(LogLevel.Error, "Unable to read sensor data");
+                this._logHelper.LogWithTimestamp("Unable to read sensor data");
                 this.SetErrorValues();
             }
         }

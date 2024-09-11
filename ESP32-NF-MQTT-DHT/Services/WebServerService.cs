@@ -8,8 +8,6 @@
 
     using Helpers;
 
-    using Microsoft.Extensions.Logging;
-
     using nanoFramework.WebServer;
 
     /// <summary>
@@ -27,11 +25,10 @@
         /// Initializes a new instance of the <see cref="WebServerService"/> class.
         /// </summary>
         /// <param name="connectionService">The connection service.</param>
-        /// <param name="loggerFactory">The logger factory.</param>
         /// <param name="serviceProvider">The service provider.</param>
-        public WebServerService(IConnectionService connectionService, ILoggerFactory loggerFactory, IServiceProvider serviceProvider)
+        public WebServerService(IConnectionService connectionService, IServiceProvider serviceProvider)
         {
-            _logHelper = new LogHelper(loggerFactory, nameof(WebServerService));
+            _logHelper = new LogHelper();
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _serviceProvider = serviceProvider;
 
@@ -49,7 +46,7 @@
                 this.InitializeWebServer();
                 _server.Start();
                 _isServerRunning = true;
-                _logHelper.LogWithTimestamp(LogLevel.Information, "Web server started.");
+                _logHelper.LogWithTimestamp("Web server started.");
             }
         }
 
@@ -64,7 +61,7 @@
                 _server.Dispose();
                 _server = null;
                 _isServerRunning = false;
-                _logHelper.LogWithTimestamp(LogLevel.Information, "Web server stopped.");
+                _logHelper.LogWithTimestamp("Web server stopped.");
             }
         }
 
@@ -79,7 +76,7 @@
 
         private void ConnectionLost(object sender, EventArgs e)
         {
-            _logHelper.LogWithTimestamp(LogLevel.Information, "Connection lost. Stopping the web server.");
+            _logHelper.LogWithTimestamp("Connection lost. Stopping the web server.");
             this.Stop();
         }
 
@@ -87,7 +84,7 @@
         {
             if (!_isServerRunning)
             {
-                _logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored. Starting the web server.");
+                _logHelper.LogWithTimestamp("Connection restored. Starting the web server.");
                 this.Start();
             }
         }
@@ -100,7 +97,7 @@
             if (_server == null)
             {
                 _server = new WebServerDi(80, HttpProtocol.Http, new Type[] { typeof(SensorController) }, _serviceProvider);
-                _logHelper.LogWithTimestamp(LogLevel.Information, "Web server initialized.");
+                _logHelper.LogWithTimestamp("Web server initialized.");
             }
         }
     }
