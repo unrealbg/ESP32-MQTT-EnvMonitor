@@ -9,8 +9,6 @@
 
     using Helpers;
 
-    using Microsoft.Extensions.Logging;
-
     using static Settings.WifiSettings;
 
     /// <summary>
@@ -20,6 +18,8 @@
     {
         private readonly LogHelper _logHelper;
         private bool _isInitialStart = true;
+
+        private string _ipAddress;
 
         /// <summary>
         /// Event that is triggered when the connection is restored.
@@ -36,9 +36,9 @@
         /// </summary>
         /// <param name="loggerFactory">Factory to create a logger for this service.</param>
         /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
-        public ConnectionService(ILoggerFactory loggerFactory)
+        public ConnectionService()
         {
-            _logHelper = new LogHelper(loggerFactory, nameof(ConnectionService));
+            _logHelper = new LogHelper();
         }
 
         /// <summary>
@@ -52,7 +52,7 @@
 
             while (!IsAlreadyConnected(out var ipAddress))
             {
-                this._logHelper.LogWithTimestamp(LogLevel.Information, $"Connecting... [Attempt {++count}]");
+                this._logHelper.LogWithTimestamp($"Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
 
                 for (int waitTime = 0; waitTime < maxAttempts; waitTime++)
@@ -61,29 +61,31 @@
                     {
                         if (_isInitialStart)
                         {
+                            _ipAddress = ipAddress;
                             Thread.Sleep(200);
-                            _logHelper.LogWithTimestamp(LogLevel.Information, $"Connection established. IP address: {ipAddress}");
+                            _logHelper.LogWithTimestamp($"Connection established. IP address: {ipAddress}");
                             _isInitialStart = false;
-                            ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                            this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
 
                             return;
                         }
 
                         Thread.Sleep(200);
-                        this._logHelper.LogWithTimestamp(LogLevel.Information, "Connection restored.");
-                        ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                        this._logHelper.LogWithTimestamp("Connection restored.");
+                        this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
                         return;
                     }
 
                     Thread.Sleep(200);
                 }
 
-                this._logHelper.LogWithTimestamp(LogLevel.Warning, "Connection failed. Retrying in 10 seconds...");
+                this._logHelper.LogWithTimestamp("Connection failed. Retrying in 10 seconds...");
                 Thread.Sleep(10000);
 
                 if (this.IsAlreadyConnected(out ipAddress))
                 {
-                    _logHelper.LogWithTimestamp(LogLevel.Information, $"Connection restored. IP Address: {ipAddress}");
+                    _ipAddress = ipAddress;
+                    _logHelper.LogWithTimestamp($"Connection restored. IP Address: {ipAddress}");
                     this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
                 }
             }
@@ -97,14 +99,21 @@
             if (!this.IsAlreadyConnected(out var ipAddress))
             {
                 this.ConnectionLost?.Invoke(this, EventArgs.Empty);
-                this._logHelper.LogWithTimestamp(LogLevel.Warning, "Lost network connection. Attempting to reconnect...");
+                this._logHelper.LogWithTimestamp("Lost network connection. Attempting to reconnect...");
                 this.Connect();
             }
         }
 
+        public string GetIpAddress()
+        {
+            return string.IsNullOrEmpty(_ipAddress) || _ipAddress == "0.0.0.0" ? "IP address not available" : _ipAddress;
+        }
+
+
         private bool IsAlreadyConnected(out string ipAddress)
         {
-            ipAddress = NetworkInterface.GetAllNetworkInterfaces()[0].IPv4Address;
+            var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
+            ipAddress = networkInterface.IPv4Address;
             return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
         }
 

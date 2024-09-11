@@ -20,5 +20,10 @@
         /// Checks the network connection and attempts to reconnect if it is lost.
         /// </summary>
         void CheckConnection();
+
+        /// <summary>
+        /// Gets the IP address of the device.
+        /// </summary>
+        string GetIpAddress();
     }
 }
