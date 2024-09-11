@@ -1,17 +1,19 @@
 # ESP32-MQTT Environmental Monitor
 
-This project showcases the integration of an ESP32 device with DHT21 and AHT10 temperature and humidity sensors, employing C# and the nanoFramework for development. Featuring MQTT client capabilities, it facilitates remote data communication, allowing for real-time monitoring and data publishing over MQTT. Additionally, the project includes a WebServer component, providing RESTful API endpoints for direct sensor data access and device control via HTTP requests. This dual functionality enhances the project's ability to interact with sensors and control device operations remotely, making it an ideal framework for IoT applications that require a versatile communication interface.
+This project integrates an ESP32 device with temperature and humidity sensors (DHT21, AHT10, SHTC3) using C# and the nanoFramework for development. It features MQTT client capabilities for real-time remote data communication and a WebServer component that provides RESTful API endpoints for sensor data access and device control via HTTP requests. The system is ideal for IoT applications requiring flexible communication and interaction interfaces.
+
+Note: Only one sensor is active at a time. The sensor (DHT21, AHT10, or SHTC3) must be selected during the initial setup, and they do not work simultaneously.
 
 Visit our portal at: [portal.unrealbg.com](http://portal.unrealbg.com)  
 **Username:** demo@unrealbg.com  
 **Password:** Demo123@
 
-As a programming enthusiast, I welcome any feedback, guidance, or suggestions for improvement.
+I acknowledge that the code may not be perfect and there are certainly areas that can be improved. I am a self-taught programmer, and coding is my hobby. I welcome any constructive criticism and feedback.
 
 ## Requirements
 
 - ESP32 development board
-- DHT21 or AHT10 temperature and humidity sensor
+- DHT21, AHT10, or SHTC3 temperature and humidity sensor
 - MQTT broker (e.g., Mosquitto)
 
 ## Setup
@@ -20,68 +22,77 @@ As a programming enthusiast, I welcome any feedback, guidance, or suggestions fo
    Install the C# nanoFramework on your ESP32 device. Detailed instructions are available [here](https://docs.nanoframework.net/content/getting-started-guides/getting-started-managed.html).
 
 2. **Sensor Connection:**  
-   Connect the DHT21/AHT10 sensor to your ESP32 device as per the sensor's documentation.
+   Connect the DHT21, AHT10, or SHTC3 sensor to your ESP32 device as per the sensor's documentation. Select the sensor in the code during setup.
 
 3. **MQTT Broker Setup:**  
    Set up an MQTT broker (like Mosquitto) on your network. Note down the hostname and port number.
 
 4. **Code Configuration:**  
-   In the code, replace `<YOUR_MQTT_BROKER_HOSTNAME>` and `<YOUR_MQTT_BROKER_PORT>` with your MQTT broker's hostname and port number.
+   In the code, configure the necessary settings in the `DeviceSettings`, `MqttSettings`, and `WiFiSettings` classes:
+   - ***DeviceSettings***: Set values for `DeviceName`, `Location`, and `SensorType`.
+   - ***MqttSettings***: Provide the `broker address`, `username`, and `password` for your MQTT broker.
+   - ***Wi-Fi Settings***: Enter the `ssid` and `password` for your Wi-Fi network.
+     
+   These settings are defined in dedicated classes and should be modified according to your environment and setup requirements.
 
 5. **Code Deployment:**  
    Compile and upload the code to your ESP32 device.
 
 ## Usage
 
-After completing the setup, the ESP32 device will start monitoring and publishing temperature and humidity data from the DHT21/AHT10 sensor to an MQTT topic. Subscribe to this topic to receive real-time updates. The implementation also supports publishing custom messages to the MQTT topic.
+Once the setup is complete, the ESP32 device will start publishing temperature and humidity data from the selected sensor (DHT21, AHT10, or SHTC3) to an MQTT topic. Subscribe to this topic to receive real-time updates. The system also supports publishing custom messages to the MQTT topic.
 
 ## Troubleshooting
 
 - **MQTT Connection Issues:**  
-  Ensure the MQTT broker hostname and port number in the code are correct if connection issues arise.
+  Ensure the MQTT broker hostname and port number are correctly set in the code.
 
 - **Sensor Data Accuracy:**  
-  If temperature and humidity readings are inaccurate or unstable, verify the DHT21/AHT10 sensor's connections and calibration.
+  If temperature and humidity readings are inaccurate, verify the sensor connections and calibrations.
 
-## WebServer with Controllers
+## WebServer with API Endpoints
 
-This project now includes a WebServer that serves API endpoints, making use of Controllers for structured handling of HTTP requests. This enhancement allows for remote interaction with the ESP32 device, offering a RESTful interface to access sensor data and control device functionalities.
+This project includes a WebServer that serves API endpoints for structured HTTP requests handling. It allows for remote sensor data retrieval and device control via a RESTful interface.
 
 ### WebServer Features
 
-- **API Endpoints**: The WebServer exposes several API endpoints to interact with the DHT21/AHT10 sensor and other functionalities.
-- **RESTful Design**: Adhering to REST principles, it enables easy integration with various client-side applications or services.
-- **Real-Time Data Access**: Offers endpoints to fetch real-time temperature and humidity data from the DHT21/AHT10 sensor.
-- **Device Control**: Additional endpoints provide control over certain functionalities of the ESP32 device.
+- **API Endpoints**: API endpoints for interacting with the DHT21, AHT10, and SHTC3 sensors and device control.
+- **Real-Time Data Access**: Fetch real-time temperature and humidity data.
+- **Device Control**: Endpoints for controlling the ESP32 device functionalities.
 
-### API Endpoints Usage
+### API Endpoints
 
 1. **Temperature Data**:  
    - Endpoint: `/api/temperature`  
    - Method: `GET`  
-   - Description: Returns the current temperature reading from the DHT21/AHT10 sensor in JSON format.
+   - Description: Returns the current temperature reading from the selected sensor in JSON format.
 
 2. **Humidity Data**:  
    - Endpoint: `/api/humidity`  
    - Method: `GET`  
-   - Description: Returns the current humidity reading from the DHT21/AHT10 sensor in JSON format.
+   - Description: Returns the current humidity reading in JSON format.
 
-3. **Sensor Data**:  
+3. **Complete Sensor Data**:  
    - Endpoint: `/api/data`  
    - Method: `GET`  
-   - Description: Returns both temperature and humidity readings in a structured JSON format.
+   - Description: Returns both temperature and humidity readings along with the sensor type in a structured JSON format.
 
-### Integration
+## Index Page
 
-The WebServer is designed to be scalable and easily integrable with other systems, providing a seamless interface for data communication and device control. This makes it an ideal solution for IoT applications requiring real-time sensor data monitoring and device management over HTTP.
+An index page has been added for a user-friendly display of sensor data through a simple web interface. It dynamically updates the temperature, humidity, date, time, and sensor type using JavaScript.
+
+### Index Page Content
+The index page provides a clean and responsive UI for real-time monitoring:
+- Displays temperature and humidity readings.
+- Shows the current date, time, and sensor type.
 
 ## Additional Functionalities
 
 ### Relay Control
-This project now includes the ability to control a relay module, enabling the ESP32 to manage power to connected devices. You can switch devices on or off based on sensor data or through MQTT commands, allowing for automated environmental control or remote power management.
+You can control a relay module to manage connected devices based on sensor data or MQTT commands. This enables automated environmental control or remote power management.
 
-### AHT10 Sensor Support
-Alongside the DHT21 sensor, the ESP32 is now compatible with the AHT10 sensor. This provides flexibility in choosing the sensor based on your precision and calibration needs for temperature and humidity monitoring.
+### SHTC3 Sensor Support
+In addition to the DHT21 and AHT10 sensors, the project now supports the SHTC3 sensor, offering flexibility in sensor choice based on precision and calibration needs.
 
 ## Project Images
 
