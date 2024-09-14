@@ -159,7 +159,11 @@
 
                 if (_sensorDataThread != null && _sensorDataThread.IsAlive)
                 {
-                    _sensorDataThread.Join(5000);
+                    if (!_sensorDataThread.Join(5000))
+                    {
+                        _logHelper.LogWithTimestamp("Sensor data thread did not stop in time, forcing stop...");
+                    }
+
                     _sensorDataThread = null;
                     _logHelper.LogWithTimestamp("Sensor data thread stopped.");
                 }
@@ -174,7 +178,6 @@
                 _logHelper.LogWithTimestamp("Internet check thread is running, waiting for it to finish...");
             }
         }
-
 
         private void OnInternetRestored(object sender, EventArgs e)
         {
