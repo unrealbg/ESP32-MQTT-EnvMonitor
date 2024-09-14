@@ -20,7 +20,7 @@
             _logHelper = new LogHelper();
             Stopwatch = new Stopwatch();
             Stopwatch.Start();
-            _uptimeTimer = new Timer(this.UptimeTimerCallback, null, 0, UptimeDelay);
+            //_uptimeTimer = new Timer(this.UptimeTimerCallback, null, 0, UptimeDelay);
         }
 
         public Stopwatch Stopwatch { get; private set; }
