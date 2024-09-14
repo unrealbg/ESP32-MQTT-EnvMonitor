@@ -47,6 +47,7 @@
 
         private Thread _sensorDataThread;
         private bool _isSensorDataThreadRunning = false;
+        private readonly object _threadLock = new object();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
@@ -124,15 +125,27 @@
 
         private void StartSensorDataThread()
         {
-            if (_isSensorDataThreadRunning || (_sensorDataThread != null && _sensorDataThread.IsAlive))
+            lock (_threadLock)
             {
-                _logHelper.LogWithTimestamp("Sensor data thread is already running.");
-                return;
-            }
+                if (_isSensorDataThreadRunning || (_sensorDataThread != null && _sensorDataThread.IsAlive))
+                {
+                    _logHelper.LogWithTimestamp("Sensor data thread is already running.");
+                    return;
+                }
 
-            _sensorDataThread = new Thread(this.SensorDataLoop);
-            _isSensorDataThreadRunning = true;
-            _sensorDataThread.Start();
+                _sensorDataThread = new Thread(this.SensorDataLoop);
+                _isSensorDataThreadRunning = true;
+
+                try
+                {
+                    _sensorDataThread.Start();
+                }
+                catch (Exception ex)
+                {
+                    _logHelper.LogWithTimestamp($"Failed to start sensor data thread: {ex.Message}");
+                    _isSensorDataThreadRunning = false;
+                }
+            }
         }
 
         private void ConnectionClosed(object sender, EventArgs e)
@@ -141,7 +154,15 @@
 
             if (_isSensorDataThreadRunning)
             {
+                _logHelper.LogWithTimestamp("Stopping sensor data thread...");
                 _isSensorDataThreadRunning = false;
+
+                if (_sensorDataThread != null && _sensorDataThread.IsAlive)
+                {
+                    _sensorDataThread.Join(5000);
+                    _sensorDataThread = null;
+                    _logHelper.LogWithTimestamp("Sensor data thread stopped.");
+                }
             }
 
             if (!this._internetConnectionService.IsInternetThreadRunning)
@@ -154,6 +175,7 @@
             }
         }
 
+
         private void OnInternetRestored(object sender, EventArgs e)
         {
             this.Start();
@@ -164,6 +186,9 @@
             if (_sensorDataThread != null && _sensorDataThread.IsAlive)
             {
                 _isSensorDataThreadRunning = false;
+                _sensorDataThread.Join(5000);
+                _sensorDataThread = null;
+                _logHelper.LogWithTimestamp("Sensor data thread stopped.");
             }
         }
 
@@ -225,20 +250,25 @@
 
         private void SensorDataLoop()
         {
-            while (_isRunning && _isSensorDataThreadRunning)
+            while (_isSensorDataThreadRunning)
             {
                 try
                 {
                     this._mqttPublishService.PublishSensorData();
+
+                    if (_stopSignal.WaitOne(ErrorInterval, false))
+                    {
+                        break;
+                    }
                 }
                 catch (Exception ex)
                 {
                     _logHelper.LogWithTimestamp($"SensorDataLoop Exception: {ex.Message}");
                     _mqttPublishService.PublishError($"SensorDataLoop Exception: {ex.Message}");
                 }
-
-                _stopSignal.WaitOne(ErrorInterval, false);
             }
+
+            _logHelper.LogWithTimestamp("Sensor data thread has stopped.");
         }
 
         private void Stop()
