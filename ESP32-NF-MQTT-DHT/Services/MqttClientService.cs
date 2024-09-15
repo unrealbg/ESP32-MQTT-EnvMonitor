@@ -80,7 +80,7 @@
 
         /// <summary>
         /// Starts the MQTT client service.
-        /// </summary> 
+        /// </summary>
         public void Start()
         {
             if (_internetConnectionService.IsInternetAvailable())
