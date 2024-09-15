@@ -51,21 +51,17 @@
                             const response = await fetch('/api/data');
                             const data = await response.json();
             
-                            // Актуализиране на HTML елементите с извлечените данни
                             document.getElementById('temperature').textContent = data.Data.Temp.toFixed(2);
                             document.getElementById('humidity').textContent = data.Data.Humid;
                             document.getElementById('date').textContent = data.Data.Date;
                             document.getElementById('time').textContent = data.Data.Time;
             
-                            // Обработване на SensorType, ако е наличен
                             const sensorType = data.Data.SensorType ? data.Data.SensorType : ""Not available"";
                             document.getElementById('sensorType').textContent = sensorType;
                         } catch (error) {
                             console.error('Error fetching sensor data:', error);
                         }
                     }
-            
-                    // Извличане на данни при зареждане на страницата
                     fetchData();
                 </script>
             </body>
