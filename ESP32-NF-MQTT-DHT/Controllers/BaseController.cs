@@ -12,7 +12,7 @@
     {
         private static readonly Hashtable LastRequestTimes = new Hashtable();
         private static readonly Hashtable BanList = new Hashtable();
-        private static readonly TimeSpan RequestInterval = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan RequestInterval = TimeSpan.FromMilliseconds(200);
         private static readonly TimeSpan BanDuration = TimeSpan.FromMinutes(5);
         private static readonly object SyncLock = new object();
 
@@ -57,9 +57,12 @@
         {
             try
             {
-                e.Context.Response.StatusCode = (int)statusCode;
-                e.Context.Response.ContentType = contentType;
-                WebServer.OutPutStream(e.Context.Response, content);
+                using (var response = e.Context.Response)
+                {
+                    response.StatusCode = (int)statusCode;
+                    response.ContentType = contentType;
+                    WebServer.OutPutStream(response, content);
+                }
             }
             catch (Exception ex)
             {
@@ -85,6 +88,8 @@
                     this.SendThrottleResponse(e);
                     return;
                 }
+
+                this.CleanupOldRequests();
             }
 
             action.Invoke();
@@ -107,6 +112,25 @@
             e.Context.Response.ContentType = "text/plain";
             WebServer.OutPutStream(e.Context.Response, responseMessage);
             Debug.WriteLine($"Throttle response sent to {e.Context.Request.RemoteEndPoint}");
+        }
+
+        private void CleanupOldRequests()
+        {
+            DateTime threshold = DateTime.UtcNow.AddMinutes(-5); // Изчистване на заявки, по-стари от 5 минути
+            var keysToRemove = new ArrayList();
+
+            foreach (string key in LastRequestTimes.Keys)
+            {
+                if ((DateTime)LastRequestTimes[key] < threshold)
+                {
+                    keysToRemove.Add(key);
+                }
+            }
+
+            foreach (string key in keysToRemove)
+            {
+                LastRequestTimes.Remove(key);
+            }
         }
 
         private bool IsBanned(string clientIp)
