@@ -21,7 +21,6 @@
     public class MqttPublishService : IMqttPublishService
     {
         private const int ErrorInterval = 10000;
-        private const int SensorDataInterval = 300000;
         private const double InvalidTemperature = -50;
         private const double InvalidHumidity = -100;
 
@@ -67,13 +66,11 @@
             {
                 this.PublishValidSensorData(data);
                 _logHelper.LogWithTimestamp($"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
-                _stopSignal.WaitOne(SensorDataInterval, false);
             }
             else
             {
                 this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
                 _logHelper.LogWithTimestamp("Unable to read sensor data");
-                _stopSignal.WaitOne(ErrorInterval, false);
             }
         }
 
