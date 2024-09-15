@@ -296,6 +296,7 @@
                 _logHelper.LogWithTimestamp($"Exception while connecting to MQTT broker: {ex.Message}");
             }
 
+            this.DisposeCurrentClient();
             return false;
         }
 
@@ -306,10 +307,13 @@
         {
             if (this.MqttClient != null)
             {
-                if (this.MqttClient.IsConnected)
+                using (this.MqttClient)
                 {
-                    _logHelper.LogWithTimestamp("Disposing current MQTT client...");
-                    this.MqttClient.Disconnect();
+                    if (this.MqttClient.IsConnected)
+                    {
+                        _logHelper.LogWithTimestamp("Disposing current MQTT client...");
+                        this.MqttClient.Disconnect();
+                    }
                 }
 
                 this.MqttClient.Dispose();
