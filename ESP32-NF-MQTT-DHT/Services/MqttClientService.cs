@@ -177,7 +177,7 @@
             {
                 try
                 {
-                    if (!_sensorDataThread.Join(60000))
+                    if (!_sensorDataThread.Join(65000))
                     {
                         _logHelper.LogWithTimestamp("Sensor data thread did not stop in time.");
                     }
