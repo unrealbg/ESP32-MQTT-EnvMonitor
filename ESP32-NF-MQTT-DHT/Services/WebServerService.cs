@@ -8,6 +8,7 @@
 
     using Helpers;
 
+    using nanoFramework.Runtime.Native;
     using nanoFramework.WebServer;
 
     /// <summary>
@@ -43,10 +44,13 @@
         {
             if (!_isServerRunning)
             {
-                this.InitializeWebServer();
-                _server.Start();
-                _isServerRunning = true;
-                _logHelper.LogWithTimestamp("Web server started.");
+                if (SystemInfo.TargetName == "ESP32_S3")
+                {
+                    this.InitializeWebServer();
+                    _server.Start();
+                    _isServerRunning = true;
+                    _logHelper.LogWithTimestamp("Web server started.");
+                }
             }
         }
 
