@@ -1,8 +1,11 @@
 ﻿namespace ESP32_NF_MQTT_DHT
 {
     using System;
+    using System.Diagnostics;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+
+    using nanoFramework.Runtime.Native;
 
     using Services.Contracts;
 
@@ -11,6 +14,8 @@
     /// </summary>
     public class Startup
     {
+        private const int RequiredMemory = 100000;
+
         private readonly ISensorService _sensorService;
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
@@ -60,9 +65,16 @@
                 _mqttClient.Start();
                 _logHelper.LogWithTimestamp("MQTT client started.");
 
-                _logHelper.LogWithTimestamp("Starting WebServer service...");
-                _webServerService.Start();
-                _logHelper.LogWithTimestamp("WebServer service started.");
+                if (SystemInfo.TargetName == "ESP32_S3" && nanoFramework.Runtime.Native.GC.Run(false) >= RequiredMemory)
+                {
+                    _logHelper.LogWithTimestamp("Starting WebServer service...");
+                    _webServerService.Start();
+                    _logHelper.LogWithTimestamp("WebServer service started.");
+                }
+                else
+                {
+                    _logHelper.LogWithTimestamp($"WebServer service will not be started due to insufficient memory or unsupported platform ({SystemInfo.TargetName}).");
+                }
             }
             catch (Exception ex)
             {
