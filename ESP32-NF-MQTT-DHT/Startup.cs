@@ -1,7 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT
 {
     using System;
-    using System.Diagnostics;
 
     using ESP32_NF_MQTT_DHT.Helpers;
 
