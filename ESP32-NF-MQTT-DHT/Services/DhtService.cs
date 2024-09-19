@@ -9,24 +9,23 @@
 
     using Iot.Device.DHTxx.Esp32;
 
+    using static ESP32_NF_MQTT_DHT.Helpers.Constants;
+
     /// <summary>
     /// Provides services for reading data from a DHT21 sensor and publishing it via MQTT.
     /// </summary>
     internal class DhtService : ISensorService
     {
-        private const int ReadInterval = 60000; // 1 minute
-        private const int ErrorInterval = 30000; // 30 seconds
         private const int PinEcho = 26;
         private const int PinTrigger = 27;
-        private const int TempErrorValue = -50;
-        private const int HumidityErrorValue = -100;
 
         private readonly LogHelper _logHelper;
 
         private Thread _sensorThread;
+        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
-        private double _temp = TempErrorValue;
-        private double _humidity = HumidityErrorValue;
+        private double _temp = InvalidTemperature;
+        private double _humidity = InvalidHumidity;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DhtService"/> class.
@@ -94,15 +93,12 @@
 
             if (dht.IsLastReadSuccessful)
             {
-                _logHelper.LogWithTimestamp("Data read from DHT21 sensor.");
-                _logHelper.LogWithTimestamp($"Temperature: {_temp}°C, Humidity: {_humidity}%");
-                Thread.Sleep(ReadInterval);
+                _stopSignal.WaitOne(ReadInterval, false);
             }
             else
             {
-                _logHelper.LogWithTimestamp("Unable to read sensor data");
                 this.SetErrorValues();
-                Thread.Sleep(ErrorInterval);
+                this._stopSignal.WaitOne(ErrorInterval, false);
             }
         }
 
@@ -123,7 +119,7 @@
             }
             catch (Exception ex)
             {
-                this._logHelper.LogWithTimestamp("Unable to read sensor data");
+                _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
                 this.SetErrorValues();
             }
         }
@@ -133,8 +129,8 @@
         /// </summary>
         private void SetErrorValues()
         {
-            _temp = TempErrorValue;
-            _humidity = HumidityErrorValue;
+            _temp = InvalidTemperature;
+            _humidity = InvalidHumidity;
         }
     }
 }

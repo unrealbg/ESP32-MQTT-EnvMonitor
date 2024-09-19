@@ -12,20 +12,18 @@
 
     using Services.Contracts;
 
+    using static ESP32_NF_MQTT_DHT.Helpers.Constants;
+
     internal class Shtc3SensorService : ISensorService
     {
         private const int DataPin = 21;
         private const int ClockPin = 22;
-        private const int ReadInterval = 60000;
-        private const int ErrorInterval = 30000;
-        private const int TempErrorValue = -50;
-        private const int HumidityErrorValue = -100;
 
         private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
-        private double _temperature = TempErrorValue;
-        private double _humidity = HumidityErrorValue;
+        private double _temperature = InvalidTemperature;
+        private double _humidity = InvalidHumidity;
         private bool _isRunning;
         private I2cDevice _device;
 
@@ -96,8 +94,6 @@
                                 _temperature = temperature.DegreesCelsius;
                                 _humidity = relativeHumidity.Percent;
 
-                                this._logHelper.LogWithTimestamp("Data read from SHTC3 sensor");
-
                                 _stopSignal.WaitOne(ReadInterval, false);
                             }
                             else
@@ -107,9 +103,9 @@
                             }
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception ex)
                     {
-                        this._logHelper.LogWithTimestamp("Unable to read sensor data");
+                        _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }
@@ -119,8 +115,8 @@
 
         private void SetErrorValues()
         {
-            _temperature = TempErrorValue;
-            _humidity = HumidityErrorValue;
+            _temperature = InvalidTemperature;
+            _humidity = InvalidHumidity;
         }
     }
 }

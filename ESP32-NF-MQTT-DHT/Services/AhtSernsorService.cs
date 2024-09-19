@@ -5,11 +5,14 @@
     using System.Threading;
 
     using Contracts;
+
     using Helpers;
 
     using Iot.Device.Ahtxx;
 
     using nanoFramework.Hardware.Esp32;
+
+    using static ESP32_NF_MQTT_DHT.Helpers.Constants;
 
     /// <summary>
     /// Provides services for reading data from an AHT sensor.
@@ -18,16 +21,12 @@
     {
         private const int DataPin = 22;
         private const int ClockPin = 23;
-        private const int ReadInterval = 60000;
-        private const int ErrorInterval = 30000;
-        private const int TempErrorValue = -50;
-        private const int HumidityErrorValue = -100;
 
         private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
-        private double _temperature = TempErrorValue;
-        private double _humidity = HumidityErrorValue;
+        private double _temperature = InvalidTemperature;
+        private double _humidity = InvalidHumidity;
         private bool _running;
 
         /// <summary>
@@ -101,12 +100,10 @@
 
                             if (_temperature < 45 && _temperature != -50)
                             {
-                                 _logHelper.LogWithTimestamp("Data read from AHT10 sensor");
-                                _stopSignal.WaitOne(ReadInterval,false);
+                                _stopSignal.WaitOne(ReadInterval, false);
                             }
                             else
                             {
-                                this._logHelper.LogWithTimestamp("Unable to read sensor data");
                                 this.SetErrorValues();
                                 _stopSignal.WaitOne(ErrorInterval, false);
                             }
@@ -114,7 +111,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logHelper.LogWithTimestamp("Unable to read sensor data");
+                        _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }
@@ -124,8 +121,8 @@
 
         private void SetErrorValues()
         {
-            _temperature = TempErrorValue;
-            _humidity = HumidityErrorValue;
+            _temperature = InvalidTemperature;
+            _humidity = InvalidHumidity;
         }
     }
 }
