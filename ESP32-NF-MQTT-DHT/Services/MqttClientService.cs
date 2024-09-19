@@ -81,7 +81,7 @@
         {
             if (_internetConnectionService.IsInternetAvailable())
             {
-                _connectionThread = new Thread(this.ConnectToBroker);
+                _connectionThread = new Thread(this.EstablishBrokerConnection);
                 _connectionThread.Start();
             }
         }
@@ -89,7 +89,7 @@
         /// <summary>
         /// Connects to the MQTT broker.
         /// </summary>
-        private void ConnectToBroker()
+        private void EstablishBrokerConnection()
         {
             lock (_threadLock)
             {
@@ -111,7 +111,7 @@
 
             while (_isRunning && attemptCount < MaxAttempts)
             {
-                if (this.TryConnectToBroker())
+                if (this.AttemptBrokerConnection())
                 {
                     _logHelper.LogWithTimestamp("Starting sensor data thread...");
                     this.StartSensorDataThread();
@@ -226,7 +226,7 @@
 
             if (!this._internetConnectionService.IsInternetThreadRunning)
             {
-                this.ConnectToBroker();
+                this.EstablishBrokerConnection();
             }
             else
             {
@@ -258,28 +258,22 @@
         /// Attempts to connect to the MQTT broker.
         /// </summary>
         /// <returns><c>true</c> if the connection is successful; otherwise, <c>false</c>.</returns>
-        private bool TryConnectToBroker()
+        private bool AttemptBrokerConnection()
         {
-            if (!_internetConnectionService.IsInternetAvailable())
+            if (!this.CheckInternetConnection())
             {
-                _logHelper.LogWithTimestamp("No internet connection, cannot connect to MQTT broker.");
                 return false;
             }
 
-            this.DisposeCurrentClient();
+            this.DisposeMqttClient();
 
             try
             {
-                _logHelper.LogWithTimestamp($"Attempting to connect to MQTT broker: {Broker}");
-                this.MqttClient = new MqttClient(Broker);
-                this.MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
-
-                _mqttMessageHandler.SetMqttClient(this.MqttClient);
-                _mqttPublishService.SetMqttClient(this.MqttClient);
+                this.ConnectToMqttBroker();
 
                 if (MqttClient.IsConnected)
                 {
-                    this.SetupMqttClient();
+                    this.InitializeMqttClient();
                     return true;
                 }
             }
@@ -292,14 +286,14 @@
                 _logHelper.LogWithTimestamp($"Exception while connecting to MQTT broker: {ex.Message}");
             }
 
-            this.DisposeCurrentClient();
+            this.DisposeMqttClient();
             return false;
         }
 
         /// <summary>
         /// Disposes the current MQTT client.
         /// </summary>
-        private void DisposeCurrentClient()
+        private void DisposeMqttClient()
         {
             if (this.MqttClient != null)
             {
@@ -320,12 +314,33 @@
         /// <summary>
         /// Sets up the MQTT client by subscribing to topics and setting up event handlers.
         /// </summary>
-        private void SetupMqttClient()
+        private void InitializeMqttClient()
         {
             this.MqttClient.ConnectionClosed += this.ConnectionClosed;
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
             _logHelper.LogWithTimestamp("MQTT client setup complete");
+        }
+
+        private bool CheckInternetConnection()
+        {
+            if (!_internetConnectionService.IsInternetAvailable())
+            {
+                _logHelper.LogWithTimestamp("No internet connection, cannot connect to MQTT broker.");
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ConnectToMqttBroker()
+        {
+            _logHelper.LogWithTimestamp($"Attempting to connect to MQTT broker: {Broker}");
+            MqttClient = new MqttClient(Broker);
+            MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+
+            _mqttMessageHandler.SetMqttClient(MqttClient);
+            _mqttPublishService.SetMqttClient(MqttClient);
         }
 
         /// <summary>
