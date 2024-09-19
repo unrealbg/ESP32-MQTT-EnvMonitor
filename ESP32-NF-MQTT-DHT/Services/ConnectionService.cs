@@ -109,7 +109,6 @@
             return string.IsNullOrEmpty(_ipAddress) || _ipAddress == "0.0.0.0" ? "IP address not available" : _ipAddress;
         }
 
-
         private bool IsAlreadyConnected(out string ipAddress)
         {
             var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
