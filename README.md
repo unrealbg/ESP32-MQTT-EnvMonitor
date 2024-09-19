@@ -52,7 +52,9 @@ Once the setup is complete, the ESP32 device will start publishing temperature a
 
 ## WebServer with API Endpoints
 
-This project includes a WebServer that serves API endpoints for structured HTTP requests handling. It allows for remote sensor data retrieval and device control via a RESTful interface.
+This project includes a web server that serves API endpoints for structured HTTP request handling. It allows for remote sensor data retrieval and device control via a RESTful interface.
+
+**Note:** For optimal web server performance, it is recommended to use ESP devices with more memory, such as **ESP32-S3**. The project has been tested and works without issues on ESP32-S3, thanks to its increased storage and processing resources.
 
 ### WebServer Features
 
