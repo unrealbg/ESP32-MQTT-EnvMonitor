@@ -32,7 +32,6 @@
         private const int ErrorInterval = 10000;
 
         private readonly IConnectionService _connectionService;
-        private readonly ISensorService _sensorService;
         private readonly IInternetConnectionService _internetConnectionService;
         private readonly MqttMessageHandler _mqttMessageHandler;
         private readonly IMqttPublishService _mqttPublishService;
@@ -52,19 +51,16 @@
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
         /// </summary>
         /// <param name="connectionService">The connection service for managing network connections.</param>
-        /// <param name="sensorService">The sensor service for retrieving sensor data.</param>
         /// <param name="internetConnectionService">The internet connection service for checking internet availability.</param>
         /// <param name="mqttMessageHandler">The MQTT message handler for processing incoming messages.</param>
         /// <param name="mqttPublishService">The MQTT publish service for publishing messages to the broker.</param>
         public MqttClientService(IConnectionService connectionService,
-                                 ISensorService sensorService,
                                  IInternetConnectionService internetConnectionService,
                                  MqttMessageHandler mqttMessageHandler,
                                  IMqttPublishService mqttPublishService)
         {
             _connectionService = connectionService;
             _logHelper = new LogHelper();
-            _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
             _internetConnectionService = internetConnectionService ?? throw new ArgumentNullException(nameof(internetConnectionService));
             _mqttMessageHandler = mqttMessageHandler;
             _mqttPublishService = mqttPublishService;
