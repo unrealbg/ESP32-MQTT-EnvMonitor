@@ -35,6 +35,8 @@
     <Compile Include="Helpers\MqttConstants.cs" />
     <Compile Include="Helpers\SensorType.cs" />
     <Compile Include="HTML\Html.cs" />
+    <Compile Include="Managers\Contracts\ISensorManager.cs" />
+    <Compile Include="Managers\SensorManager.cs" />
     <Compile Include="Models\Device.cs" />
     <Compile Include="Services\Contracts\IInternetConnectionService.cs" />
     <Compile Include="Services\Contracts\ISensorService.cs" />
