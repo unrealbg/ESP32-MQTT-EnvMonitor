@@ -1,13 +1,10 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services.MQTT
 {
-    using System;
     using System.Text;
     using System.Threading;
 
     using ESP32_NF_MQTT_DHT.Helpers;
-    using ESP32_NF_MQTT_DHT.Managers;
     using ESP32_NF_MQTT_DHT.Managers.Contracts;
-    using ESP32_NF_MQTT_DHT.Models;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
@@ -23,8 +20,6 @@
     public class MqttPublishService : IMqttPublishService
     {
         private const int ErrorInterval = 10000;
-        private const double InvalidTemperature = -50;
-        private const double InvalidHumidity = -100;
 
         private static readonly string DataTopic = $"home/{DeviceName}/messages";
         private static readonly string ErrorTopic = $"home/{DeviceName}/errors";

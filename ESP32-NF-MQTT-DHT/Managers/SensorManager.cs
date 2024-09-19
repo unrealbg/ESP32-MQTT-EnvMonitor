@@ -1,7 +1,6 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Managers
 {
     using System;
-    using System.Diagnostics;
 
     using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Managers.Contracts;
@@ -50,7 +49,6 @@
                     };
                 }
 
-                Debug.WriteLine($"Invalid data from {sensorType}");
                 _logHelper.LogWithTimestamp($"Invalid data from {sensorType}");
                 return null;
             }
