@@ -4,6 +4,8 @@ namespace ESP32_NF_MQTT_DHT
     using System.Diagnostics;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Managers;
+    using ESP32_NF_MQTT_DHT.Managers.Contracts;
     using ESP32_NF_MQTT_DHT.Services.MQTT;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
@@ -74,6 +76,7 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
             services.AddSingleton(typeof(IInternetConnectionService), typeof(InternetConnectionService));
             services.AddSingleton(typeof(MqttMessageHandler));
+            services.AddSingleton(typeof(ISensorManager), typeof(SensorManager));
             services.AddSingleton(typeof(IMqttPublishService), typeof(MqttPublishService));
 
             services.AddTransient(typeof(LogHelper));
