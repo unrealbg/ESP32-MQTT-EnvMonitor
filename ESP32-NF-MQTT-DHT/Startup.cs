@@ -3,6 +3,8 @@
     using System;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Managers;
+    using ESP32_NF_MQTT_DHT.Managers.Contracts;
 
     using nanoFramework.Runtime.Native;
 
@@ -15,10 +17,10 @@
     {
         private const int RequiredMemory = 100000;
 
-        private readonly ISensorService _sensorService;
         private readonly IConnectionService _connectionService;
         private readonly IMqttClientService _mqttClient;
         private readonly IWebServerService _webServerService;
+        private readonly ISensorManager _sensorManager;
 
         private readonly LogHelper _logHelper;
 
@@ -27,18 +29,18 @@
         /// </summary>
         /// <param name="connectionService">Service for managing connections.</param>
         /// <param name="mqttClient">MQTT client service.</param>
-        /// <param name="sensorService">DHT sensor service.</param>
+        /// <param name="sensorManager">Sensor manager.</param>
         /// <param name="webServerService">WebServer service.</param>
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
-            ISensorService sensorService,
-            IWebServerService webServerService)
+            IWebServerService webServerService,
+            ISensorManager sensorManager)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
-            _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
             _webServerService = webServerService ?? throw new ArgumentNullException(nameof(webServerService));
+            _sensorManager = sensorManager ?? throw new ArgumentNullException(nameof(sensorManager));
 
             _logHelper = new LogHelper();
 
@@ -56,9 +58,9 @@
                 _connectionService.Connect();
                 _logHelper.LogWithTimestamp("Connection established.");
 
-                _logHelper.LogWithTimestamp("Starting sensor service...");
-                _sensorService.Start();
-                _logHelper.LogWithTimestamp("Sensor service started.");
+                _logHelper.LogWithTimestamp("Starting sensor manager...");
+                _sensorManager.StartSensor();
+                _logHelper.LogWithTimestamp("Sensor manager started.");
 
                 _logHelper.LogWithTimestamp("Starting MQTT client...");
                 _mqttClient.Start();
