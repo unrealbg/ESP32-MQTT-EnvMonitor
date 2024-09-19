@@ -5,6 +5,8 @@
     using System.Threading;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Managers;
+    using ESP32_NF_MQTT_DHT.Managers.Contracts;
     using ESP32_NF_MQTT_DHT.Models;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
@@ -29,7 +31,7 @@
 
         private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
-        private readonly ISensorService _sensorService;
+        private readonly ISensorManager _sensorManager;
         private readonly IInternetConnectionService _internetConnectionService;
         private MqttClient _mqttClient;
 
@@ -37,13 +39,13 @@
         /// Initializes a new instance of the <see cref="MqttPublishService"/> class.
         /// </summary>
         /// <param name="logHelper">The log helper for logging messages.</param>
-        /// <param name="sensorService">The sensor service for retrieving sensor data.</param>
+        /// <param name="sensorManager">The sensor manager for retrieving sensor data.</param>
         /// <param name="internetConnectionService">The internet connection service for checking internet availability.</param>
-        public MqttPublishService(LogHelper logHelper, ISensorService sensorService, IInternetConnectionService internetConnectionService)
+        public MqttPublishService(LogHelper logHelper, IInternetConnectionService internetConnectionService, ISensorManager sensorManager)
         {
             _logHelper = logHelper;
-            _sensorService = sensorService;
             _internetConnectionService = internetConnectionService;
+            _sensorManager = sensorManager;
         }
 
         /// <summary>
@@ -60,12 +62,12 @@
         /// </summary>
         public void PublishSensorData()
         {
-            double[] data = _sensorService.GetData();
+            var data = _sensorManager.CollectAndCreateSensorData();
 
-            if (this.IsSensorDataValid(data))
+            if (data != null)
             {
-                this.PublishValidSensorData(data);
-                _logHelper.LogWithTimestamp($"Temperature: {data[0]:f2}°C, Humidity: {data[1]:f1}%");
+                var message = JsonSerializer.SerializeObject(data);
+                this.CheckInternetAndPublish(DataTopic, message);
             }
             else
             {
@@ -85,16 +87,6 @@
         }
 
         /// <summary>
-        /// Checks if the sensor data is valid.
-        /// </summary>
-        /// <param name="data">The sensor data to be validated.</param>
-        /// <returns>True if the data is valid, otherwise false.</returns>
-        private bool IsSensorDataValid(double[] data)
-        {
-            return !(data[0] == InvalidTemperature || data[1] == InvalidHumidity);
-        }
-
-        /// <summary>
         /// Checks internet availability and publishes a message to the specified topic.
         /// </summary>
         /// <param name="topic">The topic to publish the message to.</param>
@@ -109,36 +101,6 @@
             {
                 _logHelper.LogWithTimestamp("No internet connection.");
             }
-        }
-
-        /// <summary>
-        /// Publishes valid sensor data to the MQTT broker.
-        /// </summary>
-        /// <param name="data">The valid sensor data to be published.</param>
-        private void PublishValidSensorData(double[] data)
-        {
-            var sensorData = this.CreateSensorData(data);
-            var message = JsonSerializer.SerializeObject(sensorData);
-            this.CheckInternetAndPublish(DataTopic, message);
-        }
-
-        /// <summary>
-        /// Creates a <see cref="Device"/> object from the sensor data.
-        /// </summary>
-        /// <param name="data">The sensor data.</param>
-        /// <returns>A <see cref="Device"/> object containing the sensor data.</returns>
-        private Device CreateSensorData(double[] data)
-        {
-            return new Device
-            {
-                DeviceName = DeviceName,
-                Location = Location,
-                SensorType = SensorTypeName,
-                Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                Time = DateTime.UtcNow.AddHours(3).ToString("HH:mm:ss"),
-                Temp = data?[0].ToString("F2"),
-                Humid = (int)data[1],
-            };
         }
     }
 }
