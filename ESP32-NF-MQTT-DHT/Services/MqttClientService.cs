@@ -19,8 +19,8 @@
     using IMqttClientService = Contracts.IMqttClientService;
 
     /// <summary>
-    /// Service to handle MQTT client functionalities including connecting to the broker,
-    /// handling messages, and managing a relay pin.
+    /// Service that manages MQTT client functionalities, including connecting to the broker,
+    /// handling messages, managing sensor data, and reconnecting in case of errors.
     /// </summary>
     internal class MqttClientService : IMqttClientService
     {
@@ -50,10 +50,10 @@
         /// <summary>
         /// Initializes a new instance of the <see cref="MqttClientService"/> class.
         /// </summary>
-        /// <param name="connectionService">The connection service for managing network connections.</param>
-        /// <param name="internetConnectionService">The internet connection service for checking internet availability.</param>
-        /// <param name="mqttMessageHandler">The MQTT message handler for processing incoming messages.</param>
-        /// <param name="mqttPublishService">The MQTT publish service for publishing messages to the broker.</param>
+        /// <param name="connectionService">Service that manages network connections.</param>
+        /// <param name="internetConnectionService">Service that checks for internet availability.</param>
+        /// <param name="mqttMessageHandler">Service to handle incoming MQTT messages.</param>
+        /// <param name="mqttPublishService">Service to publish MQTT messages to the broker.</param>
         public MqttClientService(IConnectionService connectionService,
                                  IInternetConnectionService internetConnectionService,
                                  MqttMessageHandler mqttMessageHandler,
@@ -70,12 +70,12 @@
         }
 
         /// <summary>
-        /// Gets the instance of the MQTT client.
+        /// Gets the current instance of the MQTT client.
         /// </summary>
         public MqttClient MqttClient { get; private set; }
 
         /// <summary>
-        /// Starts the MQTT client service.
+        /// Starts the MQTT client service by establishing a connection to the MQTT broker.
         /// </summary>
         public void Start()
         {
@@ -87,7 +87,7 @@
         }
 
         /// <summary>
-        /// Connects to the MQTT broker.
+        /// Establishes the connection to the MQTT broker, retrying if necessary.
         /// </summary>
         private void EstablishBrokerConnection()
         {
@@ -133,7 +133,7 @@
         }
 
         /// <summary>
-        /// Starts the sensor data thread.
+        /// Starts a separate thread to handle sensor data publishing at regular intervals.
         /// </summary>
         private void StartSensorDataThread()
         {
@@ -162,7 +162,7 @@
         }
 
         /// <summary>
-        /// Stops the sensor data thread.
+        /// Stops the thread that handles sensor data publishing.
         /// </summary>
         private void StopSensorDataThread()
         {
@@ -191,7 +191,7 @@
         }
 
         /// <summary>
-        /// The main loop for publishing sensor data.
+        /// The loop that continuously publishes sensor data to the MQTT broker.
         /// </summary>
         private void SensorDataLoop()
         {
@@ -214,10 +214,10 @@
         }
 
         /// <summary>
-        /// Handles the event when the connection to the MQTT broker is closed.
+        /// Handles reconnection logic when the connection to the MQTT broker is lost.
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The event data.</param>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
         private void ConnectionClosed(object sender, EventArgs e)
         {
             _logHelper.LogWithTimestamp("Lost connection to MQTT broker, attempting to reconnect...");
@@ -235,29 +235,30 @@
         }
 
         /// <summary>
-        /// Handles the event when the internet connection is restored.
+        /// Starts the MQTT client service when the internet connection is restored.
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The event data.</param>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
         private void OnInternetRestored(object sender, EventArgs e)
         {
             this.Start();
         }
 
         /// <summary>
-        /// Handles the event when the internet connection is lost.
+        /// Stops the sensor data thread when the internet connection is lost.
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The event data.</param>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
         private void OnInternetLost(object sender, EventArgs e)
         {
             this.StopSensorDataThread();
         }
 
         /// <summary>
-        /// Attempts to connect to the MQTT broker.
+        /// Attempts to connect to the MQTT broker. Checks the internet connection,
+        /// and handles exceptions in the connection process.
         /// </summary>
-        /// <returns><c>true</c> if the connection is successful; otherwise, <c>false</c>.</returns>
+        /// <returns><c>true</c> if the connection is successful, otherwise <c>false</c>.</returns>
         private bool AttemptBrokerConnection()
         {
             if (!this.CheckInternetConnection())
@@ -291,7 +292,7 @@
         }
 
         /// <summary>
-        /// Disposes the current MQTT client.
+        /// Disposes of the current MQTT client and ensures disconnection.
         /// </summary>
         private void DisposeMqttClient()
         {
@@ -312,7 +313,7 @@
         }
 
         /// <summary>
-        /// Sets up the MQTT client by subscribing to topics and setting up event handlers.
+        /// Initializes the MQTT client by subscribing to topics and setting event handlers for incoming messages.
         /// </summary>
         private void InitializeMqttClient()
         {
@@ -322,6 +323,10 @@
             _logHelper.LogWithTimestamp("MQTT client setup complete");
         }
 
+        /// <summary>
+        /// Checks whether the internet connection is available.
+        /// </summary>
+        /// <returns><c>true</c> if the internet is available, otherwise <c>false</c>.</returns>
         private bool CheckInternetConnection()
         {
             if (!_internetConnectionService.IsInternetAvailable())
@@ -333,6 +338,9 @@
             return true;
         }
 
+        /// <summary>
+        /// Connects the MQTT client to the specified broker using provided credentials.
+        /// </summary>
         private void ConnectToMqttBroker()
         {
             _logHelper.LogWithTimestamp($"Attempting to connect to MQTT broker: {Broker}");
@@ -344,7 +352,7 @@
         }
 
         /// <summary>
-        /// Stops the MQTT client service.
+        /// Stops the MQTT client service by disconnecting the MQTT client and stopping the sensor data thread.
         /// </summary>
         private void Stop()
         {
