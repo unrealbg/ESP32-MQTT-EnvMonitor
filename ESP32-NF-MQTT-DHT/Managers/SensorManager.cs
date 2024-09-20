@@ -8,6 +8,9 @@
     using ESP32_NF_MQTT_DHT.Services.Contracts;
     using ESP32_NF_MQTT_DHT.Settings;
 
+    /// <summary>
+    /// Manages sensor operations including data collection and validation.
+    /// </summary>
     public class SensorManager : ISensorManager
     {
         private const int MinTemp = -50;
@@ -18,12 +21,21 @@
         private readonly ISensorService _sensorService;
         private readonly LogHelper _logHelper;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SensorManager"/> class.
+        /// </summary>
+        /// <param name="sensorService">The sensor service for retrieving sensor data.</param>
+        /// <param name="logHelper">The log helper for logging messages.</param>
         public SensorManager(ISensorService sensorService, LogHelper logHelper)
         {
             _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
             _logHelper = logHelper ?? throw new ArgumentNullException(nameof(logHelper));
         }
 
+        /// <summary>
+        /// Collects sensor data and creates a <see cref="Device"/> object with the collected data.
+        /// </summary>
+        /// <returns>A <see cref="Device"/> object containing the sensor data, or <c>null</c> if the data is invalid.</returns>
         public Device CollectAndCreateSensorData()
         {
             try
@@ -59,16 +71,28 @@
             }
         }
 
+        /// <summary>
+        /// Starts the sensor service.
+        /// </summary>
         public void StartSensor()
         {
             _sensorService.Start();
         }
 
+        /// <summary>
+        /// Stops the sensor service.
+        /// </summary>
         public void StopSensor()
         {
             _sensorService.Stop();
         }
 
+        /// <summary>
+        /// Validates the sensor data.
+        /// </summary>
+        /// <param name="temperature">The temperature value to validate.</param>
+        /// <param name="humidity">The humidity value to validate.</param>
+        /// <returns><c>true</c> if the data is valid; otherwise, <c>false</c>.</returns>
         private bool IsValidData(double temperature, double humidity)
         {
             return temperature >= MinTemp && temperature <= MaxTemp && humidity >= MinHumidity && humidity <= MaxHumidity;
