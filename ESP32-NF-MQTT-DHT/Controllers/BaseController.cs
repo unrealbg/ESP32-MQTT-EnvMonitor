@@ -8,25 +8,43 @@
 
     using nanoFramework.WebServer;
 
+    /// <summary>
+    /// Abstract base class for handling common web server functionalities such as authentication,
+    /// request throttling, and response handling.
+    /// </summary>
     public abstract class BaseController
     {
-        private static readonly Hashtable LastRequestTimes = new Hashtable();
+        private static readonly Hashtable RequestTimesByEndpoint = new Hashtable();
         private static readonly Hashtable BanList = new Hashtable();
         private static readonly TimeSpan RequestInterval = TimeSpan.FromMilliseconds(200);
         private static readonly TimeSpan BanDuration = TimeSpan.FromMinutes(5);
         private static readonly object SyncLock = new object();
 
+        /// <summary>
+        /// Sends an HTML page as a response.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        /// <param name="page">The HTML content to send.</param>
         protected void SendPage(WebServerEventArgs e, string page)
         {
             this.SendResponse(e, page, "text/html");
         }
 
+        /// <summary>
+        /// Checks if the request is authenticated.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        /// <returns><c>true</c> if the request is authenticated; otherwise, <c>false</c>.</returns>
         protected bool IsAuthenticated(WebServerEventArgs e)
         {
             var authHeader = e.Context.Request.Headers["Authorization"];
             return authHeader != null && this.ValidateAuthHeader(authHeader);
         }
 
+        /// <summary>
+        /// Sends an unauthorized response.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         protected void SendUnauthorizedResponse(WebServerEventArgs e)
         {
             string responseMessage = "Unauthorized access. Please provide valid credentials.";
@@ -36,6 +54,10 @@
             Debug.WriteLine("Unauthorized response sent.");
         }
 
+        /// <summary>
+        /// Sends a not found response.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         protected void SendNotFoundResponse(WebServerEventArgs e)
         {
             string responseMessage = "The requested resource was not found.";
@@ -45,6 +67,12 @@
             Debug.WriteLine($"Not Found response sent to {e.Context.Request.RemoteEndPoint}");
         }
 
+        /// <summary>
+        /// Sends an error response.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        /// <param name="logMessage">The log message to record.</param>
+        /// <param name="statusCode">The HTTP status code to send.</param>
         protected void SendErrorResponse(WebServerEventArgs e, string logMessage, HttpStatusCode statusCode)
         {
             var clientMessage = "An error occurred. Please try again later.";
@@ -53,6 +81,13 @@
             Debug.WriteLine(logMessage);
         }
 
+        /// <summary>
+        /// Sends a response with the specified content and content type.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        /// <param name="content">The content to send.</param>
+        /// <param name="contentType">The content type of the response.</param>
+        /// <param name="statusCode">The HTTP status code to send.</param>
         protected void SendResponse(WebServerEventArgs e, string content, string contentType = "application/json", HttpStatusCode statusCode = HttpStatusCode.OK)
         {
             try
@@ -70,7 +105,13 @@
             }
         }
 
-        protected void HandleRequest(WebServerEventArgs e, Action action)
+        /// <summary>
+        /// Handles a web server request, including throttling and banning logic.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        /// <param name="action">The action to execute for the request.</param>
+        /// <param name="endpoint">The endpoint being accessed.</param>
+        protected void HandleRequest(WebServerEventArgs e, Action action, string endpoint)
         {
             string clientIp = e.Context.Request.RemoteEndPoint.Address.ToString();
 
@@ -82,20 +123,24 @@
                     return;
                 }
 
-                if (this.ShouldThrottle(clientIp))
+                if (this.ShouldThrottle(clientIp, endpoint))
                 {
                     this.BanClient(clientIp);
                     this.SendThrottleResponse(e);
                     return;
                 }
 
-                this.CleanupOldRequests();
+                this.CleanupOldRequests(clientIp, endpoint);
             }
 
             action.Invoke();
-            this.UpdateLastRequestTime(clientIp);
+            this.UpdateLastRequestTime(clientIp, endpoint);
         }
 
+        /// <summary>
+        /// Sends a forbidden response.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         protected void SendForbiddenResponse(WebServerEventArgs e)
         {
             string responseMessage = "Your access is temporarily suspended due to excessive requests.";
@@ -105,6 +150,10 @@
             Debug.WriteLine($"Forbidden response sent to {e.Context.Request.RemoteEndPoint}");
         }
 
+        /// <summary>
+        /// Sends a throttle response.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         protected void SendThrottleResponse(WebServerEventArgs e)
         {
             string responseMessage = "Too many requests. You have been temporarily banned. Please wait 5 minutes.";
@@ -114,25 +163,27 @@
             Debug.WriteLine($"Throttle response sent to {e.Context.Request.RemoteEndPoint}");
         }
 
-        private void CleanupOldRequests()
+        /// <summary>
+        /// Cleans up old requests from the request times hashtable.
+        /// </summary>
+        /// <param name="clientIp">The client's IP address.</param>
+        /// <param name="endpoint">The endpoint being accessed.</param>
+        private void CleanupOldRequests(string clientIp, string endpoint)
         {
-            DateTime threshold = DateTime.UtcNow.AddMinutes(-5); // Изчистване на заявки, по-стари от 5 минути
-            var keysToRemove = new ArrayList();
+            string key = $"{clientIp}_{endpoint}";
+            DateTime threshold = DateTime.UtcNow.AddMinutes(-5);
 
-            foreach (string key in LastRequestTimes.Keys)
+            if (RequestTimesByEndpoint.Contains(key) && (DateTime)RequestTimesByEndpoint[key] < threshold)
             {
-                if ((DateTime)LastRequestTimes[key] < threshold)
-                {
-                    keysToRemove.Add(key);
-                }
-            }
-
-            foreach (string key in keysToRemove)
-            {
-                LastRequestTimes.Remove(key);
+                RequestTimesByEndpoint.Remove(key);
             }
         }
 
+        /// <summary>
+        /// Checks if the client is banned.
+        /// </summary>
+        /// <param name="clientIp">The client's IP address.</param>
+        /// <returns><c>true</c> if the client is banned; otherwise, <c>false</c>.</returns>
         private bool IsBanned(string clientIp)
         {
             if (BanList.Contains(clientIp))
@@ -150,28 +201,51 @@
             return false;
         }
 
-        private bool ShouldThrottle(string clientIp)
+        /// <summary>
+        /// Checks if the client should be throttled based on request frequency.
+        /// </summary>
+        /// <param name="clientIp">The client's IP address.</param>
+        /// <param name="endpoint">The endpoint being accessed.</param>
+        /// <returns><c>true</c> if the client should be throttled; otherwise, <c>false</c>.</returns>
+        private bool ShouldThrottle(string clientIp, string endpoint)
         {
-            if (LastRequestTimes.Contains(clientIp))
+            string key = $"{clientIp}_{endpoint}";
+
+            if (RequestTimesByEndpoint.Contains(key))
             {
-                DateTime lastRequestTime = (DateTime)LastRequestTimes[clientIp];
+                DateTime lastRequestTime = (DateTime)RequestTimesByEndpoint[key];
                 return DateTime.UtcNow - lastRequestTime < RequestInterval;
             }
 
             return false;
         }
 
+        /// <summary>
+        /// Bans the client by adding them to the ban list.
+        /// </summary>
+        /// <param name="clientIp">The client's IP address.</param>
         private void BanClient(string clientIp)
         {
             BanList[clientIp] = DateTime.UtcNow.Add(BanDuration);
             Debug.WriteLine($"Client {clientIp} has been banned until {BanList[clientIp]}.");
         }
 
-        private void UpdateLastRequestTime(string clientIp)
+        /// <summary>
+        /// Updates the last request time for the client and endpoint.
+        /// </summary>
+        /// <param name="clientIp">The client's IP address.</param>
+        /// <param name="endpoint">The endpoint being accessed.</param>
+        private void UpdateLastRequestTime(string clientIp, string endpoint)
         {
-            LastRequestTimes[clientIp] = DateTime.UtcNow;
+            string key = $"{clientIp}_{endpoint}";
+            RequestTimesByEndpoint[key] = DateTime.UtcNow;
         }
 
+        /// <summary>
+        /// Validates the authorization header.
+        /// </summary>
+        /// <param name="authHeader">The authorization header value.</param>
+        /// <returns><c>true</c> if the authorization header is valid; otherwise, <c>false</c>.</returns>
         private bool ValidateAuthHeader(string authHeader)
         {
             if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Basic "))
