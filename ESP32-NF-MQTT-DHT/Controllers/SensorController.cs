@@ -12,41 +12,60 @@
     using nanoFramework.Json;
     using nanoFramework.WebServer;
 
+    /// <summary>
+    /// Controller for handling sensor-related HTTP requests.
+    /// </summary>
     [Authentication("Basic:user p@ssw0rd")]
     public class SensorController : BaseController
     {
         private readonly ISensorService _sensorService;
+        private readonly IRelayService _relayService;
         private readonly LogHelper _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SensorController"/> class.
+        /// </summary>
+        /// <param name="sensorService">The sensor service for retrieving sensor data.</param>
+        /// <param name="relayService">The relay service for controlling relays.</param>
         public SensorController(
-            ISensorService sensorService)
+            ISensorService sensorService,
+            IRelayService relayService)
         {
             _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
+            _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
             _logger = new LogHelper();
         }
 
+        /// <summary>
+        /// Handles the request for the index page.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         [Route("/")]
         [Method("GET")]
         public void Index(WebServerEventArgs e)
         {
             this.HandleRequest(
-        e,
-        () =>
-        {
-            try
-            {
-                string htmlContent = Html.GetIndexContent();
-
-                this.SendResponse(e, htmlContent, "text/html");
-            }
-            catch (Exception ex)
-            {
-                this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
-                _logger.LogWithTimestamp("Failed to load index page.");
-            }
-        });
+                e,
+                () =>
+                    {
+                        try
+                        {
+                            string htmlContent = Html.GetIndexContent();
+                            this.SendResponse(e, htmlContent, "text/html");
+                        }
+                        catch (Exception ex)
+                        {
+                            this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
+                            _logger.LogWithTimestamp("Failed to load index page.");
+                        }
+                    },
+                "/");
         }
 
+        /// <summary>
+        /// Handles the request for getting the temperature.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         [Route("api/temperature")]
         [Method("GET")]
         public void GetTemperature(WebServerEventArgs e)
@@ -74,9 +93,14 @@
                             this.SendErrorResponse(e, "An unexpected error occurred.", HttpStatusCode.InternalServerError);
                             _logger.LogWithTimestamp("An unexpected error occurred.");
                         }
-                    });
+                    },
+                "api/temperature");
         }
 
+        /// <summary>
+        /// Handles the request for getting the humidity.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         [Route("api/humidity")]
         [Method("GET")]
         public void GetHumidity(WebServerEventArgs e)
@@ -102,11 +126,16 @@
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
-                            _logger.LogWithTimestamp("An unexpected error occurred: { ex.Message}");
+                            _logger.LogWithTimestamp($"An unexpected error occurred: {ex.Message}");
                         }
-                    });
+                    },
+                "api/humidity");
         }
 
+        /// <summary>
+        /// Handles the request for getting the sensor data.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
         [Route("api/data")]
         [Method("GET")]
         public void GetData(WebServerEventArgs e)
@@ -147,11 +176,66 @@
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
-                            _logger.LogWithTimestamp("An unexpected error occurred.");
+                            _logger.LogWithTimestamp($"An unexpected error occurred: {ex.Message}");
                         }
-                    });
+                    },
+                "api/data");
         }
 
+        /// <summary>
+        /// Handles the request for getting the relay status.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        [Route("api/relay-status")]
+        [Method("GET")]
+        public void GetRelayStatus(WebServerEventArgs e)
+        {
+            this.HandleRequest(
+                e,
+                () =>
+                    {
+                        bool isRelayOn = _relayService.IsRelayOn();
+                        var jsonResponse = $"{{\"isRelayOn\": {isRelayOn.ToString().ToLower()}}}";
+                        this.SendResponse(e, jsonResponse, "application/json");
+                    },
+                "api/relay-status");
+        }
+
+        /// <summary>
+        /// Handles the request for toggling the relay.
+        /// </summary>
+        /// <param name="e">The web server event arguments.</param>
+        [Route("api/toggle-relay")]
+        [Method("POST")]
+        public void ToggleRelay(WebServerEventArgs e)
+        {
+            this.HandleRequest(
+                e,
+                () =>
+                    {
+                        bool isRelayOn = _relayService.IsRelayOn();
+
+                        if (isRelayOn)
+                        {
+                            _relayService.TurnOff();
+                            isRelayOn = false;
+                        }
+                        else
+                        {
+                            _relayService.TurnOn();
+                            isRelayOn = true;
+                        }
+
+                        string jsonResponse = $"{{\"isRelayOn\": {isRelayOn.ToString().ToLower()}}}";
+                        this.SendResponse(e, jsonResponse, "application/json");
+                    },
+                "api/toggle-relay");
+        }
+
+        /// <summary>
+        /// Fetches the temperature from the sensor service.
+        /// </summary>
+        /// <returns>The temperature value.</returns>
         private double FetchTemperature()
         {
             try
@@ -165,6 +249,10 @@
             }
         }
 
+        /// <summary>
+        /// Fetches the humidity from the sensor service.
+        /// </summary>
+        /// <returns>The humidity value.</returns>
         private double FetchHumidity()
         {
             try
@@ -178,6 +266,11 @@
             }
         }
 
+        /// <summary>
+        /// Validates the temperature value.
+        /// </summary>
+        /// <param name="temperature">The temperature value to validate.</param>
+        /// <returns><c>true</c> if the temperature is within the valid range; otherwise, <c>false</c>.</returns>
         private bool IsValidTemperature(double temperature)
         {
             return temperature >= -40 && temperature <= 85;
