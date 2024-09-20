@@ -173,7 +173,7 @@
             {
                 try
                 {
-                    if (!_sensorDataThread.Join(65000))
+                    if (!_sensorDataThread.Join(70000))
                     {
                         _logHelper.LogWithTimestamp("Sensor data thread did not stop in time.");
                     }
@@ -222,9 +222,16 @@
         {
             _logHelper.LogWithTimestamp("Lost connection to MQTT broker, attempting to reconnect...");
 
-            this.StopSensorDataThread();
+            this.DisposeMqttClient();
 
-            if (!this._internetConnectionService.IsInternetThreadRunning)
+            if (_sensorDataThread.IsAlive)
+            {
+                this.StopSensorDataThread();
+            }
+
+            _connectionService.CheckConnection();
+
+            if (_internetConnectionService.IsInternetAvailable())
             {
                 this.EstablishBrokerConnection();
             }
@@ -251,6 +258,7 @@
         /// <param name="e">The event arguments.</param>
         private void OnInternetLost(object sender, EventArgs e)
         {
+            this.DisposeMqttClient();
             this.StopSensorDataThread();
         }
 
@@ -261,8 +269,9 @@
         /// <returns><c>true</c> if the connection is successful, otherwise <c>false</c>.</returns>
         private bool AttemptBrokerConnection()
         {
-            if (!this.CheckInternetConnection())
+            if (!_internetConnectionService.IsInternetAvailable())
             {
+                _logHelper.LogWithTimestamp("No internet connection, cannot connect to MQTT broker.");
                 return false;
             }
 
@@ -296,19 +305,26 @@
         /// </summary>
         private void DisposeMqttClient()
         {
-            if (this.MqttClient != null)
+            try
             {
-                using (this.MqttClient)
+                if (this.MqttClient != null)
                 {
-                    if (this.MqttClient.IsConnected)
+                    using (this.MqttClient)
                     {
-                        _logHelper.LogWithTimestamp("Disposing current MQTT client...");
-                        this.MqttClient.Disconnect();
+                        if (this.MqttClient.IsConnected)
+                        {
+                            this.MqttClient.Disconnect();
+                        }
                     }
-                }
 
-                this.MqttClient.Dispose();
-                this.MqttClient = null;
+                    _logHelper.LogWithTimestamp("Disposing current MQTT client...");
+                    this.MqttClient.Dispose();
+                    this.MqttClient = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logHelper.LogWithTimestamp($"Error while disposing MQTT client: {ex.Message}");
             }
         }
 
@@ -324,28 +340,21 @@
         }
 
         /// <summary>
-        /// Checks whether the internet connection is available.
-        /// </summary>
-        /// <returns><c>true</c> if the internet is available, otherwise <c>false</c>.</returns>
-        private bool CheckInternetConnection()
-        {
-            if (!_internetConnectionService.IsInternetAvailable())
-            {
-                _logHelper.LogWithTimestamp("No internet connection, cannot connect to MQTT broker.");
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>
         /// Connects the MQTT client to the specified broker using provided credentials.
         /// </summary>
         private void ConnectToMqttBroker()
         {
             _logHelper.LogWithTimestamp($"Attempting to connect to MQTT broker: {Broker}");
             MqttClient = new MqttClient(Broker);
-            MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+
+            try
+            {
+                MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+            }
+            catch (Exception ex)
+            {
+                _logHelper.LogWithTimestamp($"Error while connecting to MQTT broker: {ex.Message}");
+            }
 
             _mqttMessageHandler.SetMqttClient(MqttClient);
             _mqttPublishService.SetMqttClient(MqttClient);
