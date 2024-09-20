@@ -12,30 +12,30 @@
     using static Settings.WifiSettings;
 
     /// <summary>
-    /// Service responsible for managing the network connection of the device.
+    /// Service for managing network connections, including connecting to Wi-Fi and checking connection status.
     /// </summary>
     public class ConnectionService : IConnectionService
     {
         private readonly LogHelper _logHelper;
+        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
+
         private bool _isInitialStart = true;
 
         private string _ipAddress;
 
         /// <summary>
-        /// Event that is triggered when the connection is restored.
+        /// Event triggered when the connection is restored.
         /// </summary>
         public event EventHandler ConnectionRestored;
 
         /// <summary>
-        /// Event that is triggered when the connection is lost.
+        /// Event triggered when the connection is lost.
         /// </summary>
         public event EventHandler ConnectionLost;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionService"/> class.
         /// </summary>
-        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
-        /// <exception cref="ArgumentNullException">Thrown if loggerFactory is null.</exception>
         public ConnectionService()
         {
             _logHelper = new LogHelper();
@@ -50,19 +50,19 @@
             var count = 0;
             var maxAttempts = 10;
 
-            while (!IsAlreadyConnected(out var ipAddress))
+            while (!this.IsAlreadyConnected(out var ipAddress))
             {
                 this._logHelper.LogWithTimestamp($"Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
 
                 for (int waitTime = 0; waitTime < maxAttempts; waitTime++)
                 {
-                    if (result.ConnectionStatus == WifiConnectionStatus.Success && IsAlreadyConnected(out ipAddress))
+                    if (result.ConnectionStatus == WifiConnectionStatus.Success && this.IsAlreadyConnected(out ipAddress))
                     {
                         if (_isInitialStart)
                         {
                             _ipAddress = ipAddress;
-                            Thread.Sleep(200);
+                            _stopSignal.WaitOne(200, false);
                             _logHelper.LogWithTimestamp($"Connection established. IP address: {ipAddress}");
                             _isInitialStart = false;
                             this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
@@ -70,17 +70,17 @@
                             return;
                         }
 
-                        Thread.Sleep(200);
+                        _stopSignal.WaitOne(200, false);
                         this._logHelper.LogWithTimestamp("Connection restored.");
                         this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
                         return;
                     }
 
-                    Thread.Sleep(200);
+                    _stopSignal.WaitOne(200, false);
                 }
 
-                this._logHelper.LogWithTimestamp("Connection failed. Retrying in 10 seconds...");
-                Thread.Sleep(10000);
+                _logHelper.LogWithTimestamp("Connection failed. Retrying in 10 seconds...");
+                _stopSignal.WaitOne(10000, false);
 
                 if (this.IsAlreadyConnected(out ipAddress))
                 {
@@ -104,11 +104,20 @@
             }
         }
 
+        /// <summary>
+        /// Gets the IP address of the device.
+        /// </summary>
+        /// <returns>The IP address of the device.</returns>
         public string GetIpAddress()
         {
             return string.IsNullOrEmpty(_ipAddress) || _ipAddress == "0.0.0.0" ? "IP address not available" : _ipAddress;
         }
 
+        /// <summary>
+        /// Checks if the device is already connected to the network.
+        /// </summary>
+        /// <param name="ipAddress">The IP address of the device if connected.</param>
+        /// <returns><c>true</c> if the device is connected; otherwise, <c>false</c>.</returns>
         private bool IsAlreadyConnected(out string ipAddress)
         {
             var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
@@ -116,6 +125,11 @@
             return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
         }
 
+        /// <summary>
+        /// Gets the error message corresponding to the Wi-Fi connection status.
+        /// </summary>
+        /// <param name="status">The Wi-Fi connection status.</param>
+        /// <returns>The error message.</returns>
         private string GetErrorMessage(WifiConnectionStatus status)
         {
             switch (status)
