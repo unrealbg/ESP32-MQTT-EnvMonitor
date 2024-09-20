@@ -14,5 +14,11 @@
         /// Turns the relay off.
         /// </summary>
         void TurnOff();
+
+        /// <summary>
+        /// Checks if the relay is on.
+        /// </summary>
+        /// <returns></returns>
+        bool IsRelayOn();
     }
 }

@@ -18,6 +18,7 @@
         private readonly LogHelper _logHelper;
 
         private GpioPin _relayPin;
+        private bool _isRelayOn;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RelayService"/> class.
@@ -38,6 +39,7 @@
         public void TurnOn()
         {
             _relayPin.Write(PinValue.High);
+            _isRelayOn = true;
             _logHelper.LogWithTimestamp("Relay turned ON");
         }
 
@@ -47,8 +49,15 @@
         public void TurnOff()
         {
             _relayPin.Write(PinValue.Low);
+            _isRelayOn = false;
             _logHelper.LogWithTimestamp("Relay turned OFF");
         }
+
+        /// <summary>
+        /// Checks if the relay is on.
+        /// </summary>
+        /// <returns></returns>
+        public bool IsRelayOn() => _isRelayOn;
 
         private void InitializeRelayPin()
         {
