@@ -18,11 +18,6 @@
         event EventHandler InternetRestored;
 
         /// <summary>
-        /// Gets a value indicating whether the internet connection thread is running.
-        /// </summary>
-        bool IsInternetThreadRunning { get; }
-
-        /// <summary>
         /// Checks if the internet connection is available.
         /// </summary>
         /// <returns><c>true</c> if the internet connection is available; otherwise, <c>false</c>.</returns>
