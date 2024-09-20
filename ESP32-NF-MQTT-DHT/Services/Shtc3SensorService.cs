@@ -14,6 +14,9 @@
 
     using static ESP32_NF_MQTT_DHT.Helpers.Constants;
 
+    /// <summary>
+    /// Service for managing the SHTC3 sensor, including starting, stopping, and retrieving data.
+    /// </summary>
     internal class Shtc3SensorService : ISensorService
     {
         private const int DataPin = 21;
@@ -27,11 +30,17 @@
         private bool _isRunning;
         private I2cDevice _device;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Shtc3SensorService"/> class.
+        /// </summary>
         public Shtc3SensorService()
         {
             _logHelper = new LogHelper();
         }
 
+        /// <summary>
+        /// Starts the sensor service.
+        /// </summary>
         public void Start()
         {
             if (_isRunning)
@@ -51,6 +60,9 @@
             sensorReadThread.Start();
         }
 
+        /// <summary>
+        /// Stops the sensor service.
+        /// </summary>
         public void Stop()
         {
             _isRunning = false;
@@ -59,26 +71,45 @@
             _device.Dispose();
         }
 
+        /// <summary>
+        /// Retrieves the sensor data.
+        /// </summary>
+        /// <returns>An array of doubles containing the temperature and humidity data.</returns>
         public double[] GetData()
         {
             return new[] { _temperature, _humidity };
         }
 
+        /// <summary>
+        /// Retrieves the temperature reading from the sensor.
+        /// </summary>
+        /// <returns>The temperature value recorded by the sensor.</returns>
         public double GetTemp()
         {
             return _temperature;
         }
 
+        /// <summary>
+        /// Retrieves the humidity reading from the sensor.
+        /// </summary>
+        /// <returns>The humidity value recorded by the sensor.</returns>
         public double GetHumidity()
         {
             return _humidity;
         }
 
+        /// <summary>
+        /// Retrieves the type of the sensor.
+        /// </summary>
+        /// <returns>A string representing the type of the sensor.</returns>
         public string GetSensorType()
         {
             return "SHTC3";
         }
 
+        /// <summary>
+        /// Starts the thread for receiving data from the sensor.
+        /// </summary>
         private void StartReceivingData()
         {
             using (Shtc3 sensor = new Shtc3(_device))
@@ -113,6 +144,9 @@
             }
         }
 
+        /// <summary>
+        /// Sets error values for temperature and humidity.
+        /// </summary>
         private void SetErrorValues()
         {
             _temperature = InvalidTemperature;

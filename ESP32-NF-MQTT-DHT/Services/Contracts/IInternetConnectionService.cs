@@ -2,14 +2,30 @@
 {
     using System;
 
+    /// <summary>
+    /// Interface for managing internet connection status and events.
+    /// </summary>
     public interface IInternetConnectionService
     {
-        public event EventHandler InternetLost;
+        /// <summary>
+        /// Event triggered when the internet connection is lost.
+        /// </summary>
+        event EventHandler InternetLost;
 
-        public event EventHandler InternetRestored;
+        /// <summary>
+        /// Event triggered when the internet connection is restored.
+        /// </summary>
+        event EventHandler InternetRestored;
 
-        public bool IsInternetThreadRunning { get; }
+        /// <summary>
+        /// Gets a value indicating whether the internet connection thread is running.
+        /// </summary>
+        bool IsInternetThreadRunning { get; }
 
-        public bool IsInternetAvailable();
+        /// <summary>
+        /// Checks if the internet connection is available.
+        /// </summary>
+        /// <returns><c>true</c> if the internet connection is available; otherwise, <c>false</c>.</returns>
+        bool IsInternetAvailable();
     }
 }
