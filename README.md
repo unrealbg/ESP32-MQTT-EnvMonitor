@@ -88,6 +88,55 @@ The index page provides a clean and responsive UI for real-time monitoring:
 - Displays temperature and humidity readings.
 - Shows the current date, time, and sensor type.
 
+## New Feature: Relay Control with Toggle Button
+
+The project now includes a relay control feature accessible via the web interface. A button has been added to the index page to allow users to toggle the relay state between **ON** and **OFF**. The button’s label and color dynamically update based on the current relay state.
+
+- **"Turn On"**: Green button appears when the relay is off.
+- **"Turn Off"**: Red button appears when the relay is on.
+
+### Relay Control API
+
+You can control the relay using the following API endpoint:
+
+1. **Toggle Relay**  
+   - Endpoint: `/api/toggle-relay`  
+   - Method: `POST`  
+   - Description: Toggles the relay state between ON and OFF. The response returns the updated relay state (`isRelayOn`).
+
+2. **Check Relay Status**  
+   - Endpoint: `/api/relay-status`  
+   - Method: `GET`  
+   - Description: Returns the current state of the relay (ON or OFF) in JSON format.
+
+### Updated Index Page
+
+The web interface has been updated with a new **Relay Control** button. This button will dynamically update based on the state of the relay:
+
+- **Turn On**: Green button displayed when the relay is off.
+- **Turn Off**: Red button displayed when the relay is on.
+
+### Example HTML:
+```html
+<button id="relayButton" class="btn-on" onclick="toggleRelay()">Loading...</button>
+async function toggleRelay() {
+    const response = await fetch('/api/toggle-relay', { method: 'POST' });
+    const data = await response.json();
+    updateRelayButton(data.isRelayOn);
+}
+
+function updateRelayButton(isRelayOn) {
+    const relayButton = document.getElementById('relayButton');
+    if (isRelayOn) {
+        relayButton.textContent = 'Turn Off';
+        relayButton.className = 'btn-off';
+    } else {
+        relayButton.textContent = 'Turn On';
+        relayButton.className = 'btn-on';
+    }
+}
+```
+
 ## Additional Functionalities
 
 ### Relay Control
