@@ -42,7 +42,7 @@
         /// <value>
         /// The temperature value recorded by the sensor.
         /// </value>
-        public string Temp { get; set; }
+        public double Temp { get; set; }
 
         /// <summary>
         /// Gets or sets the humidity reading from the sensor.
