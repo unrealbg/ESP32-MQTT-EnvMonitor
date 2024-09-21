@@ -56,7 +56,7 @@
                         SensorType = sensorType,
                         Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
                         Time = DateTime.UtcNow.AddHours(3).ToString("HH:mm:ss"),
-                        Temp = temperature.ToString("F2"),
+                        Temp = temperature,
                         Humid = (int)humidity,
                     };
                 }
