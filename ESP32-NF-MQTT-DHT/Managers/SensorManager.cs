@@ -54,8 +54,7 @@
                         DeviceName = DeviceSettings.DeviceName,
                         Location = DeviceSettings.Location,
                         SensorType = sensorType,
-                        Date = DateTime.UtcNow.Date.ToString("dd/MM/yyyy"),
-                        Time = DateTime.UtcNow.AddHours(3).ToString("HH:mm:ss"),
+                        DateTime = DateTime.UtcNow,
                         Temp = temperature,
                         Humid = (int)humidity,
                     };

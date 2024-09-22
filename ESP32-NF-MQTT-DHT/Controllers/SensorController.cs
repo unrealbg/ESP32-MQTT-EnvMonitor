@@ -156,8 +156,7 @@
                                 {
                                     Data = new Data
                                     {
-                                        Date = DateTime.UtcNow.ToString("dd/MM/yyyy"),
-                                        Time = DateTime.UtcNow.ToString("HH:mm:ss"),
+                                        DateTime = DateTime.UtcNow,
                                         Temp = temperature,
                                         Humid = (int)humidity,
                                         SensorType = sensorType
