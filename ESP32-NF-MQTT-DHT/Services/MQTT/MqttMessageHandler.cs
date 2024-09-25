@@ -76,6 +76,12 @@
                     _mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
                     _logHelper.LogWithTimestamp("Relay turned OFF and message published");
                 }
+                else if (message.Contains("status"))
+                {
+                    string status = _relayService.IsRelayOn() ? "ON" : "OFF";
+                    _mqttClient.Publish(RelayTopic + "/status", Encoding.UTF8.GetBytes(status));
+                    _logHelper.LogWithTimestamp($"Relay status requested, published: {status}");
+                }
             }
             else if (e.Topic == SystemTopic)
             {
