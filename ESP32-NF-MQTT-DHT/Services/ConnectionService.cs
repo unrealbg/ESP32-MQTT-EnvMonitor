@@ -120,9 +120,19 @@
         /// <returns><c>true</c> if the device is connected; otherwise, <c>false</c>.</returns>
         private bool IsAlreadyConnected(out string ipAddress)
         {
-            var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
-            ipAddress = networkInterface.IPv4Address;
-            return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
+            try
+            {
+                var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
+                ipAddress = networkInterface.IPv4Address;
+                return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
+            }
+            catch (Exception ex)
+            {
+                _logHelper.LogWithTimestamp($"ERROR: {ex.Message}");
+            }
+
+            ipAddress = null;
+            return false;
         }
 
         /// <summary>
