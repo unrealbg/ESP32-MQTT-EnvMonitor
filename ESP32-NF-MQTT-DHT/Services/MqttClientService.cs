@@ -44,8 +44,6 @@
         private bool _isConnecting = false;
         private bool _isSensorDataThreadRunning = false;
 
-        private string _status = "online";
-
         private Thread _connectionThread;
         private Thread _sensorDataThread;
         private readonly object _threadLock = new object();
@@ -118,7 +116,6 @@
                 {
                     _logHelper.LogWithTimestamp("Starting sensor data thread...");
                     this.StartSensorDataThread();
-                    _mqttPublishService.PublishDeviceStatus(_status);
                     _isConnecting = false;
                     return;
                 }
@@ -252,7 +249,6 @@
         /// <param name="e">The event arguments.</param>
         private void OnInternetRestored(object sender, EventArgs e)
         {
-            _mqttPublishService.PublishDeviceStatus(_status);
             this.Start();
         }
 
@@ -289,7 +285,6 @@
                 if (MqttClient.IsConnected)
                 {
                     this.InitializeMqttClient();
-                    _mqttPublishService.PublishDeviceStatus(_status);
                     return true;
                 }
             }
@@ -342,6 +337,9 @@
             this.MqttClient.ConnectionClosed += this.ConnectionClosed;
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
+
+            _mqttPublishService.StartHeartbeat();
+
             _logHelper.LogWithTimestamp("MQTT client setup complete");
         }
 
@@ -355,11 +353,11 @@
 
             try
             {
-                MqttClient.Connect(ClientId, ClientUsername, ClientPassword, true, MqttQoSLevel.AtLeastOnce, false, $"home/{DeviceSettings.DeviceName}/system/status", "offline", true, 60);
+                MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"Error while connecting to MQTT broker: {ex.Message}");
+                _logHelper.LogWithTimestamp($"Error while connecting to MQTT broker: {ex.StackTrace}");
             }
 
             _mqttMessageHandler.SetMqttClient(MqttClient);

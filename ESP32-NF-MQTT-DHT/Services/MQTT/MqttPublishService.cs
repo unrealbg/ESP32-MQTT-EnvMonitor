@@ -23,7 +23,8 @@
 
         private static readonly string DataTopic = $"home/{DeviceName}/messages";
         private static readonly string ErrorTopic = $"home/{DeviceName}/errors";
-        private static readonly string SystemTopic = $"home/{DeviceName}/system";
+        private static readonly string SystemTopic = $"home/{DeviceName}/system/status";
+        private const int HeartbeatInterval = 30000;
 
         private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
@@ -56,10 +57,34 @@
         /// <summary>
         /// Publishes the device status to the MQTT broker.
         /// </summary>
-        /// <param name="status"></param>
-        public void PublishDeviceStatus(string status)
+        public void StartHeartbeat()
         {
-            this.CheckInternetAndPublish(SystemTopic, status);
+            new Thread(() =>
+            {
+                while (true)
+                {
+                    PublishDeviceStatus();
+                    _stopSignal.WaitOne(HeartbeatInterval, false);
+                }
+            }).Start();
+        }
+
+        /// <summary>
+        /// Publishes the device status to the MQTT broker.
+        /// </summary>
+        /// <param name="status"></param>
+        private void PublishDeviceStatus()
+        {
+            if (_internetConnectionService.IsInternetAvailable())
+            {
+                string message = "online";
+                _mqttClient.Publish(SystemTopic, Encoding.UTF8.GetBytes(message));
+                _logHelper.LogWithTimestamp($"Heartbeat sent: {message}");
+            }
+            else
+            {
+                _logHelper.LogWithTimestamp("No internet connection for heartbeat.");
+            }
         }
 
         /// <summary>

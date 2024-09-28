@@ -25,9 +25,8 @@
         void SetMqttClient(MqttClient mqttClient);
 
         /// <summary>
-        /// Publishes the device status to the MQTT broker.
+        /// 
         /// </summary>
-        /// <param name="status"></param>
-        void PublishDeviceStatus(string status);
+        void StartHeartbeat();
     }
 }
