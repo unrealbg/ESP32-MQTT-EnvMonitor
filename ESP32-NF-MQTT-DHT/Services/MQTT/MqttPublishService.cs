@@ -23,6 +23,7 @@
 
         private static readonly string DataTopic = $"home/{DeviceName}/messages";
         private static readonly string ErrorTopic = $"home/{DeviceName}/errors";
+        private static readonly string SystemTopic = $"home/{DeviceName}/system";
 
         private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
@@ -50,6 +51,15 @@
         public void SetMqttClient(MqttClient mqttClient)
         {
             _mqttClient = mqttClient;
+        }
+
+        /// <summary>
+        /// Publishes the device status to the MQTT broker.
+        /// </summary>
+        /// <param name="status"></param>
+        public void PublishDeviceStatus(string status)
+        {
+            this.CheckInternetAndPublish(SystemTopic, status);
         }
 
         /// <summary>

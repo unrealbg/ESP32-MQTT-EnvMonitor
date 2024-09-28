@@ -9,6 +9,7 @@
     using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Services.MQTT;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
+    using ESP32_NF_MQTT_DHT.Settings;
 
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
@@ -42,6 +43,8 @@
         private bool _isRunning = true;
         private bool _isConnecting = false;
         private bool _isSensorDataThreadRunning = false;
+
+        private string _status = "online";
 
         private Thread _connectionThread;
         private Thread _sensorDataThread;
@@ -115,6 +118,7 @@
                 {
                     _logHelper.LogWithTimestamp("Starting sensor data thread...");
                     this.StartSensorDataThread();
+                    _mqttPublishService.PublishDeviceStatus(_status);
                     _isConnecting = false;
                     return;
                 }
@@ -248,6 +252,7 @@
         /// <param name="e">The event arguments.</param>
         private void OnInternetRestored(object sender, EventArgs e)
         {
+            _mqttPublishService.PublishDeviceStatus(_status);
             this.Start();
         }
 
@@ -284,6 +289,7 @@
                 if (MqttClient.IsConnected)
                 {
                     this.InitializeMqttClient();
+                    _mqttPublishService.PublishDeviceStatus(_status);
                     return true;
                 }
             }
@@ -349,7 +355,7 @@
 
             try
             {
-                MqttClient.Connect(ClientId, ClientUsername, ClientPassword);
+                MqttClient.Connect(ClientId, ClientUsername, ClientPassword, true, MqttQoSLevel.AtLeastOnce, false, $"home/{DeviceSettings.DeviceName}/system/status", "offline", true, 60);
             }
             catch (Exception ex)
             {
