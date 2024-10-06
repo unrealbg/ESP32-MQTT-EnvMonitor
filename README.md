@@ -4,7 +4,7 @@ This project integrates an ESP32 device with temperature and humidity sensors (D
 
 Note: Only one sensor is active at a time. The sensor (DHT21, AHT10, or SHTC3) must be selected during the initial setup, and they do not work simultaneously.
 
-Visit our portal at: [portal.unrealbg.com](http://portal.unrealbg.com)  
+Visit our portal at: [portal.unrealbg.com](https://bws4.azurewebsites.net)  
 **Username:** demo@unrealbg.com  
 **Password:** Demo123@
 
