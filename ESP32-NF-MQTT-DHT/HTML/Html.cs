@@ -71,8 +71,17 @@
 
                             document.getElementById('temperature').textContent = data.Data.Temp.toFixed(2);
                             document.getElementById('humidity').textContent = data.Data.Humid;
-                            document.getElementById('date').textContent = data.Data.Date;
-                            document.getElementById('time').textContent = data.Data.Time;
+
+                            // Parsing new DateTime format
+                            const dateTime = new Date(data.Data.DateTime);
+                            if (!isNaN(dateTime.getTime())) {
+                                document.getElementById('date').textContent = dateTime.toLocaleDateString();
+                                document.getElementById('time').textContent = dateTime.toLocaleTimeString();
+                            } else {
+                                document.getElementById('date').textContent = 'Invalid Date';
+                                document.getElementById('time').textContent = 'Invalid Time';
+                            }
+
 
                             const sensorType = data.Data.SensorType ? data.Data.SensorType : 'Not available';
                             document.getElementById('sensorType').textContent = sensorType;
