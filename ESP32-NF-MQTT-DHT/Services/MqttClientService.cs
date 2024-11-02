@@ -9,7 +9,6 @@
     using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Services.MQTT;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
-    using ESP32_NF_MQTT_DHT.Settings;
 
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
@@ -42,10 +41,10 @@
 
         private bool _isRunning = true;
         private bool _isConnecting = false;
-        private bool _isSensorDataThreadRunning = false;
+        private bool _isHeartbeatRunning = false;
 
         private Thread _connectionThread;
-        private Thread _sensorDataThread;
+        private Timer _sensorDataTimer;
         private readonly object _threadLock = new object();
 
         /// <summary>
@@ -114,8 +113,8 @@
             {
                 if (this.AttemptBrokerConnection())
                 {
-                    _logHelper.LogWithTimestamp("Starting sensor data thread...");
-                    this.StartSensorDataThread();
+                    _logHelper.LogWithTimestamp("Starting sensor data timer...");
+                    this.StartSensorDataTimer();
                     _isConnecting = false;
                     return;
                 }
@@ -134,84 +133,45 @@
         }
 
         /// <summary>
-        /// Starts a separate thread to handle sensor data publishing at regular intervals.
+        /// Starts the sensor data timer to publish data at regular intervals.
         /// </summary>
-        private void StartSensorDataThread()
+        private void StartSensorDataTimer()
         {
-            lock (_threadLock)
+            if (_sensorDataTimer == null)
             {
-                if (_sensorDataThread != null && _sensorDataThread.IsAlive)
-                {
-                    _logHelper.LogWithTimestamp("Sensor data thread is already running.");
-                    return;
-                }
-
-                _sensorDataThread = new Thread(this.SensorDataLoop);
-                _isSensorDataThreadRunning = true;
-
-                try
-                {
-                    _sensorDataThread.Start();
-                    _logHelper.LogWithTimestamp("Sensor data thread started successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _logHelper.LogWithTimestamp($"Failed to start sensor data thread: {ex.Message}");
-                    _isSensorDataThreadRunning = false;
-                }
+                _sensorDataTimer = new Timer(SensorDataTimerCallback, null, 0, SensorDataInterval);
+                _logHelper.LogWithTimestamp("Sensor data timer started successfully.");
             }
         }
 
         /// <summary>
-        /// Stops the thread that handles sensor data publishing.
+        /// Stops the sensor data timer.
         /// </summary>
-        private void StopSensorDataThread()
+        private void StopSensorDataTimer()
         {
-            _logHelper.LogWithTimestamp("Stopping sensor data thread...");
-            _isSensorDataThreadRunning = false;
-
-            if (_sensorDataThread != null && _sensorDataThread.IsAlive)
+            if (_sensorDataTimer != null)
             {
-                try
-                {
-                    if (!_sensorDataThread.Join(70000))
-                    {
-                        _logHelper.LogWithTimestamp("Sensor data thread did not stop in time.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logHelper.LogWithTimestamp($"Error while stopping sensor data thread: {ex.Message}");
-                }
-                finally
-                {
-                    _sensorDataThread = null;
-                    _logHelper.LogWithTimestamp("Sensor data thread stopped.");
-                }
+                _sensorDataTimer.Dispose();
+                _sensorDataTimer = null;
+                _logHelper.LogWithTimestamp("Sensor data timer stopped.");
             }
         }
 
         /// <summary>
-        /// The loop that continuously publishes sensor data to the MQTT broker.
+        /// Timer callback method that publishes sensor data.
         /// </summary>
-        private void SensorDataLoop()
+        /// <param name="state">State object (not used).</param>
+        private void SensorDataTimerCallback(object state)
         {
-            while (_isSensorDataThreadRunning)
+            try
             {
-                try
-                {
-                    _mqttPublishService.PublishSensorData();
-                    _stopSignal.WaitOne(SensorDataInterval, false);
-                }
-                catch (Exception ex)
-                {
-                    _logHelper.LogWithTimestamp($"SensorDataLoop Exception: {ex.Message}");
-                    _mqttPublishService.PublishError($"SensorDataLoop Exception: {ex.Message}");
-                    _stopSignal.WaitOne(ErrorInterval, false);
-                }
+                _mqttPublishService.PublishSensorData();
             }
-
-            _logHelper.LogWithTimestamp("Sensor data thread has stopped.");
+            catch (Exception ex)
+            {
+                _logHelper.LogWithTimestamp($"SensorDataTimer Exception: {ex.Message}");
+                _mqttPublishService.PublishError($"SensorDataTimer Exception: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -224,21 +184,20 @@
             _logHelper.LogWithTimestamp("Lost connection to MQTT broker, attempting to reconnect...");
 
             this.DisposeMqttClient();
-
-            if (_sensorDataThread.IsAlive)
-            {
-                this.StopSensorDataThread();
-            }
+            this.StopSensorDataTimer();
 
             _connectionService.CheckConnection();
 
-            if (_internetConnectionService.IsInternetAvailable())
+            if (!_connectionService.IsConnectionInProgress)
             {
-                this.EstablishBrokerConnection();
-            }
-            else
-            {
-                _logHelper.LogWithTimestamp("Internet check thread is running, waiting for it to finish...");
+                if (_internetConnectionService.IsInternetAvailable())
+                {
+                    this.EstablishBrokerConnection();
+                }
+                else
+                {
+                    _logHelper.LogWithTimestamp("Internet check thread is running, waiting for it to finish...");
+                }
             }
         }
 
@@ -253,14 +212,14 @@
         }
 
         /// <summary>
-        /// Stops the sensor data thread when the internet connection is lost.
+        /// Stops the sensor data timer when the internet connection is lost.
         /// </summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event arguments.</param>
         private void OnInternetLost(object sender, EventArgs e)
         {
             this.DisposeMqttClient();
-            this.StopSensorDataThread();
+            this.StopSensorDataTimer();
         }
 
         /// <summary>
@@ -327,6 +286,11 @@
             {
                 _logHelper.LogWithTimestamp($"Error while disposing MQTT client: {ex.Message}");
             }
+            finally
+            {
+                _isHeartbeatRunning = false;
+                _mqttPublishService.StopHeartbeat();
+            }
         }
 
         /// <summary>
@@ -338,7 +302,11 @@
             this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
 
-            _mqttPublishService.StartHeartbeat();
+            if (!_isHeartbeatRunning)
+            {
+                _mqttPublishService.StartHeartbeat();
+                _isHeartbeatRunning = true;
+            }
 
             _logHelper.LogWithTimestamp("MQTT client setup complete");
         }
@@ -365,12 +333,12 @@
         }
 
         /// <summary>
-        /// Stops the MQTT client service by disconnecting the MQTT client and stopping the sensor data thread.
+        /// Stops the MQTT client service by disconnecting the MQTT client and stopping the sensor data timer.
         /// </summary>
         private void Stop()
         {
             _isRunning = false;
-            StopSensorDataThread();
+            this.StopSensorDataTimer();
 
             if (this.MqttClient != null && this.MqttClient.IsConnected)
             {
