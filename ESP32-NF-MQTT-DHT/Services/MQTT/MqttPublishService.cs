@@ -28,9 +28,12 @@
 
         private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
+        private readonly ManualResetEvent _heartbeatStopSignal = new ManualResetEvent(false);
         private readonly ISensorManager _sensorManager;
         private readonly IInternetConnectionService _internetConnectionService;
         private MqttClient _mqttClient;
+
+        private bool _isHeartbeatRunning = false;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MqttPublishService"/> class.
@@ -59,14 +62,27 @@
         /// </summary>
         public void StartHeartbeat()
         {
+            if (_isHeartbeatRunning) return;
+            _isHeartbeatRunning = true;
+            _heartbeatStopSignal.Reset();
+
             new Thread(() =>
             {
-                while (true)
+                while (_isHeartbeatRunning)
                 {
                     PublishDeviceStatus();
-                    _stopSignal.WaitOne(HeartbeatInterval, false);
+                    _heartbeatStopSignal.WaitOne(HeartbeatInterval, false);
                 }
             }).Start();
+        }
+
+        /// <summary>
+        ///  
+        /// </summary>
+        public void StopHeartbeat()
+        {
+            _isHeartbeatRunning = false;
+            _heartbeatStopSignal.Set();
         }
 
         /// <summary>

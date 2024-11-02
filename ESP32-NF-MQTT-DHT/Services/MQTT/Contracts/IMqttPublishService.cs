@@ -25,8 +25,13 @@
         void SetMqttClient(MqttClient mqttClient);
 
         /// <summary>
-        /// 
+        ///  Starts the heartbeat process to publish the device status to the MQTT broker.
         /// </summary>
         void StartHeartbeat();
+
+        /// <summary>
+        /// Stops the heartbeat process.
+        /// </summary>
+        void StopHeartbeat();
     }
 }
