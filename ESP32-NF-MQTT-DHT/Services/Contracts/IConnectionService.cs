@@ -12,6 +12,11 @@
         event EventHandler ConnectionLost;
 
         /// <summary>
+        /// Gets a value indicating whether a connection is in progress.
+        /// </summary>
+        bool IsConnectionInProgress { get; }
+
+        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         void Connect();

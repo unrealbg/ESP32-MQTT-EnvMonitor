@@ -20,8 +20,21 @@
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
         private bool _isInitialStart = true;
+        private bool _isConnectionInProgress = false;
 
         private string _ipAddress;
+
+        /// <summary>
+        /// Gets a value indicating whether the connection is in progress.
+        /// </summary>
+        public bool IsConnectionInProgress
+        {
+            get => _isConnectionInProgress;
+            private set
+            {
+                _isConnectionInProgress = value;
+            }
+        }
 
         /// <summary>
         /// Event triggered when the connection is restored.
@@ -66,6 +79,7 @@
                             _logHelper.LogWithTimestamp($"Connection established. IP address: {ipAddress}");
                             _isInitialStart = false;
                             this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                            _isConnectionInProgress = false;
 
                             return;
                         }
@@ -73,6 +87,8 @@
                         _stopSignal.WaitOne(200, false);
                         this._logHelper.LogWithTimestamp("Connection restored.");
                         this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                        _isConnectionInProgress = false;
+
                         return;
                     }
 
@@ -87,6 +103,7 @@
                     _ipAddress = ipAddress;
                     _logHelper.LogWithTimestamp($"Connection restored. IP Address: {ipAddress}");
                     this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                    _isConnectionInProgress = false;
                 }
             }
         }
@@ -96,11 +113,17 @@
         /// </summary>
         public void CheckConnection()
         {
+
             if (!this.IsAlreadyConnected(out var ipAddress))
             {
+                _isConnectionInProgress = true;
                 this.ConnectionLost?.Invoke(this, EventArgs.Empty);
                 this._logHelper.LogWithTimestamp("Lost network connection. Attempting to reconnect...");
                 this.Connect();
+            }
+            else
+            {
+                _isConnectionInProgress = false;
             }
         }
 
