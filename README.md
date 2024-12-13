@@ -12,9 +12,9 @@
 - [Additional Functionalities](#additional-functionalities)
 - [Project Images](#project-images)
 - [Contributing](#contributing)
-- [License](#license)
 - [Acknowledgements](#acknowledgements)
 - [Changelog](#changelog)
+- [License](#license)
 
 ## Introduction
 
