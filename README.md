@@ -16,7 +16,7 @@
 - [Acknowledgements](#acknowledgements)
 - [Changelog](#changelog)
 
-##Introduction
+## Introduction
 
 This project integrates an ESP32 device with temperature and humidity sensors (DHT21, AHT10, SHTC3) using C# and the nanoFramework for development. It features MQTT client capabilities for real-time remote data communication and a WebServer component that provides RESTful API endpoints for sensor data access and device control via HTTP requests. The system is ideal for IoT applications requiring flexible communication and interaction interfaces.
 
