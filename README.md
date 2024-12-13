@@ -4,9 +4,7 @@ This project integrates an ESP32 device with temperature and humidity sensors (D
 
 Note: Only one sensor is active at a time. The sensor (DHT21, AHT10, or SHTC3) must be selected during the initial setup, and they do not work simultaneously.
 
-Visit our demo portal at: [iot.unrealbg.com](https://iot.unrealbg.com)  
-**Username:** demo@unrealbg.com  
-**Password:** Demo123@
+Visit our demo portal at: [iot.unrealbg.com](https://iot.unrealbg.com)
 
 I acknowledge that the code may not be perfect and there are certainly areas that can be improved. I am a self-taught programmer, and coding is my hobby. I welcome any constructive criticism and feedback.
 
