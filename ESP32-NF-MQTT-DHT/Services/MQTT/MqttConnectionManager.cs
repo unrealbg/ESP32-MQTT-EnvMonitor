@@ -41,6 +41,7 @@
             {
                 this._logHelper.LogWithTimestamp($"Error connecting to MQTT broker: {ex.Message}");
             }
+
             return false;
         }
 
@@ -57,6 +58,7 @@
                     {
                         this.MqttClient.Disconnect();
                     }
+
                     this.MqttClient.Dispose();
                 }
                 catch (Exception ex)
