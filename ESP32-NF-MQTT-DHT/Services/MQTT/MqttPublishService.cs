@@ -91,6 +91,12 @@
         /// <param name="status"></param>
         private void PublishDeviceStatus()
         {
+            if (_mqttClient == null)
+            {
+                _logHelper.LogWithTimestamp("Heartbeat skipped: MQTT client is null.");
+                return;
+            }
+
             if (_internetConnectionService.IsInternetAvailable())
             {
                 string message = "online";
