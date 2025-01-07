@@ -79,8 +79,6 @@ namespace ESP32_NF_MQTT_DHT
             services.AddSingleton(typeof(ISensorManager), typeof(SensorManager));
             services.AddSingleton(typeof(IMqttPublishService), typeof(MqttPublishService));
 
-            services.AddTransient(typeof(LogHelper));
-
             var serviceProvider = services.BuildServiceProvider();
 
             return serviceProvider;

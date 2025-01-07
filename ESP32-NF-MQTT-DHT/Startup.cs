@@ -3,7 +3,6 @@
     using System;
 
     using ESP32_NF_MQTT_DHT.Helpers;
-    using ESP32_NF_MQTT_DHT.Managers;
     using ESP32_NF_MQTT_DHT.Managers.Contracts;
 
     using nanoFramework.Runtime.Native;
@@ -21,8 +20,6 @@
         private readonly IMqttClientService _mqttClient;
         private readonly IWebServerService _webServerService;
         private readonly ISensorManager _sensorManager;
-
-        private readonly LogHelper _logHelper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Startup"/> class.
@@ -42,9 +39,7 @@
             _webServerService = webServerService ?? throw new ArgumentNullException(nameof(webServerService));
             _sensorManager = sensorManager ?? throw new ArgumentNullException(nameof(sensorManager));
 
-            _logHelper = new LogHelper();
-
-            _logHelper.LogWithTimestamp("Initializing application...");
+            LogHelper.LogInformation("Initializing application...");
         }
 
         /// <summary>
@@ -54,32 +49,31 @@
         {
             try
             {
-                _logHelper.LogWithTimestamp("Establishing connection...");
+                LogHelper.LogInformation("Establishing connection...");
                 _connectionService.Connect();
-                _logHelper.LogWithTimestamp("Connection established.");
 
-                _logHelper.LogWithTimestamp("Starting sensor manager...");
+                LogHelper.LogInformation("Starting sensor manager...");
                 _sensorManager.StartSensor();
-                _logHelper.LogWithTimestamp("Sensor manager started.");
+                LogHelper.LogInformation("Sensor manager started.");
 
-                _logHelper.LogWithTimestamp("Starting MQTT client...");
+                LogHelper.LogInformation("Starting MQTT client...");
                 _mqttClient.Start();
-                _logHelper.LogWithTimestamp("MQTT client started.");
+                LogHelper.LogInformation("MQTT client started.");
 
                 if (SystemInfo.TargetName == "ESP32_S3" && nanoFramework.Runtime.Native.GC.Run(false) >= RequiredMemory)
                 {
-                    _logHelper.LogWithTimestamp("Starting WebServer service...");
+                    LogHelper.LogInformation("Starting WebServer service...");
                     _webServerService.Start();
-                    _logHelper.LogWithTimestamp("WebServer service started.");
+                    LogHelper.LogInformation("WebServer service started.");
                 }
                 else
                 {
-                    _logHelper.LogWithTimestamp($"WebServer service will not be started due to insufficient memory or unsupported platform ({SystemInfo.TargetName}).");
+                    LogHelper.LogWarning($"WebServer service will not be started due to insufficient memory or unsupported platform ({SystemInfo.TargetName}).");
                 }
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"An error occurred during startup: {ex.Message}");
+                LogHelper.LogInformation($"An error occurred during startup: {ex.Message}");
             }
         }
     }
