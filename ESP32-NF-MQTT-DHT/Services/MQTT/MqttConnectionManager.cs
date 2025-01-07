@@ -9,8 +9,6 @@
 
     internal class MqttConnectionManager
     {
-        private readonly LogHelper _logHelper = new LogHelper();
-
         /// <summary>
         /// Gets the MQTT client.
         /// </summary>
@@ -23,23 +21,23 @@
         {
             try
             {
-                this._logHelper.LogWithTimestamp($"Connecting to MQTT broker: {broker}...");
+                LogHelper.LogInformation($"Connecting to MQTT broker: {broker}...");
                 this.MqttClient = new MqttClient(broker);
                 this.MqttClient.Connect(clientId, user, pass);
 
                 if (this.MqttClient.IsConnected)
                 {
-                    this._logHelper.LogWithTimestamp("MQTT client connected successfully!");
+                    LogHelper.LogInformation("MQTT client connected successfully!");
                     return true;
                 }
             }
             catch (SocketException ex)
             {
-                this._logHelper.LogWithTimestamp($"SocketException while connecting: {ex.Message}");
+                LogHelper.LogError($"SocketException while connecting: {ex.Message}");
             }
             catch (Exception ex)
             {
-                this._logHelper.LogWithTimestamp($"Error connecting to MQTT broker: {ex.Message}");
+                LogHelper.LogError($"Error connecting to MQTT broker: {ex.Message}");
             }
 
             return false;
@@ -63,7 +61,7 @@
                 }
                 catch (Exception ex)
                 {
-                    this._logHelper.LogWithTimestamp($"Error while disposing MQTT client: {ex.Message}");
+                    LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
                 }
                 finally
                 {

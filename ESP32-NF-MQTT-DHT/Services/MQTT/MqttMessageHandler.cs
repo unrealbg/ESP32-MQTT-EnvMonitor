@@ -26,7 +26,6 @@
         private readonly IRelayService _relayService;
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
-        private readonly LogHelper _logHelper;
         private MqttClient _mqttClient;
 
         /// <summary>
@@ -36,11 +35,10 @@
         /// <param name="uptimeService">The uptime service for retrieving system uptime.</param>
         /// <param name="logHelper">The log helper for logging messages.</param>
         /// <param name="connectionService">The connection service for retrieving network information.</param>
-        public MqttMessageHandler(IRelayService relayService, IUptimeService uptimeService, LogHelper logHelper, IConnectionService connectionService)
+        public MqttMessageHandler(IRelayService relayService, IUptimeService uptimeService, IConnectionService connectionService)
         {
             this._relayService = relayService;
             this._uptimeService = uptimeService;
-            this._logHelper = logHelper;
             this._connectionService = connectionService;
         }
 
@@ -68,19 +66,19 @@
                 {
                     _relayService.TurnOn();
                     _mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("ON"));
-                    _logHelper.LogWithTimestamp("Relay turned ON and message published");
+                    LogHelper.LogInformation("Relay turned ON and message published");
                 }
                 else if (message.Contains("off"))
                 {
                     _relayService.TurnOff();
                     _mqttClient.Publish(RelayTopic + "/relay", Encoding.UTF8.GetBytes("OFF"));
-                    _logHelper.LogWithTimestamp("Relay turned OFF and message published");
+                    LogHelper.LogInformation("Relay turned OFF and message published");
                 }
                 else if (message.Contains("status"))
                 {
                     string status = _relayService.IsRelayOn() ? "ON" : "OFF";
                     _mqttClient.Publish(RelayTopic + "/status", Encoding.UTF8.GetBytes(status));
-                    _logHelper.LogWithTimestamp($"Relay status requested, published: {status}");
+                    LogHelper.LogInformation($"Relay status requested, published: {status}");
                 }
             }
             else if (e.Topic == SystemTopic)
@@ -89,12 +87,12 @@
                 {
                     string uptime = this._uptimeService.GetUptime();
                     _mqttClient.Publish(UptimeTopic, Encoding.UTF8.GetBytes(uptime));
-                    _logHelper.LogWithTimestamp($"Uptime requested, published: {uptime}");
+                    LogHelper.LogInformation($"Uptime requested, published: {uptime}");
                 }
                 else if (message.Contains("reboot"))
                 {
                     _mqttClient.Publish($"home/{DeviceName}/maintenance", Encoding.UTF8.GetBytes($"Manual reboot at: {DateTime.UtcNow.ToString("HH:mm:ss")}"));
-                    _logHelper.LogWithTimestamp("Rebooting system...");
+                    LogHelper.LogInformation("Rebooting system...");
                     Thread.Sleep(2000);
                     Power.RebootDevice();
                 }
@@ -102,12 +100,13 @@
                 {
                     string ipAddress = this._connectionService.GetIpAddress();
                     _mqttClient.Publish(SystemTopic + "/ip", Encoding.UTF8.GetBytes(ipAddress));
-                    _logHelper.LogWithTimestamp($"IP address requested, published: {ipAddress}");
+                    LogHelper.LogInformation($"IP address requested, published: {ipAddress}");
                 }
             }
             else if (e.Topic == ErrorTopic)
             {
                 // Log the error message
+                LogHelper.LogError(e.Message.ToString());
             }
         }
     }

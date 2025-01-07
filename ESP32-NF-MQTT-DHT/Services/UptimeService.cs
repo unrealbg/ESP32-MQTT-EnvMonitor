@@ -15,7 +15,6 @@
     {
         private const int UptimeDelay = 60000;
 
-        private readonly LogHelper _logHelper;
         private Timer _uptimeTimer;
 
         /// <summary>
@@ -23,7 +22,6 @@
         /// </summary>
         public UptimeService()
         {
-            _logHelper = new LogHelper();
             Stopwatch = new Stopwatch();
             Stopwatch.Start();
             //_uptimeTimer = new Timer(this.UptimeTimerCallback, null, 0, UptimeDelay);
@@ -57,11 +55,11 @@
             try
             {
                 var uptimeMessage = this.GetUptime();
-                _logHelper.LogWithTimestamp(uptimeMessage);
+                LogHelper.LogInformation(uptimeMessage);
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp(ex.Message);
+                LogHelper.LogError(ex.Message);
             }
         }
     }

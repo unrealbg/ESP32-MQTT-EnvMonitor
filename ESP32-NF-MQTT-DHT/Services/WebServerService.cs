@@ -18,7 +18,6 @@
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IConnectionService _connectionService;
-        private readonly LogHelper _logHelper;
         private WebServer _server;
         private bool _isServerRunning = false;
 
@@ -29,7 +28,6 @@
         /// <param name="serviceProvider">The service provider.</param>
         public WebServerService(IConnectionService connectionService, IServiceProvider serviceProvider)
         {
-            _logHelper = new LogHelper();
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _serviceProvider = serviceProvider;
 
@@ -49,7 +47,7 @@
                     this.InitializeWebServer();
                     _server.Start();
                     _isServerRunning = true;
-                    _logHelper.LogWithTimestamp("Web server started.");
+                    LogHelper.LogInformation("Web server started.");
                 }
             }
         }
@@ -65,7 +63,7 @@
                 _server.Dispose();
                 _server = null;
                 _isServerRunning = false;
-                _logHelper.LogWithTimestamp("Web server stopped.");
+                LogHelper.LogInformation("Web server stopped.");
             }
         }
 
@@ -80,7 +78,7 @@
 
         private void ConnectionLost(object sender, EventArgs e)
         {
-            _logHelper.LogWithTimestamp("Connection lost. Stopping the web server.");
+            LogHelper.LogWarning("Connection lost. Stopping the web server.");
             this.Stop();
         }
 
@@ -88,7 +86,7 @@
         {
             if (!_isServerRunning)
             {
-                _logHelper.LogWithTimestamp("Connection restored. Starting the web server.");
+                LogHelper.LogInformation("Connection restored. Starting the web server.");
                 this.Start();
             }
         }
@@ -101,7 +99,7 @@
             if (_server == null)
             {
                 _server = new WebServerDi(80, HttpProtocol.Http, new Type[] { typeof(SensorController) }, _serviceProvider);
-                _logHelper.LogWithTimestamp("Web server initialized.");
+                LogHelper.LogInformation("Web server initialized.");
             }
         }
     }

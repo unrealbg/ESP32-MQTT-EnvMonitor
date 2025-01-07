@@ -15,7 +15,6 @@
         private const int RelayPinNumber = 32;
 
         private readonly GpioController _gpioController;
-        private readonly LogHelper _logHelper;
 
         private GpioPin _relayPin;
         private bool _isRelayOn;
@@ -28,8 +27,6 @@
         public RelayService()
         {
             _gpioController = new GpioController();
-            _logHelper = new LogHelper();
-
             this.InitializeRelayPin();
         }
 
@@ -40,7 +37,7 @@
         {
             _relayPin.Write(PinValue.High);
             _isRelayOn = true;
-            _logHelper.LogWithTimestamp("Relay turned ON");
+            LogHelper.LogInformation("Relay turned ON");
         }
 
         /// <summary>
@@ -50,7 +47,7 @@
         {
             _relayPin.Write(PinValue.Low);
             _isRelayOn = false;
-            _logHelper.LogWithTimestamp("Relay turned OFF");
+            LogHelper.LogInformation("Relay turned OFF");
         }
 
         /// <summary>

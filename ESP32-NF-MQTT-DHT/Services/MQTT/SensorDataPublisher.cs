@@ -9,7 +9,6 @@
     /// </summary>
     internal class SensorDataPublisher
     {
-        private readonly LogHelper _logHelper = new LogHelper();
         private readonly TimerCallback _publishCallback;
         private Timer _timer;
 
@@ -20,20 +19,20 @@
 
         public void Start(int intervalMs)
         {
-            if (this._timer == null)
+            if (_timer == null)
             {
-                this._timer = new Timer(this._publishCallback, null, 0, intervalMs);
-                this._logHelper.LogWithTimestamp("Sensor data timer started successfully.");
+                _timer = new Timer(this._publishCallback, null, 0, intervalMs);
+                LogHelper.LogInformation("Sensor data timer started successfully.");
             }
         }
 
         public void Stop()
         {
-            if (this._timer != null)
+            if (_timer != null)
             {
-                this._timer.Dispose();
-                this._timer = null;
-                this._logHelper.LogWithTimestamp("Sensor data timer stopped.");
+                _timer.Dispose();
+                _timer = null;
+                LogHelper.LogInformation("Sensor data timer stopped.");
             }
         }
     }

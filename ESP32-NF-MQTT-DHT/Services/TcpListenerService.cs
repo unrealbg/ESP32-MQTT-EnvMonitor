@@ -30,7 +30,6 @@
         private readonly IUptimeService _uptimeService;
         private readonly IMqttClientService _mqttClient;
         private readonly ISensorService _sensorService;
-        private readonly LogHelper _logHelper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpListenerService"/> class.
@@ -38,12 +37,11 @@
         /// <param name="uptimeService">Service to get uptime information.</param>
         /// <param name="mqttClient">Service to handle MQTT client functionalities.</param>
         /// <param name="sensorService">Service to interact with a DHT sensor.</param>
-        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService, LogHelper logHelper)
+        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService)
         {
             _uptimeService = uptimeService;
             _mqttClient = mqttClient;
             _sensorService = sensorService;
-            this._logHelper = logHelper;
         }
 
         /// <summary>
@@ -69,7 +67,7 @@
 
             while (true)
             {
-                this._logHelper.LogWithTimestamp(
+                LogHelper.LogInformation(
                     $"Waiting for an incoming connection on {localIP} port {TcpPort}");
 
                 try
@@ -77,8 +75,8 @@
                     using TcpClient client = listener.AcceptTcpClient();
                     IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                     string clientIp = remoteIpEndPoint!.Address.ToString();
-                    this._logHelper
-                        .LogWithTimestamp($"Client connected on port {TcpPort} from {clientIp}");
+                    LogHelper.LogInformation
+                        ($"Client connected on port {TcpPort} from {clientIp}");
 
                     using NetworkStream stream = client.GetStream();
                     using StreamReader streamReader = new StreamReader(stream);
@@ -89,8 +87,7 @@
                 }
                 catch (Exception ex)
                 {
-                    this._logHelper
-                        .LogWithTimestamp($"Exception occurred while processing client request: {ex.Message}");
+                    LogHelper.LogError($"Exception occurred while processing client request: {ex.Message}");
                 }
             }
         }
@@ -113,8 +110,8 @@
             }
             catch (Exception e)
             {
-                this._logHelper
-                    .LogWithTimestamp("Login incorrect");
+                LogHelper.LogError
+                    ("Login incorrect");
                 sw.WriteLine("Login incorrect");
                 sw.Flush();
                 throw;
@@ -132,8 +129,7 @@
             while (streamReader.Peek() > -1)
             {
                 var command = streamReader.ReadLine();
-                this._logHelper
-                    .LogWithTimestamp($"Command received: {command}");
+                LogHelper.LogInformation($"Command received: {command}");
 
                 if (ProcessCommand(command, sw))
                 {

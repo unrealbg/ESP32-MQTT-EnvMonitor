@@ -34,7 +34,6 @@
         private readonly MqttMessageHandler _mqttMessageHandler;
         private readonly IMqttPublishService _mqttPublishService;
 
-        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private readonly object _threadLock = new object();
 
@@ -60,7 +59,6 @@
             _internetConnectionService = internetConnectionService ?? throw new ArgumentNullException(nameof(internetConnectionService));
             _mqttMessageHandler = mqttMessageHandler;
             _mqttPublishService = mqttPublishService;
-            _logHelper = new LogHelper();
 
             _connectionManager = new MqttConnectionManager();
             _sensorDataPublisher = new SensorDataPublisher(this.SensorDataTimerCallback);
@@ -95,7 +93,7 @@
             {
                 if (_isConnecting)
                 {
-                    _logHelper.LogWithTimestamp("Already attempting to connect to the broker.");
+                    LogHelper.LogInformation("Already attempting to connect to the broker.");
                     return;
                 }
 
@@ -113,7 +111,7 @@
             {
                 if (this.AttemptBrokerConnection())
                 {
-                    _logHelper.LogWithTimestamp("Starting sensor data timer...");
+                    LogHelper.LogInformation("Starting sensor data timer...");
                     _sensorDataPublisher.Start(SensorDataInterval);
 
                     _isConnecting = false;
@@ -121,7 +119,7 @@
                 }
 
                 attemptCount++;
-                _logHelper.LogWithTimestamp($"Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / 1000} seconds...");
+                LogHelper.LogInformation($"Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / 1000} seconds...");
 
                 int randomValue = random.Next() % (4000 - 1000 + 1) + 1000;
                 _stopSignal.WaitOne(delayBetweenAttempts + randomValue, false);
@@ -129,7 +127,7 @@
                 delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, MaxReconnectDelay);
             }
 
-            _logHelper.LogWithTimestamp("Max reconnect attempts reached. Rebooting device...");
+            LogHelper.LogWarning("Max reconnect attempts reached. Rebooting device...");
             Power.RebootDevice();
         }
 
@@ -141,7 +139,7 @@
         {
             if (!_internetConnectionService.IsInternetAvailable())
             {
-                _logHelper.LogWithTimestamp("No internet connection, cannot connect to MQTT broker.");
+                LogHelper.LogWarning("No internet connection, cannot connect to MQTT broker.");
                 return false;
             }
 
@@ -159,11 +157,11 @@
             }
             catch (SocketException ex)
             {
-                _logHelper.LogWithTimestamp($"SocketException while connecting to MQTT broker: {ex.Message}");
+                LogHelper.LogError($"SocketException while connecting to MQTT broker: {ex.Message}");
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"Exception while connecting to MQTT broker: {ex.Message}");
+                LogHelper.LogError($"Exception while connecting to MQTT broker: {ex.Message}");
             }
 
             this.DisposeMqttClient();
@@ -189,7 +187,7 @@
                 _isHeartbeatRunning = true;
             }
 
-            _logHelper.LogWithTimestamp("MQTT client setup complete");
+            LogHelper.LogInformation("MQTT client setup complete");
         }
 
         /// <summary>
@@ -203,7 +201,7 @@
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"SensorDataTimer Exception: {ex.Message}");
+                LogHelper.LogError($"SensorDataTimer Exception: {ex.Message}");
                 _mqttPublishService.PublishError($"SensorDataTimer Exception: {ex.Message}");
             }
         }
@@ -213,7 +211,7 @@
         /// </summary>
         private void ConnectionClosed(object sender, EventArgs e)
         {
-            _logHelper.LogWithTimestamp("Lost connection to MQTT broker, attempting to reconnect...");
+            LogHelper.LogWarning("Lost connection to MQTT broker, attempting to reconnect...");
 
             this.DisposeMqttClient();
             _sensorDataPublisher.Stop();
@@ -228,7 +226,7 @@
                 }
                 else
                 {
-                    _logHelper.LogWithTimestamp("Internet check thread is running, waiting for it to finish...");
+                    LogHelper.LogInformation("Internet check thread is running, waiting for it to finish...");
                 }
             }
         }
@@ -265,11 +263,11 @@
                     }
 
                     this.MqttClient.Dispose();
-                    _logHelper.LogWithTimestamp("Disposing current MQTT client...");
+                    LogHelper.LogInformation("Disposing current MQTT client...");
                 }
                 catch (Exception ex)
                 {
-                    _logHelper.LogWithTimestamp($"Error while disposing MQTT client: {ex.Message}");
+                    LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
                 }
                 finally
                 {
