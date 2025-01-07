@@ -1,32 +1,80 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Helpers
 {
     using System;
-    using System.Diagnostics;
 
-    using static TimeHelper;
+    using Microsoft.Extensions.Logging;
+
+    using nanoFramework.Logging.Debug;
 
     /// <summary>
     /// Helper class for logging messages with timestamps.
     /// </summary>
-    public class LogHelper
+    public static class LogHelper
     {
-        /// <summary>
-        /// Logs a message with the current timestamp.
-        /// </summary>
-        /// <param name="message">The message to log.</param>
-        public void LogWithTimestamp(string message)
+        private static ILoggerFactory _loggerFactory;
+
+        private static ILogger _logger;
+
+        static LogHelper()
         {
-            Debug.WriteLine($"[{GetCurrentTimestamp()}] {message}");
+            _loggerFactory = new DebugLoggerFactory();
+            _logger = _loggerFactory.CreateLogger("GlobalLogger");
+        }
+
+        public static ILogger Instance => _logger;
+
+        /// <summary>
+        ///  Logs an informational message.
+        /// </summary>
+        /// <param name="message"></param>
+        public static void LogInformation(string message)
+        {
+            _logger.LogInformation(FormatMessage("INFO", message));
         }
 
         /// <summary>
-        /// Logs an exception and a message with the current timestamp.
+        /// Log an error message.
         /// </summary>
-        /// <param name="ex">The exception to log.</param>
-        /// <param name="message">The message to log.</param>
-        public void LogWithTimestamp(Exception ex, string message)
+        /// <param name="message"></param>
+        /// <param name="ex"></param>
+        public static void LogError(string message, Exception ex = null)
         {
-            Debug.WriteLine($"{GetCurrentTimestamp()} - {ex} - {message}");
+            string formattedMessage = ex != null
+                                          ? $"{FormatMessage("ERROR", message)} | Exception: {ex}"
+                                          : FormatMessage("ERROR", message);
+
+            _logger.LogError(formattedMessage);
+        }
+
+        /// <summary>
+        /// Log a warning message.
+        /// </summary>
+        /// <param name="message"></param>
+        public static void LogWarning(string message)
+        {
+            _logger.LogWarning(FormatMessage("WARNING", message));
+        }
+
+        /// <summary>
+        /// Log a debug message.
+        /// </summary>
+        /// <param name="message"></param>
+        public static void LogDebug(string message)
+        {
+            _logger.LogDebug(FormatMessage("DEBUG", message));
+        }
+
+        private static string FormatMessage(string level, string message)
+        {
+            string color = level switch
+                {
+                    "INFO" => "\u001b[32m",
+                    "WARNING" => "\u001b[33m",
+                    "ERROR" => "\u001b[31m",
+                    _ => "\u001b[0m"
+                };
+
+            return $"[{TimeHelper.GetCurrentTimestamp()}]{color} [{level}]\u001b[0m {message}";
         }
     }
 }
