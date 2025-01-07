@@ -38,6 +38,8 @@
     <Compile Include="Managers\Contracts\ISensorManager.cs" />
     <Compile Include="Managers\SensorManager.cs" />
     <Compile Include="Models\Device.cs" />
+    <Compile Include="SensorServiceFactory.cs" />
+    <Compile Include="ServiceCollectionExtensions.cs" />
     <Compile Include="Services\Contracts\IInternetConnectionService.cs" />
     <Compile Include="Services\Contracts\ISensorService.cs" />
     <Compile Include="Services\InternetConnectionService.cs" />
