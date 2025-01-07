@@ -1,18 +1,11 @@
 namespace ESP32_NF_MQTT_DHT
 {
     using System;
-    using System.Diagnostics;
 
+    using ESP32_NF_MQTT_DHT.Extensions;
     using ESP32_NF_MQTT_DHT.Helpers;
-    using ESP32_NF_MQTT_DHT.Managers;
-    using ESP32_NF_MQTT_DHT.Managers.Contracts;
-    using ESP32_NF_MQTT_DHT.Services.MQTT;
-    using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
     using Microsoft.Extensions.DependencyInjection;
-
-    using Services;
-    using Services.Contracts;
 
     /// <summary>
     /// Main program class.
@@ -26,7 +19,8 @@ namespace ESP32_NF_MQTT_DHT
         {
             try
             {
-                SensorType sensorType = SensorType.SHTC3;
+                // Set the sensor type to use.
+                SensorType sensorType = SensorType.DHT;
 
                 var services = ConfigureServices(sensorType);
                 var application = services.GetService(typeof(Startup)) as Startup;
@@ -35,7 +29,7 @@ namespace ESP32_NF_MQTT_DHT
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"An error occurred: {ex.Message}");
+                LogHelper.LogError($"An error occurred: {ex.Message}");
             }
         }
 
@@ -47,40 +41,11 @@ namespace ESP32_NF_MQTT_DHT
         {
             var services = new ServiceCollection();
 
-            // Register individual services
             services.AddSingleton(typeof(Startup));
-
-            var a = services.AddSingleton(typeof(IConnectionService), typeof(ConnectionService))[0];
-            services.AddSingleton(typeof(IMqttClientService), typeof(MqttClientService));
-            services.AddSingleton(typeof(IRelayService), typeof(RelayService));
-
-            switch (sensorType)
-            {
-                case SensorType.DHT:
-                    services.AddSingleton(typeof(ISensorService), typeof(DhtService));
-                    break;
-
-                case SensorType.AHT:
-                    services.AddSingleton(typeof(ISensorService), typeof(AhtSensorService));
-                    break;
-
-                case SensorType.SHTC3:
-                    services.AddSingleton(typeof(ISensorService), typeof(Shtc3SensorService));
-                    break;
-
-                default:
-                    throw new ArgumentException("Unknown sensor type", nameof(sensorType));
-            }
-
-            services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
-            services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
-            services.AddSingleton(typeof(IInternetConnectionService), typeof(InternetConnectionService));
-            services.AddSingleton(typeof(MqttMessageHandler));
-            services.AddSingleton(typeof(ISensorManager), typeof(SensorManager));
-            services.AddSingleton(typeof(IMqttPublishService), typeof(MqttPublishService));
+            services.AddCoreServices();
+            services.AddSensorServices(sensorType);
 
             var serviceProvider = services.BuildServiceProvider();
-
             return serviceProvider;
         }
     }
