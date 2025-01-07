@@ -99,6 +99,9 @@
     <Reference Include="nanoFramework.Json">
       <HintPath>..\packages\nanoFramework.Json.2.2.154\lib\nanoFramework.Json.dll</HintPath>
     </Reference>
+    <Reference Include="nanoFramework.Logging">
+      <HintPath>..\packages\nanoFramework.Logging.1.1.124\lib\nanoFramework.Logging.dll</HintPath>
+    </Reference>
     <Reference Include="nanoFramework.M2Mqtt">
       <HintPath>..\packages\nanoFramework.M2Mqtt.5.1.154\lib\nanoFramework.M2Mqtt.dll</HintPath>
     </Reference>
