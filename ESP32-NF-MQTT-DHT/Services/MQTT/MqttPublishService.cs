@@ -11,7 +11,6 @@
     using nanoFramework.Json;
     using nanoFramework.M2Mqtt;
 
-    using static ESP32_NF_MQTT_DHT.Helpers.TimeHelper;
     using static ESP32_NF_MQTT_DHT.Settings.DeviceSettings;
 
     /// <summary>
@@ -97,7 +96,7 @@
             }
             else
             {
-                this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
+                this.PublishError($"{LogMessages.TimeStamp} Unable to read sensor data");
                 LogHelper.LogWarning("Unable to read sensor data");
             }
         }
