@@ -17,7 +17,6 @@
 
     using static Settings.TcpSettings;
     using static Settings.DeviceSettings;
-    using static Helpers.TimeHelper;
 
     /// <summary>
     /// Provides services for TCP listener functionalities including accepting and handling incoming TCP connections.
@@ -96,16 +95,16 @@
         {
             try
             {
-                sw.Write($"[{GetCurrentTimestamp()}] login as: ");
+                sw.Write($"{LogMessages.TimeStamp} login as: ");
                 sw.Flush();
                 var usernameInput = streamReader.ReadLine();
-                sw.Write($"[{GetCurrentTimestamp()}] {usernameInput}@{clientIp} password: ");
+                sw.Write($"{LogMessages.TimeStamp} {usernameInput}@{clientIp} password: ");
                 sw.Flush();
                 var passwordInput = streamReader.ReadLine();
 
                 if (ClientUsername != usernameInput || ClientPassword != passwordInput)
                 {
-                    throw new ArgumentException($"[{GetCurrentTimestamp()}] Invalid credentials.");
+                    throw new ArgumentException($"{LogMessages.TimeStamp} Invalid credentials.");
                 }
             }
             catch (Exception e)
@@ -123,7 +122,7 @@
         {
             SendWelcomeMessage(sw);
 
-            sw.Write($"[{GetCurrentTimestamp()}] [{ClientUsername}@{clientIp}]:~# ");
+            sw.Write($"{LogMessages.TimeStamp}  {ClientUsername}@{clientIp}]:~# ");
             sw.Flush();
 
             while (streamReader.Peek() > -1)
@@ -136,7 +135,7 @@
                     break;
                 }
 
-                sw.Write($"[{GetCurrentTimestamp()}] [{ClientUsername}@{clientIp}] ");
+                sw.Write($"{LogMessages.TimeStamp}  {ClientUsername}@{clientIp}] ");
                 sw.Flush();
             }
         }
