@@ -54,7 +54,6 @@
     <Compile Include="Settings\TcpSettings.cs" />
     <Compile Include="Settings\WifiSettings.cs" />
     <Compile Include="Controllers\SensorController.cs" />
-    <Compile Include="Helpers\TimeHelper.cs" />
     <Compile Include="Models\Sensor.cs" />
     <Compile Include="Models\Data.cs" />
     <Compile Include="Program.cs" />
