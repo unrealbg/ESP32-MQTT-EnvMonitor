@@ -1,5 +1,7 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Helpers
 {
+    using System;
+
     public static class LogMessages
     {
         public const string ReconnectingBroker = "Reconnecting to MQTT broker...";
@@ -27,5 +29,7 @@
         public const string StartingSensorDataThread = "Starting sensor data thread...";
         public const string SensorDataThreadStarted = "Sensor data thread started.";
         public const string SensorDataThreadStopped = "Sensor data thread stopped.";
+
+        public static readonly string TimeStamp = $"[{DateTime.UtcNow:dd-MM-yyyy HH:mm:ss}]";
     }
 }
