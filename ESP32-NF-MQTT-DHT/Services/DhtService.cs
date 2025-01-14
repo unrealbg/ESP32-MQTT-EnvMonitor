@@ -19,8 +19,6 @@
         private const int PinEcho = 26;
         private const int PinTrigger = 27;
 
-        private readonly LogHelper _logHelper;
-
         private Thread _sensorThread;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
@@ -32,7 +30,6 @@
         /// </summary>
         public DhtService()
         {
-            _logHelper = new LogHelper();
             _sensorThread = new Thread(this.SensorReadLoop);
         }
 
@@ -41,7 +38,7 @@
         /// </summary>
         public void Start()
         {
-            this._logHelper.LogWithTimestamp("Start Reading Sensor Data from DHT21");
+            LogHelper.LogInformation("Start Reading Sensor Data from DHT21");
             _sensorThread.Start();
         }
 
@@ -88,8 +85,16 @@
         /// <param name="dht">The DHT21 sensor.</param>
         private void ReadAndPublishData(Dht21 dht)
         {
-            _temp = dht.Temperature.DegreesCelsius;
-            _humidity = dht.Humidity.Percent;
+            try
+            {
+                _temp = dht.Temperature.DegreesCelsius;
+                _humidity = dht.Humidity.Percent;
+            }
+            catch (Exception e)
+            {
+                LogHelper.LogError("Error reading sensor data:", e);
+                this.SetErrorValues();
+            }
 
             if (dht.IsLastReadSuccessful)
             {
@@ -119,7 +124,7 @@
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
+                LogHelper.LogError($"Error reading sensor data: {ex.Message}");
                 this.SetErrorValues();
             }
         }

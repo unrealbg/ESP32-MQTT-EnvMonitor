@@ -19,17 +19,15 @@
         private const int MaxHumidity = 100;
 
         private readonly ISensorService _sensorService;
-        private readonly LogHelper _logHelper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SensorManager"/> class.
         /// </summary>
         /// <param name="sensorService">The sensor service for retrieving sensor data.</param>
         /// <param name="logHelper">The log helper for logging messages.</param>
-        public SensorManager(ISensorService sensorService, LogHelper logHelper)
+        public SensorManager(ISensorService sensorService)
         {
             _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
-            _logHelper = logHelper ?? throw new ArgumentNullException(nameof(logHelper));
         }
 
         /// <summary>
@@ -47,7 +45,7 @@
 
                 if (this.IsValidData(temperature, humidity))
                 {
-                    _logHelper.LogWithTimestamp($"{sensorType} - Temp: {temperature}°C, Humidity: {humidity}%");
+                    LogHelper.LogInformation($"{sensorType} - Temp: {temperature}°C, Humidity: {humidity}%");
 
                     return new Device
                     {
@@ -60,12 +58,12 @@
                     };
                 }
 
-                _logHelper.LogWithTimestamp($"Invalid data from {sensorType}");
+                LogHelper.LogWarning($"Invalid data from {sensorType}");
                 return null;
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
+                LogHelper.LogError($"Error reading sensor data: {ex.Message}");
                 return null;
             }
         }

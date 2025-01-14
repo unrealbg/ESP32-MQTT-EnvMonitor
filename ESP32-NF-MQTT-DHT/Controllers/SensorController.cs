@@ -20,7 +20,6 @@
     {
         private readonly ISensorService _sensorService;
         private readonly IRelayService _relayService;
-        private readonly LogHelper _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SensorController"/> class.
@@ -33,7 +32,6 @@
         {
             _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
             _relayService = relayService ?? throw new ArgumentNullException(nameof(relayService));
-            _logger = new LogHelper();
         }
 
         /// <summary>
@@ -56,7 +54,7 @@
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
-                            _logger.LogWithTimestamp("Failed to load index page.");
+                            LogHelper.LogWarning("Failed to load index page.");
                         }
                     },
                 "/");
@@ -85,13 +83,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Temperature data is out of expected range.", HttpStatusCode.InternalServerError);
-                                _logger.LogWithTimestamp("Temperature data is out of expected range.");
+                                LogHelper.LogWarning("Temperature data is out of expected range.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, "An unexpected error occurred.", HttpStatusCode.InternalServerError);
-                            _logger.LogWithTimestamp("An unexpected error occurred.");
+                            LogHelper.LogError("An unexpected error occurred.", ex);
                         }
                     },
                 "api/temperature");
@@ -120,13 +118,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Humidity data is unavailable.", HttpStatusCode.InternalServerError);
-                                _logger.LogWithTimestamp("Humidity data is unavailable.");
+                                LogHelper.LogWarning("Humidity data is unavailable.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
-                            _logger.LogWithTimestamp($"An unexpected error occurred: {ex.Message}");
+                            LogHelper.LogError($"An unexpected error occurred: {ex.Message}");
                         }
                     },
                 "api/humidity");
@@ -169,13 +167,13 @@
                             else
                             {
                                 this.SendErrorResponse(e, "Sensor data is unavailable.", HttpStatusCode.InternalServerError);
-                                _logger.LogWithTimestamp("Sensor data is unavailable.");
+                                LogHelper.LogWarning("Sensor data is unavailable.");
                             }
                         }
                         catch (Exception ex)
                         {
                             this.SendErrorResponse(e, $"An unexpected error occurred: {ex.Message}", HttpStatusCode.InternalServerError);
-                            _logger.LogWithTimestamp($"An unexpected error occurred: {ex.Message}");
+                            LogHelper.LogError($"An unexpected error occurred: {ex.Message}");
                         }
                     },
                 "api/data");
@@ -241,9 +239,9 @@
             {
                 return _sensorService.GetTemp();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                _logger.LogWithTimestamp(exception, "Failed to fetch temperature.");
+                LogHelper.LogError("Failed to fetch temperature.", ex);
                 return double.NaN;
             }
         }
@@ -258,9 +256,9 @@
             {
                 return _sensorService.GetHumidity();
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                _logger.LogWithTimestamp(exception, "Failed to fetch humidity.");
+                LogHelper.LogError("Failed to fetch humidity.", ex);
                 return double.NaN;
             }
         }

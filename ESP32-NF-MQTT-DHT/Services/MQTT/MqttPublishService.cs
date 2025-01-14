@@ -11,7 +11,6 @@
     using nanoFramework.Json;
     using nanoFramework.M2Mqtt;
 
-    using static ESP32_NF_MQTT_DHT.Helpers.TimeHelper;
     using static ESP32_NF_MQTT_DHT.Settings.DeviceSettings;
 
     /// <summary>
@@ -26,7 +25,6 @@
         private static readonly string SystemTopic = $"home/{DeviceName}/system/status";
         private const int HeartbeatInterval = 30000;
 
-        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private readonly ManualResetEvent _heartbeatStopSignal = new ManualResetEvent(false);
         private readonly ISensorManager _sensorManager;
@@ -41,9 +39,8 @@
         /// <param name="logHelper">The log helper for logging messages.</param>
         /// <param name="sensorManager">The sensor manager for retrieving sensor data.</param>
         /// <param name="internetConnectionService">The internet connection service for checking internet availability.</param>
-        public MqttPublishService(LogHelper logHelper, IInternetConnectionService internetConnectionService, ISensorManager sensorManager)
+        public MqttPublishService(IInternetConnectionService internetConnectionService, ISensorManager sensorManager)
         {
-            _logHelper = logHelper;
             _internetConnectionService = internetConnectionService;
             _sensorManager = sensorManager;
         }
@@ -86,24 +83,6 @@
         }
 
         /// <summary>
-        /// Publishes the device status to the MQTT broker.
-        /// </summary>
-        /// <param name="status"></param>
-        private void PublishDeviceStatus()
-        {
-            if (_internetConnectionService.IsInternetAvailable())
-            {
-                string message = "online";
-                _mqttClient.Publish(SystemTopic, Encoding.UTF8.GetBytes(message));
-                _logHelper.LogWithTimestamp($"Heartbeat sent: {message}");
-            }
-            else
-            {
-                _logHelper.LogWithTimestamp("No internet connection for heartbeat.");
-            }
-        }
-
-        /// <summary>
         /// Publishes sensor data to the MQTT broker.
         /// </summary>
         public void PublishSensorData()
@@ -117,8 +96,8 @@
             }
             else
             {
-                this.PublishError($"[{GetCurrentTimestamp()}] Unable to read sensor data");
-                _logHelper.LogWithTimestamp("Unable to read sensor data");
+                this.PublishError($"{LogMessages.TimeStamp} Unable to read sensor data");
+                LogHelper.LogWarning("Unable to read sensor data");
             }
         }
 
@@ -130,6 +109,30 @@
         {
             this.CheckInternetAndPublish(ErrorTopic, errorMessage);
             _stopSignal.WaitOne(ErrorInterval, false);
+        }
+
+        /// <summary>
+        /// Publishes the device status to the MQTT broker.
+        /// </summary>
+        /// <param name="status"></param>
+        private void PublishDeviceStatus()
+        {
+            if (_mqttClient == null)
+            {
+                LogHelper.LogInformation("Heartbeat skipped: MQTT client is null.");
+                return;
+            }
+
+            if (_internetConnectionService.IsInternetAvailable())
+            {
+                string message = "online";
+                _mqttClient.Publish(SystemTopic, Encoding.UTF8.GetBytes(message));
+                LogHelper.LogInformation($"Heartbeat sent: {message}");
+            }
+            else
+            {
+                LogHelper.LogWarning("No internet connection for heartbeat.");
+            }
         }
 
         /// <summary>
@@ -145,7 +148,7 @@
             }
             else
             {
-                _logHelper.LogWithTimestamp("No internet connection.");
+                LogHelper.LogWarning("No internet connection.");
             }
         }
     }

@@ -10,15 +10,9 @@
 
     public class InternetConnectionService : IInternetConnectionService
     {
-        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private bool _isInternetThreadRunning = false;
         private Thread _internetCheckThread;
-
-        public InternetConnectionService(LogHelper logHelper)
-        {
-            _logHelper = logHelper;
-        }
 
         public event EventHandler InternetLost;
 
@@ -40,7 +34,7 @@
                 if (!_isInternetThreadRunning)
                 {
                     _isInternetThreadRunning = true;
-                    _logHelper.LogWithTimestamp("No internet connection, starting internet check thread...");
+                    LogHelper.LogWarning("No internet connection, starting internet check thread...");
 
                     this.OnInternetLost();
 
@@ -56,11 +50,11 @@
         {
             while (!this.IsInternetAvailable())
             {
-                _logHelper.LogWithTimestamp("Internet not available, checking again in 10 seconds...");
+                LogHelper.LogWarning("Internet not available, checking again in 10 seconds...");
                 _stopSignal.WaitOne(10000, false);
             }
 
-            _logHelper.LogWithTimestamp("Internet is back.");
+            LogHelper.LogInformation("Internet is back.");
 
             this.OnInternetRestored();
 

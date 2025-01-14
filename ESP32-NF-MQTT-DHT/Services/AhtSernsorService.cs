@@ -6,7 +6,7 @@
 
     using Contracts;
 
-    using Helpers;
+    using ESP32_NF_MQTT_DHT.Helpers;
 
     using Iot.Device.Ahtxx;
 
@@ -22,21 +22,11 @@
         private const int DataPin = 22;
         private const int ClockPin = 23;
 
-        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
         private double _temperature = InvalidTemperature;
         private double _humidity = InvalidHumidity;
         private bool _running;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AhtSensorService"/> class.
-        /// </summary>
-        /// <param name="loggerFactory">Factory to create a logger for this service.</param>
-        public AhtSensorService()
-        {
-            _logHelper = new LogHelper();
-        }
 
         /// <summary>
         /// Starts the service to continuously read sensor data.
@@ -111,7 +101,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
+                        LogHelper.LogError($"Error reading sensor data: {ex.Message}");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }

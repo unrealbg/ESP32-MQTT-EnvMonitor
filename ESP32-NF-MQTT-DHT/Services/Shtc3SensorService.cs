@@ -19,24 +19,15 @@
     /// </summary>
     internal class Shtc3SensorService : ISensorService
     {
-        private const int DataPin = 21;
-        private const int ClockPin = 22;
+        private const int DataPin = 8;
+        private const int ClockPin = 9;
 
-        private readonly LogHelper _logHelper;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
         private double _temperature = InvalidTemperature;
         private double _humidity = InvalidHumidity;
         private bool _isRunning;
         private I2cDevice _device;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Shtc3SensorService"/> class.
-        /// </summary>
-        public Shtc3SensorService()
-        {
-            _logHelper = new LogHelper();
-        }
 
         /// <summary>
         /// Starts the sensor service.
@@ -136,7 +127,7 @@
                     }
                     catch (Exception ex)
                     {
-                        _logHelper.LogWithTimestamp($"Error reading sensor data: {ex.Message}");
+                        LogHelper.LogError($"Error reading sensor data: {ex.Message}");
                         this.SetErrorValues();
                         _stopSignal.WaitOne(ErrorInterval, false);
                     }

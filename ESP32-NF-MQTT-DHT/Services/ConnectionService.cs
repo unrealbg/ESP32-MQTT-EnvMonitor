@@ -16,9 +16,6 @@
     /// </summary>
     public class ConnectionService : IConnectionService
     {
-        private readonly LogHelper _logHelper;
-        private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
-
         private bool _isInitialStart = true;
         private bool _isConnectionInProgress = false;
 
@@ -30,10 +27,7 @@
         public bool IsConnectionInProgress
         {
             get => _isConnectionInProgress;
-            private set
-            {
-                _isConnectionInProgress = value;
-            }
+            private set => _isConnectionInProgress = value;
         }
 
         /// <summary>
@@ -47,14 +41,6 @@
         public event EventHandler ConnectionLost;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ConnectionService"/> class.
-        /// </summary>
-        public ConnectionService()
-        {
-            _logHelper = new LogHelper();
-        }
-
-        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         public void Connect()
@@ -65,7 +51,7 @@
 
             while (!this.IsAlreadyConnected(out var ipAddress))
             {
-                this._logHelper.LogWithTimestamp($"Connecting... [Attempt {++count}]");
+                LogHelper.LogInformation($"Connecting... [Attempt {++count}]");
                 var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
 
                 for (int waitTime = 0; waitTime < maxAttempts; waitTime++)
@@ -75,34 +61,34 @@
                         if (_isInitialStart)
                         {
                             _ipAddress = ipAddress;
-                            _stopSignal.WaitOne(200, false);
-                            _logHelper.LogWithTimestamp($"Connection established. IP address: {ipAddress}");
+                            Thread.Sleep(200);
+                            LogHelper.LogInformation($"Connection established. IP address: {ipAddress}");
                             _isInitialStart = false;
-                            this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
                             _isConnectionInProgress = false;
 
                             return;
                         }
 
-                        _stopSignal.WaitOne(200, false);
-                        this._logHelper.LogWithTimestamp("Connection restored.");
-                        this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                        Thread.Sleep(200);
+                        LogHelper.LogInformation("Connection restored.");
+                        this.RaiseConnectionRestored();
                         _isConnectionInProgress = false;
 
                         return;
                     }
 
-                    _stopSignal.WaitOne(200, false);
+                    Thread.Sleep(200);
                 }
 
-                _logHelper.LogWithTimestamp("Connection failed. Retrying in 10 seconds...");
-                _stopSignal.WaitOne(10000, false);
+                var msg = this.GetErrorMessage(result.ConnectionStatus);
+                LogHelper.LogWarning($"{msg}. Retrying in 10 seconds...");
+                Thread.Sleep(1000);
 
                 if (this.IsAlreadyConnected(out ipAddress))
                 {
                     _ipAddress = ipAddress;
-                    _logHelper.LogWithTimestamp($"Connection restored. IP Address: {ipAddress}");
-                    this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+                    LogHelper.LogInformation($"Connection restored. IP Address: {ipAddress}");
+                    this.RaiseConnectionRestored();
                     _isConnectionInProgress = false;
                 }
             }
@@ -117,8 +103,8 @@
             if (!this.IsAlreadyConnected(out var ipAddress))
             {
                 _isConnectionInProgress = true;
-                this.ConnectionLost?.Invoke(this, EventArgs.Empty);
-                this._logHelper.LogWithTimestamp("Lost network connection. Attempting to reconnect...");
+                this.RaiseConnectionLost();
+                LogHelper.LogWarning("Lost network connection. Attempting to reconnect...");
                 this.Connect();
             }
             else
@@ -151,7 +137,7 @@
             }
             catch (Exception ex)
             {
-                _logHelper.LogWithTimestamp($"ERROR: {ex.Message}");
+                LogHelper.LogError($"ERROR: {ex.Message}");
             }
 
             ipAddress = null;
@@ -175,6 +161,16 @@
                 case WifiConnectionStatus.UnsupportedAuthenticationProtocol: return "Authentication protocol is not supported.";
                 default: return "Unknown error.";
             }
+        }
+
+        private void RaiseConnectionRestored()
+        {
+            this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void RaiseConnectionLost()
+        {
+            this.ConnectionLost?.Invoke(this, EventArgs.Empty);
         }
     }
 }
