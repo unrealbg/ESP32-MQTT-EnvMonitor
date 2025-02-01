@@ -4,6 +4,7 @@
     {
         DHT,
         AHT,
-        SHTC3
+        SHTC3,
+        AHT20_BMP280
     }
 }
