@@ -115,7 +115,6 @@
                 sw.Flush();
                 throw;
             }
-
         }
 
         private void ProcessClientCommands(StreamReader streamReader, StreamWriter sw, TcpClient client, string clientIp)
