@@ -60,7 +60,8 @@
                 _mqttClient.Start();
                 LogHelper.LogInformation("MQTT client started.");
 
-                if (SystemInfo.TargetName == "ESP32_S3" && nanoFramework.Runtime.Native.GC.Run(false) >= RequiredMemory)
+                // Tested only on ESP32-S3
+                if (SystemInfo.TargetName == "ESP32_S3")
                 {
                     LogHelper.LogInformation("Starting WebServer service...");
                     _webServerService.Start();
