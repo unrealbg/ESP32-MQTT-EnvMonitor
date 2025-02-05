@@ -16,6 +16,7 @@
                 SensorType.DHT => typeof(DhtService),
                 SensorType.AHT => typeof(AhtSensorService),
                 SensorType.SHTC3 => typeof(Shtc3SensorService),
+                SensorType.AHT20_BMP280 => typeof(Aht20Bmp280SensorService),
                 _ => throw new ArgumentException("Unknown sensor type", nameof(sensorType)),
             };
         }
