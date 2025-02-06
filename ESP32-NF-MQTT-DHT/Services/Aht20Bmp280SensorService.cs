@@ -22,8 +22,8 @@
     /// </summary>
     public class Aht20Bmp280SensorService : ISensorService
     {
-        private const int DataPin = 22;
-        private const int ClockPin = 23;
+        private const int DataPin = 17;
+        private const int ClockPin = 18;
 
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
 
