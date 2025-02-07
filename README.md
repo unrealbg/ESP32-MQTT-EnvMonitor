@@ -32,6 +32,28 @@ I acknowledge that the code may not be perfect and there are certainly areas tha
 - DHT21, AHT10, or SHTC3 temperature and humidity sensor
 - MQTT broker (e.g., Mosquitto)
 
+## Tested Hardware
+
+This project has been tested and confirmed to work with the following hardware:
+
+### ✅ Supported ESP32 Boards
+- ESP32-S3  
+- ESP32 Wroom32 DevKit
+- ESP32-WROOM-32 DevKit (38 Pins)
+- ESP-WROOM-32 ESP-32S
+- Wemos/Lolin D32 ESP32
+
+### ❌ Not Working With:
+- ESP32-C3 (known compatibility issues)
+
+### ✅ Supported Sensors:
+- AHT10  
+- AHT20 + BMP280  
+- SHTC3  
+- DHT21  
+
+If you test the project with other hardware, feel free to contribute feedback!
+
 ## Setup
 
 1. **NanoFramework Installation:**  
