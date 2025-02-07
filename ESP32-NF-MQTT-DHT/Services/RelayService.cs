@@ -12,7 +12,11 @@
     /// </summary>
     public class RelayService : IRelayService
     {
-        private const int RelayPinNumber = 32;
+        // Must change this to the actual GPIO pin number where the relay is connected.
+        // On the ESP32 DevKit V1, the relay is connected to GPIO 32.
+        // On the ESP32_S3 DevKitC, the relay is connected to GPIO 3.
+        // On other boards, the relay may be connected to a different GPIO pin.
+        private const int RelayPinNumber = 3;
 
         private readonly GpioController _gpioController;
 
