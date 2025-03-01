@@ -7,6 +7,7 @@
 
     using Helpers;
 
+    using Iot.Device.DHTxx;
     using Iot.Device.DHTxx.Esp32;
 
     using static ESP32_NF_MQTT_DHT.Helpers.Constants;
@@ -19,8 +20,8 @@
         private const int PinEcho = 26;
         private const int PinTrigger = 27;
 
-        private Thread _sensorThread;
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
+        private Thread _sensorThread;
 
         private double _temp = InvalidTemperature;
         private double _humidity = InvalidHumidity;
