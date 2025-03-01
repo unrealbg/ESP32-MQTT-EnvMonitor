@@ -10,6 +10,7 @@
     using ESP32_NF_MQTT_DHT.Services.MQTT;
     using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
+    using nanoFramework.Hardware.Esp32;
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
     using nanoFramework.Runtime.Native;
@@ -93,42 +94,66 @@
             {
                 if (_isConnecting)
                 {
-                    LogHelper.LogInformation("Already attempting to connect to the broker.");
+                    LogHelper.LogInformation("Already connecting.");
                     return;
                 }
-
                 _isConnecting = true;
             }
 
-            _isRunning = true;
-            int attemptCount = 0;
-            int delayBetweenAttempts = 5000;
-            Random random = new Random();
-
-            _connectionService.CheckConnection();
-
-            while (_isRunning && attemptCount < MaxAttempts)
+            try
             {
-                if (this.AttemptBrokerConnection())
-                {
-                    LogHelper.LogInformation("Starting sensor data timer...");
-                    _sensorDataPublisher.Start(SensorDataInterval);
+                _isRunning = true;
+                int attemptCount = 0;
+                int delayBetweenAttempts = 5000;
+                Random random = new Random();
 
-                    _isConnecting = false;
-                    return;
+                _connectionService.CheckConnection();
+
+                while (_isRunning && attemptCount < MaxAttempts)
+                {
+                    if (!_internetConnectionService.IsInternetAvailable())
+                    {
+                        LogHelper.LogWarning("No internet, pausing attempts.");
+                        _stopSignal.WaitOne(30000, false);
+                        continue;
+                    }
+
+                    if (this.AttemptBrokerConnection())
+                    {
+                        LogHelper.LogInformation("Connected, starting sensor timer.");
+                        _sensorDataPublisher.Start(SensorDataInterval);
+                        return;
+                    }
+
+                    attemptCount++;
+
+                    if (attemptCount % 5 == 0)
+                    {
+                        LogHelper.LogInformation($"Attempt {attemptCount}/{MaxAttempts}, retry in {delayBetweenAttempts / 1000}s");
+                    }
+
+                    int jitter = random.Next() % 1500 + 500;
+                    _stopSignal.WaitOne(delayBetweenAttempts + jitter, false);
+
+                    delayBetweenAttempts = Math.Min(delayBetweenAttempts * 3 / 2, MaxReconnectDelay);
                 }
 
-                attemptCount++;
-                LogHelper.LogInformation($"Attempt {attemptCount} failed. Retrying in {delayBetweenAttempts / 1000} seconds...");
+                LogHelper.LogWarning("Max attempts reached, entering deep sleep to conserve power.");
 
-                int randomValue = random.Next() % (4000 - 1000 + 1) + 1000;
-                _stopSignal.WaitOne(delayBetweenAttempts + randomValue, false);
+                this.DisposeMqttClient();
+                _sensorDataPublisher.Stop();
 
-                delayBetweenAttempts = Math.Min(delayBetweenAttempts * 2, MaxReconnectDelay);
+                _stopSignal.WaitOne(2000, false);
+
+                TimeSpan deepSleepDuration = new TimeSpan(0, 5, 0); // 0 часа, 5 минути, 0 секунди
+
+                Sleep.EnableWakeupByTimer(deepSleepDuration);
+                Sleep.StartDeepSleep();
             }
-
-            LogHelper.LogWarning("Max reconnect attempts reached. Rebooting device...");
-            Power.RebootDevice();
+            finally
+            {
+                _isConnecting = false;
+            }
         }
 
         /// <summary>
@@ -139,7 +164,6 @@
         {
             if (!_internetConnectionService.IsInternetAvailable())
             {
-                LogHelper.LogWarning("No internet connection, cannot connect to MQTT broker.");
                 return false;
             }
 
@@ -149,7 +173,7 @@
             {
                 bool isConnected = _connectionManager.Connect(Broker, ClientId, ClientUsername, ClientPassword);
 
-                if (isConnected && this.MqttClient.IsConnected == true)
+                if (isConnected && this.MqttClient.IsConnected)
                 {
                     this.InitializeMqttClient();
                     return true;
@@ -157,11 +181,11 @@
             }
             catch (SocketException ex)
             {
-                LogHelper.LogError($"SocketException while connecting to MQTT broker: {ex.Message}");
+                LogHelper.LogError($"Socket error: {ex.Message}");
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"Exception while connecting to MQTT broker: {ex.Message}");
+                LogHelper.LogError($"MQTT connect error: {ex.Message}");
             }
 
             this.DisposeMqttClient();
