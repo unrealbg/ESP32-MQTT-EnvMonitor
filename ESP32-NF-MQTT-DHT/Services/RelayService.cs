@@ -10,7 +10,7 @@
     /// <summary>
     /// Provides methods to control a relay connected to a specific GPIO pin.
     /// </summary>
-    public class RelayService : IRelayService
+    public class RelayService : IRelayService, IDisposable
     {
         // Must change this to the actual GPIO pin number where the relay is connected.
         // On the ESP32 DevKit V1, the relay is connected to GPIO 32.
@@ -19,6 +19,7 @@
         private const int RelayPinNumber = 3;
 
         private readonly GpioController _gpioController;
+        private readonly object _syncLock = new object();
 
         private GpioPin _relayPin;
         private bool _isRelayOn;
@@ -39,9 +40,17 @@
         /// </summary>
         public void TurnOn()
         {
-            _relayPin.Write(PinValue.High);
-            _isRelayOn = true;
-            LogHelper.LogInformation("Relay turned ON");
+            lock (_syncLock)
+            {
+                if (_relayPin == null)
+                {
+                    LogHelper.LogError("Relay pin is not initialized.");
+                    return;
+                }
+                _relayPin.Write(PinValue.High);
+                _isRelayOn = true;
+                LogHelper.LogInformation("Relay turned ON");
+            }
         }
 
         /// <summary>
@@ -49,16 +58,42 @@
         /// </summary>
         public void TurnOff()
         {
-            _relayPin.Write(PinValue.Low);
-            _isRelayOn = false;
-            LogHelper.LogInformation("Relay turned OFF");
+            lock (_syncLock)
+            {
+                if (_relayPin == null)
+                {
+                    LogHelper.LogError("Relay pin is not initialized.");
+                    return;
+                }
+                _relayPin.Write(PinValue.Low);
+                _isRelayOn = false;
+                LogHelper.LogInformation("Relay turned OFF");
+            }
         }
 
         /// <summary>
         /// Checks if the relay is on.
         /// </summary>
         /// <returns></returns>
-        public bool IsRelayOn() => _isRelayOn;
+        public bool IsRelayOn()
+        {
+            lock (_syncLock)
+            {
+                return _isRelayOn;
+            }
+        }
+
+        /// <summary>
+        /// Releases resources used by the RelayService.
+        /// </summary>
+        public void Dispose()
+        {
+            lock (_syncLock)
+            {
+                _relayPin?.Dispose();
+                _gpioController?.Dispose();
+            }
+        }
 
         private void InitializeRelayPin()
         {
