@@ -82,6 +82,9 @@ Once the setup is complete, the ESP32 device will start publishing temperature a
 
 ## Troubleshooting
 
+- **Bootloop Prevention:**   
+   If the device repeatedly enters a bootloop, ensure that the correct GPIO pins are configured for your sensor(s) and relay. Verify the pin assignments in the code (e.g., in `BaseSensorService`, `AhtSensorService`, and `RelayService`) match your hardware setup. Incorrect pin assignments can cause improper initialization, leading to boot issues.
+
 - **MQTT Connection Issues:**  
   Ensure the MQTT broker hostname and port number are correctly set in the code.
 
