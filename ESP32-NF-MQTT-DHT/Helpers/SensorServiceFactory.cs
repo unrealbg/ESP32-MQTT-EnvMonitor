@@ -2,7 +2,7 @@
 {
     using System;
 
-    using ESP32_NF_MQTT_DHT.Services;
+    using ESP32_NF_MQTT_DHT.Services.Sensors;
 
     /// <summary>
     /// Factory for creating sensor services.
