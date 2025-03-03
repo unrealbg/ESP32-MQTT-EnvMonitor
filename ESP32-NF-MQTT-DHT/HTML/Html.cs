@@ -84,7 +84,7 @@ function updateRelayButton(isRelayOn) {
 }
 
 fetchData();
-setInterval(fetchData, 5000);
+setInterval(fetchData, 30000);
 </script>
 </body>
 </html>";
