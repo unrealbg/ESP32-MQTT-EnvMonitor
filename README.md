@@ -213,12 +213,27 @@ Contributions are welcome! Please follow these steps to contribute:
 
 ## Changelog
 
+### [v1.1.0] - 2025-03-02
+- **Sensor Services:**  
+  - Introduced `BaseSensorService` to centralize sensor reading, error handling, and resource management.
+  - Updated AHT10, AHT20+BMP280, DHT21, and SHTC3 sensor services to inherit from `BaseSensorService`.
+- **MQTT Client:**  
+  - Improved connection stability with dynamic ClientId generation, locking to prevent duplicate connection attempts, and exponential backoff with jitter.
+- **Network & Internet:**  
+  - Refactored `ConnectionService` with proper locking and enhanced IP validation.
+  - Improved `InternetConnectionService` with resource cleanup and stop-signal checks.
+- **Web Server & Relay:**  
+  - Enhanced `WebServerService` and `RelayService` with thread-safe operations and proper resource disposal.
+
+### [v1.0.2] - 2025-01-15
+- Added support for the AHT20+BMP280 sensor.
+
 ### [v1.0.1] - 2024-12-13
-- Added support for SHTC3 sensor.
+- Added support for the SHTC3 sensor.
 - Improved MQTT connection stability.
 
 ### [v1.0.0] - 2024-11-01
-- Initial release with DHT21 and AHT10 sensors support.
+- Initial release with support for DHT21 and AHT10 sensors.
 
 ## License
 
