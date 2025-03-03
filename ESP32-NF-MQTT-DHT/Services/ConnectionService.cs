@@ -1,13 +1,14 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
-    using System;
-    using System.Device.Wifi;
-    using System.Net.NetworkInformation;
-    using System.Threading;
-
     using Contracts;
 
     using Helpers;
+
+    using System;
+    using System.Device.Wifi;
+    using System.Net;
+    using System.Net.NetworkInformation;
+    using System.Threading;
 
     using static Settings.WifiSettings;
 
@@ -21,6 +22,7 @@
         private const int CONNECTION_CHECK_INTERVAL_MS = 200;
 
         private readonly WifiAdapter _wifiAdapter;
+        private readonly object _connectionLock = new object();
         private bool _isInitialStart = true;
         private bool _isConnectionInProgress = false;
         private string _ipAddress;
@@ -53,7 +55,16 @@
         /// <summary>
         /// Gets a value indicating whether the connection is in progress.
         /// </summary>
-        public bool IsConnectionInProgress => _isConnectionInProgress;
+        public bool IsConnectionInProgress
+        {
+            get
+            {
+                lock (_connectionLock)
+                {
+                    return _isConnectionInProgress;
+                }
+            }
+        }
 
         /// <summary>
         /// Initiates a connection to the network.
@@ -72,7 +83,10 @@
                 return;
             }
 
-            _isConnectionInProgress = true;
+            lock (_connectionLock)
+            {
+                _isConnectionInProgress = true;
+            }
 
             while (!this.IsAlreadyConnected(out _))
             {
@@ -107,7 +121,19 @@
 
                 if (connected)
                 {
-                    return;
+                    break;
+                }
+
+                if (this.IsAlreadyConnected(out string ip))
+                {
+                    lock (_connectionLock)
+                    {
+                        _ipAddress = ip;
+                        _isConnectionInProgress = false;
+                    }
+                    LogHelper.LogInformation($"Connection restored. IP Address: {ip}");
+                    this.RaiseConnectionRestored();
+                    break;
                 }
 
                 LogHelper.LogError($"Failed to connect after {MAX_CONNECTION_ATTEMPTS} attempts. Sleeping for 1 minute before retrying...");
