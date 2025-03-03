@@ -13,21 +13,15 @@
     /// </summary>
     public class SensorManager : ISensorManager
     {
-        private const int MinTemp = -50;
-        private const int MaxTemp = 125;
-        private const int MinHumidity = 0;
-        private const int MaxHumidity = 100;
-
-        private readonly ISensorService _sensorService;
+        private readonly ISensorService[] _sensorServices;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SensorManager"/> class.
         /// </summary>
-        /// <param name="sensorService">The sensor service for retrieving sensor data.</param>
-        /// <param name="logHelper">The log helper for logging messages.</param>
-        public SensorManager(ISensorService sensorService)
+        /// <param name="sensorServices">An array of sensor services to manage.</param>
+        public SensorManager(ISensorService[] sensorServices)
         {
-            _sensorService = sensorService ?? throw new ArgumentNullException(nameof(sensorService));
+            _sensorServices = sensorServices;
         }
 
         /// <summary>
@@ -36,63 +30,51 @@
         /// <returns>A <see cref="Device"/> object containing the sensor data, or <c>null</c> if the data is invalid.</returns>
         public Device CollectAndCreateSensorData()
         {
-            try
+            foreach (var sensor in _sensorServices)
             {
-                var sensorType = _sensorService.GetSensorType();
-                var data = _sensorService.GetData();
-                var temperature = data[0];
-                var humidity = data[1];
+                var temperature = sensor.GetTemp();
+                var humidity = sensor.GetHumidity();
+                var sensorType = sensor.GetSensorType();
 
-                if (this.IsValidData(temperature, humidity))
+                if (!double.IsNaN(temperature) && !double.IsNaN(humidity))
                 {
                     LogHelper.LogInformation($"{sensorType} - Temp: {temperature}°C, Humidity: {humidity}%");
-
                     return new Device
                     {
                         DeviceName = DeviceSettings.DeviceName,
                         Location = DeviceSettings.Location,
                         SensorType = sensorType,
                         DateTime = DateTime.UtcNow,
-                        Temp = temperature,
+                        Temp = Math.Round(temperature * 100) / 100,
                         Humid = (int)humidity,
                     };
                 }
+            }
 
-                LogHelper.LogWarning($"Invalid data from {sensorType}");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogHelper.LogError($"Error reading sensor data: {ex.Message}");
-                return null;
-            }
+            LogHelper.LogWarning("Invalid data from sensors.");
+            return null;
         }
 
         /// <summary>
-        /// Starts the sensor service.
+        /// Starts all sensor services.
         /// </summary>
         public void StartSensor()
         {
-            _sensorService.Start();
+            foreach (var sensor in _sensorServices)
+            {
+                sensor.Start();
+            }
         }
 
         /// <summary>
-        /// Stops the sensor service.
+        /// Stops all sensor services.
         /// </summary>
         public void StopSensor()
         {
-            _sensorService.Stop();
-        }
-
-        /// <summary>
-        /// Validates the sensor data.
-        /// </summary>
-        /// <param name="temperature">The temperature value to validate.</param>
-        /// <param name="humidity">The humidity value to validate.</param>
-        /// <returns><c>true</c> if the data is valid; otherwise, <c>false</c>.</returns>
-        private bool IsValidData(double temperature, double humidity)
-        {
-            return temperature >= MinTemp && temperature <= MaxTemp && humidity >= MinHumidity && humidity <= MaxHumidity;
+            foreach (var sensor in _sensorServices)
+            {
+                sensor.Stop();
+            }
         }
     }
 }

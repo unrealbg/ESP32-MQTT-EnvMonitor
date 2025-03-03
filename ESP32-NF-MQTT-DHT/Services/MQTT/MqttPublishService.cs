@@ -19,11 +19,11 @@
     public class MqttPublishService : IMqttPublishService
     {
         private const int ErrorInterval = 10000;
+        private const int HeartbeatInterval = 30000;
 
         private static readonly string DataTopic = $"home/{DeviceName}/messages";
         private static readonly string ErrorTopic = $"home/{DeviceName}/errors";
         private static readonly string SystemTopic = $"home/{DeviceName}/system/status";
-        private const int HeartbeatInterval = 30000;
 
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private readonly ManualResetEvent _heartbeatStopSignal = new ManualResetEvent(false);

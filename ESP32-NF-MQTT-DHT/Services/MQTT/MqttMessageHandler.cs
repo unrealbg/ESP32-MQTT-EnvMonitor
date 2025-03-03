@@ -102,6 +102,25 @@
                     _mqttClient.Publish(SystemTopic + "/ip", Encoding.UTF8.GetBytes(ipAddress));
                     LogHelper.LogInformation($"IP address requested, published: {ipAddress}");
                 }
+                else if (message.Contains("firmware"))
+                {
+                    Version firmwareVersion = SystemInfo.Version;
+                    string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
+                    _mqttClient.Publish(SystemTopic + "/firmware", Encoding.UTF8.GetBytes(versionString));
+                    LogHelper.LogInformation($"Firmware version requested, published: {versionString}");
+                }
+                else if (message.Contains("platform"))
+                {
+                    string platform = SystemInfo.Platform;
+                    _mqttClient.Publish(SystemTopic + "/platform", Encoding.UTF8.GetBytes(platform));
+                    LogHelper.LogInformation($"Platform information requested, published: {platform}");
+                }
+                else if (message.Contains("target"))
+                {
+                    string target = SystemInfo.TargetName;
+                    _mqttClient.Publish(SystemTopic + "/target", Encoding.UTF8.GetBytes(target));
+                    LogHelper.LogInformation($"Target information requested, published: {target}");
+                }
             }
             else if (e.Topic == ErrorTopic)
             {

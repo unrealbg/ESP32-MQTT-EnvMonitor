@@ -6,6 +6,8 @@
     using System.Net;
     using System.Text;
 
+    using ESP32_NF_MQTT_DHT.Helpers;
+
     using nanoFramework.WebServer;
 
     /// <summary>
@@ -51,7 +53,7 @@
             e.Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             e.Context.Response.ContentType = "text/plain";
             WebServer.OutPutStream(e.Context.Response, responseMessage);
-            Debug.WriteLine("Unauthorized response sent.");
+            LogHelper.LogError("Unauthorized access.");
         }
 
         /// <summary>
@@ -65,6 +67,7 @@
             e.Context.Response.ContentType = "text/plain";
             WebServer.OutPutStream(e.Context.Response, responseMessage);
             Debug.WriteLine($"Not Found response sent to {e.Context.Request.RemoteEndPoint}");
+            LogHelper.LogError("Resource not found.");
         }
 
         /// <summary>
@@ -78,7 +81,7 @@
             var clientMessage = "An error occurred. Please try again later.";
             e.Context.Response.StatusCode = (int)statusCode;
             this.SendResponse(e, $"{{\"error\": \"{clientMessage}\"}}", "application/json");
-            Debug.WriteLine(logMessage);
+            LogHelper.LogError(logMessage);
         }
 
         /// <summary>
@@ -99,9 +102,13 @@
                     WebServer.OutPutStream(response, content);
                 }
             }
+            catch (System.Net.Sockets.SocketException sockEx)
+            {
+                LogHelper.LogError($"SocketException while sending response: {sockEx.Message}");
+            }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to send response: {ex.Message}");
+                LogHelper.LogError($"Failed to send response: {ex.Message}");
             }
         }
 
@@ -147,7 +154,8 @@
             e.Context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             e.Context.Response.ContentType = "text/plain";
             WebServer.OutPutStream(e.Context.Response, responseMessage);
-            Debug.WriteLine($"Forbidden response sent to {e.Context.Request.RemoteEndPoint}");
+            //Debug.WriteLine($"Forbidden response sent to {e.Context.Request.RemoteEndPoint}");
+            LogHelper.LogWarning("Access forbidden.");
         }
 
         /// <summary>
@@ -160,7 +168,8 @@
             e.Context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             e.Context.Response.ContentType = "text/plain";
             WebServer.OutPutStream(e.Context.Response, responseMessage);
-            Debug.WriteLine($"Throttle response sent to {e.Context.Request.RemoteEndPoint}");
+            //Debug.WriteLine($"Throttle response sent to {e.Context.Request.RemoteEndPoint}");
+            LogHelper.LogWarning("Request throttled.");
         }
 
         /// <summary>
@@ -227,7 +236,7 @@
         private void BanClient(string clientIp)
         {
             BanList[clientIp] = DateTime.UtcNow.Add(BanDuration);
-            Debug.WriteLine($"Client {clientIp} has been banned until {BanList[clientIp]}.");
+            LogHelper.LogWarning($"Client {clientIp} has been banned until {BanList[clientIp]}.");
         }
 
         /// <summary>

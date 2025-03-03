@@ -17,6 +17,10 @@
             this._publishCallback = publishCallback;
         }
 
+        /// <summary>
+        /// Starts the sensor data publisher.
+        /// </summary>
+        /// <param name="intervalMs">The interval in milliseconds at which to publish sensor data.</param>
         public void Start(int intervalMs)
         {
             if (_timer == null)
@@ -24,8 +28,15 @@
                 _timer = new Timer(this._publishCallback, null, 0, intervalMs);
                 LogHelper.LogInformation("Sensor data timer started successfully.");
             }
+            else
+            {
+                LogHelper.LogInformation("Sensor data timer is already running.");
+            }
         }
 
+        /// <summary>
+        /// Stops the sensor data publisher.
+        /// </summary>
         public void Stop()
         {
             if (_timer != null)
@@ -33,6 +44,10 @@
                 _timer.Dispose();
                 _timer = null;
                 LogHelper.LogInformation("Sensor data timer stopped.");
+            }
+            else
+            {
+                LogHelper.LogInformation("Sensor data timer is not running.");
             }
         }
     }
