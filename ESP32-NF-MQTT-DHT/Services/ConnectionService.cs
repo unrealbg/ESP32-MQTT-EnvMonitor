@@ -16,18 +16,28 @@
     /// </summary>
     public class ConnectionService : IConnectionService
     {
+        private const int MAX_CONNECTION_ATTEMPTS = 10;
+        private const int RECONNECT_DELAY_MS = 10000;
+        private const int CONNECTION_CHECK_INTERVAL_MS = 200;
+
+        private readonly WifiAdapter _wifiAdapter;
         private bool _isInitialStart = true;
         private bool _isConnectionInProgress = false;
-
         private string _ipAddress;
 
         /// <summary>
-        /// Gets a value indicating whether the connection is in progress.
+        /// Initializes a new instance of the <see cref="ConnectionService"/> class.
         /// </summary>
-        public bool IsConnectionInProgress
+        public ConnectionService()
         {
-            get => _isConnectionInProgress;
-            private set => _isConnectionInProgress = value;
+            try
+            {
+                _wifiAdapter = WifiAdapter.FindAllAdapters()[0];
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError($"Failed to initialize WiFi adapter: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -41,56 +51,67 @@
         public event EventHandler ConnectionLost;
 
         /// <summary>
+        /// Gets a value indicating whether the connection is in progress.
+        /// </summary>
+        public bool IsConnectionInProgress => _isConnectionInProgress;
+
+        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         public void Connect()
         {
-            var wifiAdapter = WifiAdapter.FindAllAdapters()[0];
-            var count = 0;
-            var maxAttempts = 10;
-
-            while (!this.IsAlreadyConnected(out var ipAddress))
+            if (_wifiAdapter == null)
             {
-                LogHelper.LogInformation($"Connecting... [Attempt {++count}]");
-                var result = wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
+                LogHelper.LogError("Cannot connect: WiFi adapter not available");
+                return;
+            }
 
-                for (int waitTime = 0; waitTime < maxAttempts; waitTime++)
+            if (this.IsAlreadyConnected(out var currentIp))
+            {
+                LogHelper.LogInformation($"Already connected. IP: {currentIp}");
+                return;
+            }
+
+            _isConnectionInProgress = true;
+
+            while (!this.IsAlreadyConnected(out _))
+            {
+                int attemptCount = 0;
+                bool connected = false;
+
+                while (!this.IsAlreadyConnected(out string ipAddress) && attemptCount < MAX_CONNECTION_ATTEMPTS)
                 {
-                    if (result.ConnectionStatus == WifiConnectionStatus.Success && this.IsAlreadyConnected(out ipAddress))
-                    {
-                        if (_isInitialStart)
-                        {
-                            _ipAddress = ipAddress;
-                            Thread.Sleep(200);
-                            LogHelper.LogInformation($"Connection established. IP address: {ipAddress}");
-                            _isInitialStart = false;
-                            _isConnectionInProgress = false;
+                    attemptCount++;
+                    LogHelper.LogInformation($"Connecting... [Attempt {attemptCount}/{MAX_CONNECTION_ATTEMPTS}]");
 
-                            return;
+                    try
+                    {
+                        var result = _wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
+
+                        if (this.TryWaitForConnection(result, out ipAddress))
+                        {
+                            this.HandleSuccessfulConnection(ipAddress);
+                            connected = true;
+                            break;
                         }
 
-                        Thread.Sleep(200);
-                        LogHelper.LogInformation("Connection restored.");
-                        this.RaiseConnectionRestored();
-                        _isConnectionInProgress = false;
-
-                        return;
+                        LogHelper.LogWarning($"{this.GetErrorMessage(result.ConnectionStatus)}. Retrying in {RECONNECT_DELAY_MS / 1000} seconds...");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.LogError($"Connection error: {ex.Message}");
                     }
 
-                    Thread.Sleep(200);
+                    Thread.Sleep(RECONNECT_DELAY_MS);
                 }
 
-                var msg = this.GetErrorMessage(result.ConnectionStatus);
-                LogHelper.LogWarning($"{msg}. Retrying in 10 seconds...");
-                Thread.Sleep(1000);
-
-                if (this.IsAlreadyConnected(out ipAddress))
+                if (connected)
                 {
-                    _ipAddress = ipAddress;
-                    LogHelper.LogInformation($"Connection restored. IP Address: {ipAddress}");
-                    this.RaiseConnectionRestored();
-                    _isConnectionInProgress = false;
+                    return;
                 }
+
+                LogHelper.LogError($"Failed to connect after {MAX_CONNECTION_ATTEMPTS} attempts. Sleeping for 1 minute before retrying...");
+                Thread.Sleep(60000);
             }
         }
 
@@ -99,17 +120,17 @@
         /// </summary>
         public void CheckConnection()
         {
+            if (_isConnectionInProgress)
+            {
+                return; // Don't start another connection attempt if one is already in progress
+            }
 
-            if (!this.IsAlreadyConnected(out var ipAddress))
+            if (!this.IsAlreadyConnected(out _))
             {
                 _isConnectionInProgress = true;
                 this.RaiseConnectionLost();
                 LogHelper.LogWarning("Lost network connection. Attempting to reconnect...");
                 this.Connect();
-            }
-            else
-            {
-                _isConnectionInProgress = false;
             }
         }
 
@@ -119,7 +140,19 @@
         /// <returns>The IP address of the device.</returns>
         public string GetIpAddress()
         {
-            return string.IsNullOrEmpty(_ipAddress) || _ipAddress == "0.0.0.0" ? "IP address not available" : _ipAddress;
+            if (string.IsNullOrEmpty(_ipAddress) || _ipAddress == "0.0.0.0")
+            {
+                if (this.IsAlreadyConnected(out string currentIp))
+                {
+                    _ipAddress = currentIp;
+                }
+                else
+                {
+                    return "IP address not available";
+                }
+            }
+
+            return _ipAddress;
         }
 
         /// <summary>
@@ -129,6 +162,8 @@
         /// <returns><c>true</c> if the device is connected; otherwise, <c>false</c>.</returns>
         private bool IsAlreadyConnected(out string ipAddress)
         {
+            ipAddress = null;
+
             try
             {
                 var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
@@ -137,11 +172,60 @@
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"ERROR: {ex.Message}");
+                LogHelper.LogError($"Network interface error: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Tries to wait for a successful connection.
+        /// </summary>
+        /// <param name="result">The WiFi connection result.</param>
+        /// <param name="ipAddress">The resulting IP address.</param>
+        /// <returns>True if connection successful, false otherwise.</returns>
+        private bool TryWaitForConnection(WifiConnectionResult result, out string ipAddress)
+        {
+            ipAddress = null;
+
+            if (result.ConnectionStatus != WifiConnectionStatus.Success)
+            {
+                return false;
             }
 
-            ipAddress = null;
+            for (int i = 0; i < MAX_CONNECTION_ATTEMPTS; i++)
+            {
+                if (this.IsAlreadyConnected(out string currentIp))
+                {
+                    ipAddress = currentIp;
+                    return true;
+                }
+
+                Thread.Sleep(CONNECTION_CHECK_INTERVAL_MS);
+            }
+
             return false;
+        }
+
+        /// <summary>
+        /// Handles logic for a successful connection.
+        /// </summary>
+        /// <param name="ipAddress">The assigned IP address.</param>
+        private void HandleSuccessfulConnection(string ipAddress)
+        {
+            _ipAddress = ipAddress;
+
+            if (_isInitialStart)
+            {
+                LogHelper.LogInformation($"Connection established. IP address: {ipAddress}");
+                _isInitialStart = false;
+            }
+            else
+            {
+                LogHelper.LogInformation($"Connection restored. IP Address: {ipAddress}");
+                this.RaiseConnectionRestored();
+            }
+
+            _isConnectionInProgress = false;
         }
 
         /// <summary>
@@ -153,24 +237,30 @@
         {
             switch (status)
             {
-                case WifiConnectionStatus.AccessRevoked: return "Access to the network has been revoked.";
-                case WifiConnectionStatus.InvalidCredential: return "Invalid credential was presented.";
-                case WifiConnectionStatus.NetworkNotAvailable: return "Network is not available.";
-                case WifiConnectionStatus.Timeout: return "Connection attempt timed out.";
+                case WifiConnectionStatus.AccessRevoked: return "Access to the network has been revoked";
+                case WifiConnectionStatus.InvalidCredential: return "Invalid credential was presented";
+                case WifiConnectionStatus.NetworkNotAvailable: return "Network is not available";
+                case WifiConnectionStatus.Timeout: return "Connection attempt timed out";
                 case WifiConnectionStatus.UnspecifiedFailure: return "Unspecified error [connection refused]";
-                case WifiConnectionStatus.UnsupportedAuthenticationProtocol: return "Authentication protocol is not supported.";
-                default: return "Unknown error.";
+                case WifiConnectionStatus.UnsupportedAuthenticationProtocol: return "Authentication protocol is not supported";
+                default: return "Unknown error";
             }
         }
 
         private void RaiseConnectionRestored()
         {
-            this.ConnectionRestored?.Invoke(this, EventArgs.Empty);
+            if (this.ConnectionRestored != null)
+            {
+                this.ConnectionRestored(this, EventArgs.Empty);
+            }
         }
 
         private void RaiseConnectionLost()
         {
-            this.ConnectionLost?.Invoke(this, EventArgs.Empty);
+            if (this.ConnectionLost != null)
+            {
+                this.ConnectionLost(this, EventArgs.Empty);
+            }
         }
     }
 }
