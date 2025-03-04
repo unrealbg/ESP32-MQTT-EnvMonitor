@@ -54,7 +54,7 @@ I acknowledge that the code may not be perfect and there are certainly areas tha
 
 - Also, replace <YOUR_COM_PORT> with the actual serial port where your ESP32 device is connected (e.g., COM31 on Windows or /dev/ttyUSB0 on Linux/macOS).
 - If you decide to use a **newer firmware version**, you **must also update the corresponding NuGet packages** in your project to ensure compatibility. Check for updates in Visual Studio's **NuGet Package Manager** and make sure all dependencies align with the firmware version you are using.
-- For detailed firmware update instructions, visit the [nanoFramework documentation](https://docs.nanoframework.net/content/esp32/esp32-install.html).
+- For detailed firmware update instructions, visit the [nanoFramework documentation](https://docs.nanoframework.net/content/getting-started-guides/getting-started-managed.html).
 
 
 ## Tested Hardware
