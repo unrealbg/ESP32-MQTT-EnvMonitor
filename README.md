@@ -32,6 +32,31 @@ I acknowledge that the code may not be perfect and there are certainly areas tha
 - DHT21, AHT10, or SHTC3 temperature and humidity sensor
 - MQTT broker (e.g., Mosquitto)
 
+## nanoFramework Firmware Version
+
+- The required nanoFramework firmware version depends on the NuGet packages used in this project.
+- To ensure compatibility, use the firmware version that matches the latest tested state of this repository.
+- The last tested firmware version for this project was **1.12.4.14**.
+- You can check your current firmware version using the **Device Explorer** in the nanoFramework extension for Visual Studio or by running:
+
+  ```sh
+  nanoff --platform esp32 --target <YOUR_ESP32_TARGET> --serialport <YOUR_COM_PORT> --list
+
+- If needed, update your firmware to the version used in this project:
+  
+  ```sh
+  nanoff --platform esp32 --target <YOUR_ESP32_TARGET> --serialport <YOUR_COM_PORT> --masserase --update --fwversion 1.12.4.14
+
+- Important: Replace <YOUR_ESP32_TARGET> with the correct target for your device (e.g., ESP32_WROOM_32, ESP32_S3, ESP32_C3). You can find the available targets by running:
+
+  ```sh
+  nanoff --platform esp32 --listtargets
+
+- Also, replace <YOUR_COM_PORT> with the actual serial port where your ESP32 device is connected (e.g., COM31 on Windows or /dev/ttyUSB0 on Linux/macOS).
+- If you decide to use a newer firmware version, ensure it is compatible with the NuGet package versions in this repository.
+- For detailed firmware update instructions, visit the [nanoFramework documentation](https://docs.nanoframework.net/content/esp32/esp32-install.html).
+
+
 ## Tested Hardware
 
 This project has been tested and confirmed to work with the following hardware:
