@@ -32,7 +32,7 @@ I acknowledge that the code may not be perfect and there are certainly areas tha
 - DHT21, AHT10, or SHTC3 temperature and humidity sensor
 - MQTT broker (e.g., Mosquitto)
 
-## nanoFramework Firmware Version
+### nanoFramework Firmware Version
 
 - The required nanoFramework firmware version depends on the NuGet packages used in this project.
 - To ensure compatibility, use the firmware version that matches the latest tested state of this repository.
