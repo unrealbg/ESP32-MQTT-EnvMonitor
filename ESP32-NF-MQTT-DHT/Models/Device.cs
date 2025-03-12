@@ -42,5 +42,10 @@
         /// The humidity value recorded by the sensor, as a percentage.
         /// </value>
         public int Humid { get; set; }
+
+        /// <summary>
+        /// Represents the firmware version of a device.
+        /// </summary>
+        public string Firmware { get; set; }
     }
 }
