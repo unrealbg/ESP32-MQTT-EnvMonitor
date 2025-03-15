@@ -20,6 +20,7 @@
         private readonly IMqttClientService _mqttClient;
         private readonly IWebServerService _webServerService;
         private readonly ISensorManager _sensorManager;
+        private readonly ITcpListenerService _tcpListenerService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Startup"/> class.
@@ -28,16 +29,19 @@
         /// <param name="mqttClient">MQTT client service.</param>
         /// <param name="sensorManager">Sensor manager.</param>
         /// <param name="webServerService">WebServer service.</param>
+        /// <param name="tcpListenerService">TCPListener service.</param>"
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
             IWebServerService webServerService,
-            ISensorManager sensorManager)
+            ISensorManager sensorManager,
+            ITcpListenerService tcpListenerService)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
             _webServerService = webServerService ?? throw new ArgumentNullException(nameof(webServerService));
             _sensorManager = sensorManager ?? throw new ArgumentNullException(nameof(sensorManager));
+            _tcpListenerService = tcpListenerService ?? throw new ArgumentNullException(nameof(tcpListenerService));
 
             LogHelper.LogInformation("Initializing application...");
         }
@@ -59,6 +63,10 @@
                 LogHelper.LogInformation("Starting MQTT client...");
                 _mqttClient.Start();
                 LogHelper.LogInformation("MQTT client started.");
+
+                LogHelper.LogInformation("Starting TCPListener service...");
+                _tcpListenerService.Start();
+                LogHelper.LogInformation("TCPListener service started.");
 
                 // Tested only on ESP32-S3
                 if (SystemInfo.TargetName == "ESP32_S3")
