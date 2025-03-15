@@ -8,6 +8,8 @@
     using ESP32_NF_MQTT_DHT.Services.Contracts;
     using ESP32_NF_MQTT_DHT.Settings;
 
+    using nanoFramework.Runtime.Native;
+
     /// <summary>
     /// Manages sensor operations including data collection and validation.
     /// </summary>
@@ -39,6 +41,9 @@
                 if (!double.IsNaN(temperature) && !double.IsNaN(humidity))
                 {
                     LogHelper.LogInformation($"{sensorType} - Temp: {temperature}°C, Humidity: {humidity}%");
+                    Version firmwareVersion = SystemInfo.Version;
+                    string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
+
                     return new Device
                     {
                         DeviceName = DeviceSettings.DeviceName,
@@ -47,6 +52,7 @@
                         DateTime = DateTime.UtcNow,
                         Temp = Math.Round(temperature * 100) / 100,
                         Humid = (int)humidity,
+                        Firmware = versionString
                     };
                 }
             }
