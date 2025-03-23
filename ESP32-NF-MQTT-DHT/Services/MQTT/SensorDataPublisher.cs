@@ -3,11 +3,12 @@
     using System.Threading;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
     /// <summary>
     /// Publishes sensor data at regular intervals.
     /// </summary>
-    internal class SensorDataPublisher
+    internal class SensorDataPublisher : ISensorDataPublisher
     {
         private readonly TimerCallback _publishCallback;
         private Timer _timer;
