@@ -1,15 +1,7 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
-    using Contracts;
-
-    using ESP32_NF_MQTT_DHT.Helpers;
-
-    using nanoFramework.Hardware.Esp32;
-    using nanoFramework.Runtime.Native;
-
     using System;
     using System.Collections;
-    using System.Diagnostics;
     using System.IO;
     using System.Net;
     using System.Net.NetworkInformation;
@@ -17,12 +9,17 @@
     using System.Text;
     using System.Threading;
 
+    using Contracts;
+
+    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using nanoFramework.Runtime.Native;
+
     using static Settings.DeviceSettings;
     using static Settings.TcpSettings;
 
     using GC = nanoFramework.Runtime.Native.GC;
 
-    // Delegate for command handlers.
     public delegate bool CommandHandler(string[] args, StreamWriter writer);
 
     /// <summary>
@@ -31,7 +28,7 @@
     public class TcpListenerService : ITcpListenerService
     {
         private const int TcpPort = 31337;
-        private const int Timeout = 1000;
+        private const int Timeout = 5000;
         private const int MaxAuthAttempts = 3;
 
         private readonly IUptimeService _uptimeService;
@@ -82,7 +79,7 @@
         public void Start()
         {
             _isRunning = true;
-            _listenerThread = new Thread(StartTcpListening);
+            _listenerThread = new Thread(this.StartTcpListening);
             _listenerThread.Start();
         }
 
@@ -92,7 +89,7 @@
         public void Stop()
         {
             _isRunning = false;
-            // Optionally wait for the listener thread to finish.
+
             if (_listenerThread != null)
             {
                 _listenerThread.Join();
@@ -104,52 +101,104 @@
         /// </summary>
         private void StartTcpListening()
         {
-            TcpListener listener = new TcpListener(IPAddress.Any, TcpPort);
-            listener.Server.ReceiveTimeout = Timeout;
-            listener.Server.SendTimeout = Timeout;
-            listener.Start(2);
-
-            while (_isRunning)
+            TcpListener listener = null;
+            try
             {
-                LogHelper.LogInformation("Waiting for an incoming connection on " + _networkInterface.IPv4Address + " port " + TcpPort);
-                try
-                {
-                    // Accept a client connection (synchronously).
-                    TcpClient client = listener.AcceptTcpClient();
-                    IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
-                    string clientIp = remoteIpEndPoint != null ? remoteIpEndPoint.Address.ToString() : "Unknown";
-                    LogHelper.LogInformation("Client connected on port " + TcpPort + " from " + clientIp);
+                listener = new TcpListener(IPAddress.Any, TcpPort);
+                listener.Server.ReceiveTimeout = Timeout;
+                listener.Server.SendTimeout = Timeout;
+                listener.Start(2);
 
-                    using (client)
+                while (_isRunning)
+                {
+                    LogHelper.LogInformation("Waiting for an incoming connection on " + _networkInterface.IPv4Address + " port " + TcpPort);
+                    try
                     {
-                        using (NetworkStream stream = client.GetStream())
+                        // Accept a client connection (synchronously).
+                        TcpClient client = listener.AcceptTcpClient();
+                        IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
+                        string clientIp = remoteIpEndPoint != null ? remoteIpEndPoint.Address.ToString() : "Unknown";
+                        LogHelper.LogInformation("Client connected on port " + TcpPort + " from " + clientIp);
+
+                        using (client)
                         {
-                            // Use default constructors for StreamReader/StreamWriter.
-                            using (StreamReader streamReader = new StreamReader(stream))
+                            using (NetworkStream stream = client.GetStream())
                             {
-                                using (StreamWriter sw = new StreamWriter(stream))
+                                // Проверка дали потокът е достъпен
+                                if (!stream.CanRead || !stream.CanWrite)
                                 {
-                                    // Authenticate the client with limited attempts.
-                                    if (!this.AuthenticateClient(streamReader, sw, clientIp))
+                                    LogHelper.LogError("Stream not properly accessible");
+                                    client.Close();
+                                    continue;
+                                }
+
+                                using (StreamReader streamReader = new StreamReader(stream))
+                                {
+                                    using (StreamWriter sw = new StreamWriter(stream))
                                     {
-                                        client.Close();
-                                        continue;
+                                        try
+                                        {
+                                            if (!this.AuthenticateClient(streamReader, sw, clientIp))
+                                            {
+                                                LogHelper.LogInformation("Authentication failed for client: " + clientIp);
+                                                client.Close();
+                                                continue;
+                                            }
+
+                                            try
+                                            {
+                                                this.SendWelcomeMessage(sw, clientIp);
+                                            }
+                                            catch (Exception welcome_ex)
+                                            {
+                                                LogHelper.LogError("Error sending welcome message: " + welcome_ex.Message);
+                                                client.Close();
+                                                continue;
+                                            }
+
+                                            this.ProcessClientCommands(streamReader, sw, clientIp);
+                                        }
+                                        catch (Exception sessionEx)
+                                        {
+                                            LogHelper.LogError("Exception during client session: " + sessionEx.Message);
+                                        }
                                     }
-                                    // Send a welcome message.
-                                    this.SendWelcomeMessage(sw, clientIp);
-                                    // Process client commands.
-                                    this.ProcessClientCommands(streamReader, sw, clientIp);
                                 }
                             }
+
+                            LogHelper.LogInformation("Client disconnected: " + clientIp);
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
+                    catch (SocketException socketEx)
+                    {
+                        LogHelper.LogError("Socket exception while accepting client: " + socketEx.Message);
+                        Thread.Sleep(1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
+                        Thread.Sleep(1000);
+                    }
                 }
             }
-            listener.Stop();
+            catch (Exception initEx)
+            {
+                LogHelper.LogError("Fatal error in TCP listener: " + initEx.Message);
+            }
+            finally
+            {
+                if (listener != null)
+                {
+                    try
+                    {
+                        listener.Stop();
+                    }
+                    catch
+                    {
+                        // Ignore exceptions during cleanup.
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -162,22 +211,48 @@
             {
                 try
                 {
+                    if (!streamReader.BaseStream.CanRead)
+                    {
+                        LogHelper.LogError("Stream not readable during authentication");
+                        return false;
+                    }
+
                     this.WriteInline(sw, LogMessages.TimeStamp + " login as: ");
                     string usernameInput = streamReader.ReadLine();
+
+                    if (string.IsNullOrEmpty(usernameInput))
+                    {
+                        LogHelper.LogError("Client disconnected during authentication - no username provided");
+                        return false;
+                    }
+
                     this.WriteInline(sw, LogMessages.TimeStamp + " " + usernameInput + "@" + clientIp + " password: ");
                     string passwordInput = streamReader.ReadLine();
+
+                    if (string.IsNullOrEmpty(passwordInput))
+                    {
+                        LogHelper.LogError("Client disconnected during authentication - no password provided");
+                        return false;
+                    }
 
                     if (usernameInput == ClientUsername && passwordInput == ClientPassword)
                     {
                         return true;
                     }
-                    else
-                    {
-                        this.WriteToStream(sw, "Login incorrect");
-                        LogHelper.LogError("Login incorrect for " + clientIp);
-                        // Delay to slow down brute force attempts.
-                        Thread.Sleep(1000);
-                    }
+
+                    this.WriteToStream(sw, "Login incorrect");
+                    LogHelper.LogError("Login incorrect for " + clientIp);
+                    Thread.Sleep(1000);
+                }
+                catch (IOException ex)
+                {
+                    LogHelper.LogError("IO Exception during authentication: " + ex.Message);
+                    return false;
+                }
+                catch (SocketException ex)
+                {
+                    LogHelper.LogError("Socket Exception during authentication: " + ex.Message);
+                    return false;
                 }
                 catch (Exception ex)
                 {
@@ -185,6 +260,7 @@
                     return false;
                 }
             }
+
             return false;
         }
 
@@ -236,6 +312,7 @@
                 {
                     this.WriteToStream(writer, "Ping command is not supported on this platform.");
                 }
+
                 return false;
             }));
             commands.Add("setinterval", new CommandHandler((args, writer) =>
@@ -257,6 +334,7 @@
                         this.WriteToStream(writer, "Invalid interval value");
                     }
                 }
+
                 return false;
             }));
             commands.Add("relay", new CommandHandler((args, writer) =>
@@ -315,37 +393,108 @@
 
             while (true)
             {
-                string input = streamReader.ReadLine();
-                if (input == null)
+                try
+                {
+                    if (!streamReader.BaseStream.CanRead)
+                    {
+                        LogHelper.LogError("Stream no longer readable during command processing");
+                        break;
+                    }
+
+                    Thread.Sleep(100);
+
+                    string input = null;
+                    try
+                    {
+                        input = streamReader.ReadLine();
+                    }
+                    catch (IOException ioEx)
+                    {
+                        LogHelper.LogError("IO Exception while reading command: " + ioEx.Message);
+                        break;
+                    }
+                    catch (SocketException sockEx)
+                    {
+                        LogHelper.LogError("Socket Exception while reading command: " + sockEx.Message);
+                        break;
+                    }
+
+                    if (input == null)
+                    {
+                        LogHelper.LogInformation("Client disconnected or timeout occurred");
+                        break;
+                    }
+
+                    LogHelper.LogInformation("Command received: " + input);
+
+                    string[] parts = input.Trim().Split(' ');
+                    if (parts.Length == 0)
+                    {
+                        this.WritePrompt(sw, clientIp);
+                        continue;
+                    }
+
+                    string commandKey = parts[0].ToLower();
+                    bool shouldExit = false;
+
+                    try
+                    {
+                        if (commandHandlers.Contains(commandKey))
+                        {
+                            CommandHandler handler = (CommandHandler)commandHandlers[commandKey];
+                            shouldExit = handler(parts, sw);
+                        }
+                        else
+                        {
+                            this.WriteToStream(sw, "Unrecognized command");
+                        }
+                    }
+                    catch (Exception cmdEx)
+                    {
+                        LogHelper.LogError("Error executing command '" + commandKey + "': " + cmdEx.Message);
+                        try
+                        {
+                            this.WriteToStream(sw, "Error executing command: " + cmdEx.Message);
+                        }
+                        catch
+                        {
+                            break;
+                        }
+                    }
+
+                    if (shouldExit)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        this.WritePrompt(sw, clientIp);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.LogError("Error writing prompt: " + ex.Message);
+                        break;
+                    }
+                }
+                catch (IOException ex)
+                {
+                    LogHelper.LogError("IO Exception during command processing: " + ex.Message);
                     break;
-
-                LogHelper.LogInformation("Command received: " + input);
-
-                string[] parts = input.Trim().Split(' ');
-                if (parts.Length == 0)
-                {
-                    this.WritePrompt(sw, clientIp);
-                    continue;
                 }
-
-                string commandKey = parts[0].ToLower();
-                bool shouldExit = false;
-
-                if (commandHandlers.Contains(commandKey))
+                catch (SocketException ex)
                 {
-                    CommandHandler handler = (CommandHandler)commandHandlers[commandKey];
-                    shouldExit = handler(parts, sw);
-                }
-                else
-                {
-                    this.WriteToStream(sw, "Unrecognized command");
-                }
-
-                if (shouldExit)
+                    LogHelper.LogError("Socket Exception during command processing: " + ex.Message);
                     break;
-
-                this.WritePrompt(sw, clientIp);
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Exception during command processing: " + ex.Message);
+                    break;
+                }
             }
+
+            LogHelper.LogInformation("Command processing ended for client: " + clientIp);
         }
 
         /// <summary>
@@ -359,6 +508,7 @@
             {
                 helpText.Append(entry.Key + " - " + entry.Value + "\r\n");
             }
+
             this.WriteToStream(sw, helpText.ToString());
         }
 
@@ -375,8 +525,15 @@
         /// </summary>
         private void WriteToStream(StreamWriter writer, string text)
         {
-            writer.WriteLine(text);
-            writer.Flush();
+            try
+            {
+                writer.WriteLine(text);
+                writer.Flush();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError("Error writing to stream: " + ex.Message);
+            }
         }
 
         /// <summary>
@@ -384,8 +541,15 @@
         /// </summary>
         private void WriteInline(StreamWriter writer, string text)
         {
-            writer.Write(text);
-            writer.Flush();
+            try
+            {
+                writer.Write(text);
+                writer.Flush();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError("Error writing inline to stream: " + ex.Message);
+            }
         }
 
         /// <summary>
