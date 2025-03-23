@@ -31,6 +31,7 @@
             services.AddSingleton(typeof(IInternetConnectionService), typeof(InternetConnectionService));
             services.AddSingleton(typeof(MqttMessageHandler));
             services.AddSingleton(typeof(ISensorManager), typeof(SensorManager));
+            services.AddSingleton(typeof(IMqttConnectionManager), typeof(MqttConnectionManager));
             services.AddSingleton(typeof(IMqttPublishService), typeof(MqttPublishService));
             services.AddSingleton(typeof(ITcpListenerService), typeof(TcpListenerService));
 
