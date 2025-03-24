@@ -4,10 +4,11 @@
     using System.Net.Sockets;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Services.MQTT.Contracts;
 
     using nanoFramework.M2Mqtt;
 
-    internal class MqttConnectionManager
+    internal class MqttConnectionManager : IMqttConnectionManager
     {
         /// <summary>
         /// Gets the MQTT client.

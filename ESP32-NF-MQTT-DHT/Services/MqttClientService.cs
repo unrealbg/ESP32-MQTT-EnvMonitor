@@ -14,6 +14,7 @@
     using nanoFramework.M2Mqtt;
     using nanoFramework.M2Mqtt.Messages;
 
+    using static Helpers.Constants;
     using static Settings.MqttSettings;
 
     /// <summary>
@@ -22,23 +23,16 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService, IDisposable
     {
-        private const int MAX_RECONNECT_ATTEMPTS = 20;
-        private const int INITIAL_RECONNECT_DELAY = 5000;
-        private const int MAX_RECONNECT_DELAY = 120000;
-        private const int SENSOR_DATA_INTERVAL = 300000;
-        private const int INTERNET_CHECK_INTERVAL = 30000;
-        private const int DEEP_SLEEP_MINUTES = 5;
-        private const int MAX_TOTAL_ATTEMPTS = 1000;
-        private const int JITTER_BASE = 500;
-        private const int JITTER_RANGE = 1500;
-
         private readonly IConnectionService _connectionService;
         private readonly IInternetConnectionService _internetConnectionService;
         private readonly MqttMessageHandler _mqttMessageHandler;
         private readonly IMqttPublishService _mqttPublishService;
+        private readonly IMqttConnectionManager _connectionManager;
+        private readonly ISensorDataPublisher _sensorDataPublisher;
 
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private readonly object _connectionLock = new object();
+        private readonly object _stateLock = new object();
 
         private bool _isRunning;
         private bool _isConnecting;
@@ -47,30 +41,32 @@
 
         private Thread _connectionThread;
 
-        private readonly MqttConnectionManager _connectionManager;
-        private readonly SensorDataPublisher _sensorDataPublisher;
+        private bool _circuitOpen;
+        private DateTime _circuitResetTime;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MqttClientService"/> class.
+        /// Initializes a new instance of the MqttClientService class.
         /// </summary>
         public MqttClientService(
             IConnectionService connectionService,
             IInternetConnectionService internetConnectionService,
             MqttMessageHandler mqttMessageHandler,
-            IMqttPublishService mqttPublishService)
+            IMqttPublishService mqttPublishService,
+            IMqttConnectionManager connectionManager)
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _internetConnectionService = internetConnectionService ?? throw new ArgumentNullException(nameof(internetConnectionService));
             _mqttMessageHandler = mqttMessageHandler ?? throw new ArgumentNullException(nameof(mqttMessageHandler));
             _mqttPublishService = mqttPublishService ?? throw new ArgumentNullException(nameof(mqttPublishService));
 
-            _connectionManager = new MqttConnectionManager();
+            _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
             _sensorDataPublisher = new SensorDataPublisher(this.SensorDataTimerCallback);
 
             _internetConnectionService.InternetLost += this.OnInternetLost;
             _internetConnectionService.InternetRestored += this.OnInternetRestored;
 
-            _isRunning = true;
+            this.SetIsRunning(true);
+            _circuitOpen = false;
         }
 
         /// <summary>
@@ -79,7 +75,7 @@
         public MqttClient MqttClient => _connectionManager.MqttClient;
 
         /// <summary>
-        /// Starts the MQTT client service by establishing a connection to the MQTT broker.
+        /// Starts the MQTT service by establishing a connection to the broker.
         /// </summary>
         public void Start()
         {
@@ -95,6 +91,17 @@
                 return;
             }
 
+            if (_circuitOpen && DateTime.UtcNow < _circuitResetTime)
+            {
+                LogHelper.LogWarning("Circuit breaker is open. Delaying connection attempts until reset.");
+                return;
+            }
+
+            if (this._circuitOpen)
+            {
+                this._circuitOpen = false;
+            }
+
             if (_internetConnectionService.IsInternetAvailable())
             {
                 _connectionThread = new Thread(this.EstablishBrokerConnection);
@@ -107,11 +114,11 @@
         }
 
         /// <summary>
-        /// Stops the MQTT client service.
+        /// Stops the MQTT service.
         /// </summary>
         public void Stop()
         {
-            _isRunning = false;
+            this.SetIsRunning(false);
             _sensorDataPublisher.Stop();
 
             this.SafeDisconnect();
@@ -125,7 +132,7 @@
         }
 
         /// <summary>
-        /// Disposes resources used by the service
+        /// Disposes the used resources.
         /// </summary>
         public void Dispose()
         {
@@ -139,13 +146,18 @@
             _internetConnectionService.InternetLost -= this.OnInternetLost;
             _internetConnectionService.InternetRestored -= this.OnInternetRestored;
 
-            _stopSignal.Set();
+            if (this.MqttClient != null)
+            {
+                this.MqttClient.ConnectionClosed -= this.ConnectionClosed;
+                this.MqttClient.MqttMsgPublishReceived -= _mqttMessageHandler.HandleIncomingMessage;
+            }
 
             _isDisposed = true;
         }
 
         /// <summary>
-        /// Establishes the connection to the MQTT broker, retrying if necessary.
+        /// Establishes connection to the MQTT broker using an exponential backoff strategy
+        /// and activates a simple circuit breaker if maximum attempts are reached.
         /// </summary>
         private void EstablishBrokerConnection()
         {
@@ -168,7 +180,7 @@
 
                 _connectionService.CheckConnection();
 
-                while (_isRunning && attemptCount < MAX_TOTAL_ATTEMPTS)
+                while (this.GetIsRunning() && attemptCount < MAX_TOTAL_ATTEMPTS)
                 {
                     if (!_internetConnectionService.IsInternetAvailable())
                     {
@@ -197,6 +209,10 @@
                     delayBetweenAttempts = Math.Min(delayBetweenAttempts * 3 / 2, MAX_RECONNECT_DELAY);
                 }
 
+                _circuitOpen = true;
+                _circuitResetTime = DateTime.UtcNow.AddMinutes(5);
+                LogHelper.LogWarning("Max connection attempts reached. Circuit breaker activated.");
+
                 this.HandleMaxAttemptsReached();
             }
             finally
@@ -206,11 +222,35 @@
         }
 
         /// <summary>
-        /// Handles the case when maximum connection attempts are reached
+        /// Checks if the process is currently running by accessing the _isRunning variable in a thread-safe manner.
+        /// </summary>
+        /// <returns>Returns true if the process is running, otherwise false.</returns>
+        private bool GetIsRunning()
+        {
+            lock (_stateLock)
+            {
+                return _isRunning;
+            }
+        }
+
+        /// <summary>
+        /// Sets the running state of the process in a thread-safe manner.
+        /// </summary>
+        /// <param name="value">Indicates whether the process should be in a running state or not.</param>
+        private void SetIsRunning(bool value)
+        {
+            lock (_stateLock)
+            {
+                _isRunning = value;
+            }
+        }
+
+        /// <summary>
+        /// Handles actions when maximum connection attempts are reached – enters deep sleep.
         /// </summary>
         private void HandleMaxAttemptsReached()
         {
-            LogHelper.LogWarning("Max connection attempts reached. Entering deep sleep to conserve power");
+            LogHelper.LogWarning("Entering deep sleep to conserve power");
 
             this.SafeDisconnect();
             _sensorDataPublisher.Stop();
@@ -224,8 +264,8 @@
         }
 
         /// <summary>
-        /// Attempts to connect to the MQTT broker. Checks the internet connection,
-        /// and handles exceptions in the connection process.
+        /// Attempts to connect to the MQTT broker while checking internet connectivity
+        /// and handling exceptions.
         /// </summary>
         private bool AttemptBrokerConnection()
         {
@@ -240,7 +280,7 @@
             {
                 bool isConnected = _connectionManager.Connect(Broker, ClientId, ClientUsername, ClientPassword);
 
-                if (isConnected && MqttClient != null && MqttClient.IsConnected)
+                if (isConnected && this.MqttClient != null && this.MqttClient.IsConnected)
                 {
                     this.InitializeMqttClient();
                     return true;
@@ -249,6 +289,10 @@
             catch (SocketException ex)
             {
                 LogHelper.LogError($"Socket error: {ex.Message}");
+            }
+            catch (NullReferenceException ex)
+            {
+                LogHelper.LogError($"Null reference encountered: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -264,18 +308,21 @@
         /// </summary>
         private void InitializeMqttClient()
         {
-            if (MqttClient == null)
+            if (this.MqttClient == null)
             {
                 LogHelper.LogError("Cannot initialize null MQTT client");
                 return;
             }
 
-            MqttClient.ConnectionClosed += this.ConnectionClosed;
-            MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
-            MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
+            this.MqttClient.ConnectionClosed -= this.ConnectionClosed;
+            this.MqttClient.MqttMsgPublishReceived -= _mqttMessageHandler.HandleIncomingMessage;
 
-            _mqttMessageHandler.SetMqttClient(MqttClient);
-            _mqttPublishService.SetMqttClient(MqttClient);
+            this.MqttClient.ConnectionClosed += this.ConnectionClosed;
+            this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+            this.MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
+
+            _mqttMessageHandler.SetMqttClient(this.MqttClient);
+            _mqttPublishService.SetMqttClient(this.MqttClient);
 
             if (!_isHeartbeatRunning)
             {
@@ -291,8 +338,10 @@
         /// </summary>
         private void SensorDataTimerCallback(object state)
         {
-            if (_isDisposed || !_isRunning)
+            if (_isDisposed || !this.GetIsRunning())
+            {
                 return;
+            }
 
             try
             {
@@ -306,15 +355,15 @@
                 {
                     _mqttPublishService.PublishError($"SensorDataTimer Exception: {ex.Message}");
                 }
-                catch
+                catch (Exception innerEx)
                 {
-                    // Ignore errors when publishing errors
+                    LogHelper.LogError($"Error publishing sensor data error: {innerEx.Message}");
                 }
             }
         }
 
         /// <summary>
-        /// Handles reconnection logic when the connection to the MQTT broker is lost.
+        /// Handles the loss of connection to the MQTT broker and attempts reconnection.
         /// </summary>
         private void ConnectionClosed(object sender, EventArgs e)
         {
@@ -329,7 +378,7 @@
             {
                 if (_internetConnectionService.IsInternetAvailable())
                 {
-                    this.EstablishBrokerConnection();
+                    this.Start();
                 }
                 else
                 {
@@ -339,18 +388,18 @@
         }
 
         /// <summary>
-        /// Starts the MQTT client service when the internet connection is restored.
+        /// Starts the service when internet connectivity is restored.
         /// </summary>
         private void OnInternetRestored(object sender, EventArgs e)
         {
-            if (!_isDisposed && _isRunning)
+            if (!_isDisposed && this.GetIsRunning())
             {
                 this.Start();
             }
         }
 
         /// <summary>
-        /// Stops the sensor data timer when the internet connection is lost.
+        /// Stops sensor data publishing when the internet connection is lost.
         /// </summary>
         private void OnInternetLost(object sender, EventArgs e)
         {
@@ -359,7 +408,7 @@
         }
 
         /// <summary>
-        /// Safely disconnects and disposes of the current MQTT client
+        /// Safely disconnects and disposes of the MQTT client.
         /// </summary>
         private void SafeDisconnect()
         {
@@ -374,19 +423,28 @@
                 {
                     this.MqttClient.Disconnect();
                 }
-
-                this.MqttClient.Dispose();
-                LogHelper.LogInformation("MQTT client disconnected and disposed");
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
+                LogHelper.LogError($"Error while disconnecting MQTT client: {ex.Message}");
             }
             finally
             {
-                _isHeartbeatRunning = false;
-                _mqttPublishService.StopHeartbeat();
-                _connectionManager.Disconnect();
+                try
+                {
+                    this.MqttClient.Dispose();
+                    LogHelper.LogInformation("MQTT client disconnected and disposed");
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
+                }
+                finally
+                {
+                    _isHeartbeatRunning = false;
+                    _mqttPublishService.StopHeartbeat();
+                    _connectionManager.Disconnect();
+                }
             }
         }
     }
