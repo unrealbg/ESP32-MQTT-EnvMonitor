@@ -22,14 +22,6 @@
         private readonly ISensorManager _sensorManager;
         private readonly ITcpListenerService _tcpListenerService;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Startup"/> class.
-        /// </summary>
-        /// <param name="connectionService">Service for managing connections.</param>
-        /// <param name="mqttClient">MQTT client service.</param>
-        /// <param name="sensorManager">Sensor manager.</param>
-        /// <param name="webServerService">WebServer service.</param>
-        /// <param name="tcpListenerService">TCPListener service.</param>"
         public Startup(
             IConnectionService connectionService,
             IMqttClientService mqttClient,
@@ -46,43 +38,66 @@
             LogHelper.LogInformation("Initializing application...");
         }
 
-        /// <summary>
-        /// Runs the application services.
-        /// </summary>
         public void Run()
         {
             try
             {
-                LogHelper.LogInformation("Establishing connection...");
-                _connectionService.Connect();
-
-                LogHelper.LogInformation("Starting sensor manager...");
-                _sensorManager.StartSensor();
-                LogHelper.LogInformation("Sensor manager started.");
-
-                LogHelper.LogInformation("Starting MQTT client...");
-                _mqttClient.Start();
-                LogHelper.LogInformation("MQTT client started.");
-
-                LogHelper.LogInformation("Starting TCPListener service...");
-                _tcpListenerService.Start();
-                LogHelper.LogInformation("TCPListener service started.");
-
-                // Tested only on ESP32-S3
-                if (SystemInfo.TargetName == "ESP32_S3")
-                {
-                    LogHelper.LogInformation("Starting WebServer service...");
-                    _webServerService.Start();
-                    LogHelper.LogInformation("WebServer service started.");
-                }
-                else
-                {
-                    LogHelper.LogWarning($"WebServer service will not be started due to insufficient memory or unsupported platform ({SystemInfo.TargetName}).");
-                }
+                this.EstablishConnection();
+                this.StartServices();
             }
             catch (Exception ex)
             {
-                LogHelper.LogInformation($"An error occurred during startup: {ex.Message}");
+                LogHelper.LogError($"Startup failed: {ex.Message}");
+            }
+        }
+
+        private void EstablishConnection()
+        {
+            LogHelper.LogInformation("Establishing connection...");
+            _connectionService.Connect();
+            LogHelper.LogInformation("Connection established.");
+        }
+
+        private void StartServices()
+        {
+            this.StartSensorManager();
+            this.StartMqttClient();
+            this.StartTcpListener();
+            this.StartWebServerIfPossible();
+        }
+
+        private void StartSensorManager()
+        {
+            LogHelper.LogInformation("Starting sensor manager...");
+            _sensorManager.StartSensor();
+            LogHelper.LogInformation("Sensor manager started.");
+        }
+
+        private void StartMqttClient()
+        {
+            LogHelper.LogInformation("Starting MQTT client...");
+            _mqttClient.Start();
+            LogHelper.LogInformation("MQTT client started.");
+        }
+
+        private void StartTcpListener()
+        {
+            LogHelper.LogInformation("Starting TCPListener service...");
+            _tcpListenerService.Start();
+            LogHelper.LogInformation("TCPListener service started.");
+        }
+
+        private void StartWebServerIfPossible()
+        {
+            if (SystemInfo.TargetName == "ESP32_S3")
+            {
+                LogHelper.LogInformation("Starting WebServer service...");
+                _webServerService.Start();
+                LogHelper.LogInformation("WebServer service started.");
+            }
+            else
+            {
+                LogHelper.LogWarning($"WebServer service not started. Insufficient memory or unsupported platform ({SystemInfo.TargetName}).");
             }
         }
     }
