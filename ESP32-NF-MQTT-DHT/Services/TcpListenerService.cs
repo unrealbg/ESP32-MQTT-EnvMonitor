@@ -36,7 +36,6 @@
         private readonly ISensorService _sensorService;
         private readonly IRelayService _relayService;
         private readonly IConnectionService _connectionService;
-        private readonly NetworkInterface _networkInterface;
 
         private bool _isRunning;
         private Thread _listenerThread;
@@ -55,7 +54,7 @@
             _sensorService = sensorService;
             _relayService = relayService;
             _connectionService = connectionService;
-            _networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
+
             _isRunning = false;
 
             _commandDescriptions.Add("uptime", "Displays the device uptime.");
@@ -71,6 +70,8 @@
             _commandDescriptions.Add("setinterval", "Sets the sensor read interval in milliseconds. Usage: setInterval <milliseconds>");
             _commandDescriptions.Add("relay", "Controls the relay. Usage: relay on|off|status");
             _commandDescriptions.Add("diagnostic", "Displays diagnostic info (free memory).");
+            _commandDescriptions.Add("getlogs", "Retrieves the device logs.");
+            _commandDescriptions.Add("clearlogs", "Clears the device logs.");
             _commandDescriptions.Add("exit", "Exits the session.");
             _commandDescriptions.Add("reboot", "Reboots the device.");
 
@@ -87,7 +88,7 @@
             _listenerThread = new Thread(this.StartTcpListening);
             _listenerThread.Start();
 
-            LogHelper.LogInformation("TCP listener started on " + _networkInterface.IPv4Address + " port " + TcpPort);
+            LogHelper.LogInformation("TCP listener started");
         }
 
         /// <summary>
@@ -105,6 +106,14 @@
             LogHelper.LogInformation("TCP listener stopped");
         }
 
+        private static string GetCurrentIpAddress()
+        {
+            var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
+            var ipAddress = networkInterface.IPv4Address;
+
+            return ipAddress;
+        }
+
         /// <summary>
         /// Main method for listening to incoming connections.
         /// </summary>
@@ -120,7 +129,7 @@
 
                 while (_isRunning)
                 {
-                    LogHelper.LogInformation("Waiting for an incoming connection on " + _networkInterface.IPv4Address + " port " + TcpPort);
+                    LogHelper.LogInformation("Waiting for an incoming connection on " + GetCurrentIpAddress() + " port " + TcpPort);
                     try
                     {
                         // Accept a client connection (synchronously).
@@ -297,7 +306,7 @@
                 _mqttClient.MqttClient.Publish("home/" + DeviceName + "/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
                 return false;
             }));
-            commands.Add("getipaddress", new CommandHandler((args, writer) => { this.WriteToStream(writer, _networkInterface.IPv4Address); return false; }));
+            commands.Add("getipaddress", new CommandHandler((args, writer) => { this.WriteToStream(writer, GetCurrentIpAddress()); return false; }));
             commands.Add("help", new CommandHandler((args, writer) => { this.DisplayHelp(writer); return false; }));
             commands.Add("info", new CommandHandler((args, writer) =>
             {
@@ -305,7 +314,7 @@
                 string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
                 string info = "Device: " + DeviceName + "\r\n" +
                               "Firmware Version: " + versionString + "\r\n" +
-                              "IP: " + _networkInterface.IPv4Address + "\r\n" +
+                              "IP: " + GetCurrentIpAddress() + "\r\n" +
                               "Uptime: " + _uptimeService.GetUptime() + "\r\n" +
                               "Sensor Interval: " + _sensorInterval + " ms";
                 this.WriteToStream(writer, info);
@@ -380,6 +389,18 @@
             {
                 long freeMemory = GC.Run(true);
                 this.WriteToStream(writer, "Free memory: " + freeMemory + " bytes");
+                return false;
+            }));
+            commands.Add("getlogs", new CommandHandler((args, writer) =>
+            {
+                string logs = LogService.ReadLatestLogs();
+                this.WriteToStream(writer, logs);
+                return false;
+            }));
+            commands.Add("clearlogs", new CommandHandler((args, writer) =>
+            {
+                LogService.ClearLogs();
+                this.WriteToStream(writer, "Logs cleared");
                 return false;
             }));
             commands.Add("exit", new CommandHandler((args, writer) => { return true; }));
@@ -573,7 +594,7 @@
                 "\r\n" +
                 "* Device: " + DeviceName + "\r\n" +
                 "* Firmware Version: " + versionString + "\r\n" +
-                "* IP Address: " + _networkInterface.IPv4Address + "\r\n" +
+                "* IP Address: " + GetCurrentIpAddress() + "\r\n" +
                 "\r\n" +
                 "Available commands:\r\n" +
                 " - uptime          : Displays the device uptime.\r\n" +
@@ -586,9 +607,10 @@
                 " - help            : Lists available commands.\r\n" +
                 " - info            : Displays additional device information.\r\n" +
                 " - ping <IP>       : Sends a ping request. (Not supported)\r\n" +
-                " - setInterval <ms>: Sets sensor read interval.\r\n" +
-                " - relay on|off|status : Controls the relay.\r\n" +
+                " - relay on|off    : on|off|status, Controls the relay.\r\n" +
                 " - diagnostic      : Displays diagnostic info (free memory).\r\n" +
+                " - getlogs         : Retrieves the device logs.\r\n" +
+                " - clearlogs       : Clears the device logs.\r\n" +
                 " - exit            : Exits the session.\r\n" +
                 " - reboot          : Reboots the device.\r\n" +
                 "\r\n" +
