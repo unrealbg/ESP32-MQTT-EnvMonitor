@@ -72,6 +72,7 @@
                 catch (Exception ex)
                 {
                     LogHelper.LogError("Error starting web server: " + ex.Message);
+                    LogService.LogCritical("Error starting web server: " + ex.Message);
                 }
             }
         }
