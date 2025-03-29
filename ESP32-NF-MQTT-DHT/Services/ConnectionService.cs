@@ -22,7 +22,7 @@
 
         private readonly WifiAdapter _wifiAdapter;
         private readonly object _connectionLock = new object();
-        private bool _isInitialStart = true;
+        private bool _hasConnectedSuccessfully = false;
         private bool _isConnectionInProgress = false;
         private string _ipAddress;
 
@@ -50,6 +50,17 @@
         /// Event triggered when the connection is lost.
         /// </summary>
         public event EventHandler ConnectionLost;
+
+        /// <summary>
+        /// Gets a value indicating whether the device is currently connected to the network.
+        /// </summary>
+        public bool IsConnected
+        {
+            get
+            {
+                return this.IsAlreadyConnected(out _);
+            }
+        }
 
         /// <summary>
         /// Gets a value indicating whether the connection is in progress.
@@ -132,8 +143,17 @@
                         _isConnectionInProgress = false;
                     }
 
-                    LogHelper.LogInformation($"Connection restored. IP Address: {ip}");
-                    this.RaiseConnectionRestored();
+                    if (_hasConnectedSuccessfully)
+                    {
+                        LogHelper.LogInformation($"Connection restored. IP Address: {ip}");
+                        this.RaiseConnectionRestored();
+                    }
+                    else
+                    {
+                        LogHelper.LogInformation($"Connection established after retry. IP Address: {ip}");
+                        _hasConnectedSuccessfully = true;
+                    }
+
                     break;
                 }
 
@@ -241,10 +261,10 @@
         {
             _ipAddress = ipAddress;
 
-            if (_isInitialStart)
+            if (!_hasConnectedSuccessfully)
             {
                 LogHelper.LogInformation($"Connection established. IP address: {ipAddress}");
-                _isInitialStart = false;
+                _hasConnectedSuccessfully = true;
             }
             else
             {
