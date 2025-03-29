@@ -17,6 +17,11 @@
         bool IsConnectionInProgress { get; }
 
         /// <summary>
+        /// Indicates whether a connection is currently established. Returns true if connected, otherwise false.
+        /// </summary>
+        bool IsConnected { get; }
+
+        /// <summary>
         /// Initiates a connection to the network.
         /// </summary>
         void Connect();

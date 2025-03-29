@@ -38,8 +38,17 @@
         private bool _isConnecting;
         private bool _isHeartbeatRunning;
         private bool _isDisposed;
+        private bool _isWifiConnected = true;
+
+        private EventHandler _internetLostHandler;
+        private EventHandler _internetRestoredHandler;
+        private EventHandler _connectionLostHandler;
+        private EventHandler _connectionRestoredHandler;
+
 
         private Thread _connectionThread;
+
+        private readonly Random _random = new Random();
 
         private bool _circuitOpen;
         private DateTime _circuitResetTime;
@@ -62,8 +71,15 @@
             _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
             _sensorDataPublisher = new SensorDataPublisher(this.SensorDataTimerCallback);
 
-            _internetConnectionService.InternetLost += this.OnInternetLost;
-            _internetConnectionService.InternetRestored += this.OnInternetRestored;
+            _internetLostHandler = (s, e) => this.OnConnectivityChanged(s, false, "Internet");
+            _internetRestoredHandler = (s, e) => this.OnConnectivityChanged(s, true, "Internet");
+            _connectionLostHandler = (s, e) => this.OnConnectivityChanged(s, false, "WiFi");
+            _connectionRestoredHandler = (s, e) => this.OnConnectivityChanged(s, true, "WiFi");
+
+            _internetConnectionService.InternetLost += _internetLostHandler;
+            _internetConnectionService.InternetRestored += _internetRestoredHandler;
+            _connectionService.ConnectionLost += _connectionLostHandler;
+            _connectionService.ConnectionRestored += _connectionRestoredHandler;
 
             this.SetIsRunning(true);
             _circuitOpen = false;
@@ -104,8 +120,15 @@
 
             if (_internetConnectionService.IsInternetAvailable())
             {
-                _connectionThread = new Thread(this.EstablishBrokerConnection);
-                _connectionThread.Start();
+                if (_connectionThread == null || !_connectionThread.IsAlive)
+                {
+                    _connectionThread = new Thread(this.EstablishBrokerConnection);
+                    _connectionThread.Start();
+                }
+                else
+                {
+                    LogHelper.LogInformation("Connection thread already running");
+                }
             }
             else
             {
@@ -129,6 +152,8 @@
             {
                 _connectionThread.Join(1000);
             }
+
+            _connectionThread = null;
         }
 
         /// <summary>
@@ -143,8 +168,10 @@
 
             this.Stop();
 
-            _internetConnectionService.InternetLost -= this.OnInternetLost;
-            _internetConnectionService.InternetRestored -= this.OnInternetRestored;
+            _internetConnectionService.InternetLost -= _internetLostHandler;
+            _internetConnectionService.InternetRestored -= _internetRestoredHandler;
+            _connectionService.ConnectionLost -= _connectionLostHandler;
+            _connectionService.ConnectionRestored -= _connectionRestoredHandler;
 
             if (this.MqttClient != null)
             {
@@ -176,9 +203,10 @@
             {
                 int attemptCount = 0;
                 int delayBetweenAttempts = INITIAL_RECONNECT_DELAY;
-                Random random = new Random();
 
                 _connectionService.CheckConnection();
+
+                LogHelper.LogInformation("Checking internet connection before broker connection.");
 
                 while (this.GetIsRunning() && attemptCount < MAX_TOTAL_ATTEMPTS)
                 {
@@ -203,7 +231,7 @@
                         LogHelper.LogInformation($"Attempt {attemptCount}/{MAX_TOTAL_ATTEMPTS}. Retry in {delayBetweenAttempts / 1000}s");
                     }
 
-                    int jitter = random.Next(JITTER_RANGE) + JITTER_BASE;
+                    int jitter = _random.Next(JITTER_RANGE) + JITTER_BASE;
                     _stopSignal.WaitOne(delayBetweenAttempts + jitter, false);
 
                     delayBetweenAttempts = Math.Min(delayBetweenAttempts * 3 / 2, MAX_RECONNECT_DELAY);
@@ -289,14 +317,17 @@
             catch (SocketException ex)
             {
                 LogHelper.LogError($"Socket error: {ex.Message}");
+                LogService.LogCritical($"Socket error: {ex.Message}");
             }
             catch (NullReferenceException ex)
             {
                 LogHelper.LogError($"Null reference encountered: {ex.Message}");
+                LogService.LogCritical($"Null reference encountered: {ex.Message}");
             }
             catch (Exception ex)
             {
                 LogHelper.LogError($"MQTT connect error: {ex.Message}");
+                LogService.LogCritical($"MQTT connect error: {ex.Message}");
             }
 
             this.SafeDisconnect();
@@ -359,6 +390,61 @@
                 {
                     LogHelper.LogError($"Error publishing sensor data error: {innerEx.Message}");
                 }
+
+                LogService.LogCritical($"SensorDataTimer Exception: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles changes in connectivity, logging the status and managing the connection state accordingly.
+        /// </summary>
+        /// <param name="sender">Indicates the origin of the connectivity change event.</param>
+        /// <param name="isRestored">Indicates whether the connectivity has been restored.</param>
+        /// <param name="source">Specifies the source of the connectivity change.</param>
+        private void OnConnectivityChanged(object sender, bool isRestored, string source)
+        {
+            if (source == "WiFi")
+            {
+                _isWifiConnected = isRestored;
+
+                if (isRestored)
+                {
+                    LogHelper.LogInformation("WiFi restored.");
+                    if (_internetConnectionService.IsInternetAvailable())
+                    {
+                        this.Start();
+                    }
+                    else
+                    {
+                        LogHelper.LogWarning("WiFi restored, but no internet yet.");
+                    }
+                }
+                else
+                {
+                    LogHelper.LogWarning("WiFi lost.");
+                    this.SafeDisconnect();
+                    _sensorDataPublisher.Stop();
+                }
+            }
+            else if (source == "Internet")
+            {
+                if (!_isWifiConnected)
+                {
+                    LogHelper.LogInformation("WiFi not connected, waiting for restoration...");
+                    return;
+                }
+
+                if (isRestored)
+                {
+                    LogHelper.LogInformation("Internet restored.");
+                    this.Start();
+                }
+                else
+                {
+                    LogHelper.LogWarning("Internet lost.");
+                    this.SafeDisconnect();
+                    _sensorDataPublisher.Stop();
+                }
             }
         }
 
@@ -388,26 +474,6 @@
         }
 
         /// <summary>
-        /// Starts the service when internet connectivity is restored.
-        /// </summary>
-        private void OnInternetRestored(object sender, EventArgs e)
-        {
-            if (!_isDisposed && this.GetIsRunning())
-            {
-                this.Start();
-            }
-        }
-
-        /// <summary>
-        /// Stops sensor data publishing when the internet connection is lost.
-        /// </summary>
-        private void OnInternetLost(object sender, EventArgs e)
-        {
-            this.SafeDisconnect();
-            _sensorDataPublisher.Stop();
-        }
-
-        /// <summary>
         /// Safely disconnects and disposes of the MQTT client.
         /// </summary>
         private void SafeDisconnect()
@@ -427,6 +493,7 @@
             catch (Exception ex)
             {
                 LogHelper.LogError($"Error while disconnecting MQTT client: {ex.Message}");
+                LogService.LogCritical($"Error while disconnecting MQTT client: {ex.Message}");
             }
             finally
             {
@@ -438,6 +505,7 @@
                 catch (Exception ex)
                 {
                     LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
+                    LogService.LogCritical($"Error while disposing MQTT client: {ex.Message}");
                 }
                 finally
                 {
