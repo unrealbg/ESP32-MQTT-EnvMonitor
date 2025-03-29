@@ -179,6 +179,7 @@
                 Random random = new Random();
 
                 _connectionService.CheckConnection();
+                LogHelper.LogInformation("Checking internet connection before broker connection.");
 
                 while (this.GetIsRunning() && attemptCount < MAX_TOTAL_ATTEMPTS)
                 {
@@ -289,14 +290,17 @@
             catch (SocketException ex)
             {
                 LogHelper.LogError($"Socket error: {ex.Message}");
+                LogService.LogCritical($"Socket error: {ex.Message}");
             }
             catch (NullReferenceException ex)
             {
                 LogHelper.LogError($"Null reference encountered: {ex.Message}");
+                LogService.LogCritical($"Null reference encountered: {ex.Message}");
             }
             catch (Exception ex)
             {
                 LogHelper.LogError($"MQTT connect error: {ex.Message}");
+                LogService.LogCritical($"MQTT connect error: {ex.Message}");
             }
 
             this.SafeDisconnect();
@@ -359,6 +363,8 @@
                 {
                     LogHelper.LogError($"Error publishing sensor data error: {innerEx.Message}");
                 }
+
+                LogService.LogCritical($"SensorDataTimer Exception: {ex.Message}");
             }
         }
 
@@ -427,6 +433,7 @@
             catch (Exception ex)
             {
                 LogHelper.LogError($"Error while disconnecting MQTT client: {ex.Message}");
+                LogService.LogCritical($"Error while disconnecting MQTT client: {ex.Message}");
             }
             finally
             {
@@ -438,6 +445,7 @@
                 catch (Exception ex)
                 {
                     LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
+                    LogService.LogCritical($"Error while disposing MQTT client: {ex.Message}");
                 }
                 finally
                 {
