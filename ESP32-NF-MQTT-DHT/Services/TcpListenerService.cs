@@ -84,6 +84,12 @@
         /// </summary>
         public void Start()
         {
+            if (_isRunning)
+            {
+                LogHelper.LogInformation("TCP Listener already running");
+                return;
+            }
+
             _isRunning = true;
             _listenerThread = new Thread(this.StartTcpListening);
             _listenerThread.Start();
