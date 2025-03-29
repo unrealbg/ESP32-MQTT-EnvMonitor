@@ -142,7 +142,6 @@
                         {
                             using (NetworkStream stream = client.GetStream())
                             {
-                                // Проверка дали потокът е достъпен
                                 if (!stream.CanRead || !stream.CanWrite)
                                 {
                                     LogHelper.LogError("Stream not properly accessible");
@@ -202,6 +201,7 @@
             catch (Exception initEx)
             {
                 LogHelper.LogError("Fatal error in TCP listener: " + initEx.Message);
+                LogService.LogCritical("Fatal error in TCP listener: " + initEx.Message);
             }
             finally
             {
@@ -275,6 +275,7 @@
                 catch (Exception ex)
                 {
                     LogHelper.LogError("Authentication error: " + ex.Message);
+                    LogService.LogCritical("Authentication error: " + ex.Message);
                     return false;
                 }
             }
@@ -520,6 +521,7 @@
                 catch (Exception ex)
                 {
                     LogHelper.LogError("Exception during command processing: " + ex.Message);
+                    LogService.LogCritical("Exception during command processing: " + ex.Message);
                     break;
                 }
             }
@@ -563,6 +565,7 @@
             catch (Exception ex)
             {
                 LogHelper.LogError("Error writing to stream: " + ex.Message);
+                LogService.LogCritical("Error writing to stream: " + ex.Message);
             }
         }
 
@@ -579,6 +582,7 @@
             catch (Exception ex)
             {
                 LogHelper.LogError("Error writing inline to stream: " + ex.Message);
+                LogService.LogCritical("Error writing inline to stream: " + ex.Message);
             }
         }
 
