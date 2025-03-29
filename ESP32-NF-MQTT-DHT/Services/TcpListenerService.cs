@@ -35,6 +35,7 @@
         private readonly IMqttClientService _mqttClient;
         private readonly ISensorService _sensorService;
         private readonly IRelayService _relayService;
+        private readonly IConnectionService _connectionService;
         private readonly NetworkInterface _networkInterface;
 
         private bool _isRunning;
@@ -47,12 +48,13 @@
         /// <summary>
         /// Initializes a new instance of the TcpListenerService class.
         /// </summary>
-        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService, IRelayService relayService)
+        public TcpListenerService(IUptimeService uptimeService, IMqttClientService mqttClient, ISensorService sensorService, IRelayService relayService, IConnectionService connectionService)
         {
             _uptimeService = uptimeService;
             _mqttClient = mqttClient;
             _sensorService = sensorService;
             _relayService = relayService;
+            _connectionService = connectionService;
             _networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
             _isRunning = false;
 
@@ -71,6 +73,9 @@
             _commandDescriptions.Add("diagnostic", "Displays diagnostic info (free memory).");
             _commandDescriptions.Add("exit", "Exits the session.");
             _commandDescriptions.Add("reboot", "Reboots the device.");
+
+            _connectionService.ConnectionLost += this.ConnectionLost;
+            _connectionService.ConnectionRestored += this.ConnectionRestored;
         }
 
         /// <summary>
@@ -81,6 +86,8 @@
             _isRunning = true;
             _listenerThread = new Thread(this.StartTcpListening);
             _listenerThread.Start();
+
+            LogHelper.LogInformation("TCP listener started on " + _networkInterface.IPv4Address + " port " + TcpPort);
         }
 
         /// <summary>
@@ -94,6 +101,8 @@
             {
                 _listenerThread.Join();
             }
+
+            LogHelper.LogInformation("TCP listener stopped");
         }
 
         /// <summary>
@@ -585,6 +594,16 @@
                 "\r\n" +
                 "Type a command:";
             this.WriteToStream(sw, welcomeMessage);
+        }
+
+        private void ConnectionRestored(object sender, EventArgs e)
+        {
+            this.Start();
+        }
+
+        private void ConnectionLost(object sender, EventArgs e)
+        {
+            this.Stop();
         }
     }
 }
