@@ -1,14 +1,13 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
+    using System;
+    using System.Device.Wifi;
+    using System.Net.NetworkInformation;
+    using System.Threading;
+
     using Contracts;
 
     using Helpers;
-
-    using System;
-    using System.Device.Wifi;
-    using System.Net;
-    using System.Net.NetworkInformation;
-    using System.Threading;
 
     using static Settings.WifiSettings;
 
@@ -131,6 +130,7 @@
                         _ipAddress = ip;
                         _isConnectionInProgress = false;
                     }
+
                     LogHelper.LogInformation($"Connection restored. IP Address: {ip}");
                     this.RaiseConnectionRestored();
                     break;
