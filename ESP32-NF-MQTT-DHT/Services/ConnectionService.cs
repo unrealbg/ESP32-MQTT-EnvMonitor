@@ -113,6 +113,7 @@
                     catch (Exception ex)
                     {
                         LogHelper.LogError($"Connection error: {ex.Message}");
+                        LogService.LogCritical($"Socket error: {ex.Message}");
                     }
 
                     Thread.Sleep(RECONNECT_DELAY_MS);
