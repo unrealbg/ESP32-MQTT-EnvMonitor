@@ -28,7 +28,7 @@ namespace ESP32_NF_MQTT_DHT
             try
             {
                 // Set the sensor type to use.
-                SensorType sensorType = SensorType.DHT;
+                SensorType sensorType = SensorType.SHTC3;
 
                 var services = ConfigureServices(sensorType);
                 var application = services.GetService(typeof(Startup)) as Startup;
@@ -38,6 +38,7 @@ namespace ESP32_NF_MQTT_DHT
             catch (Exception ex)
             {
                 LogHelper.LogError($"An error occurred: {ex.Message}");
+                LogService.LogCritical("Critical error in Main", ex);
             }
         }
 
