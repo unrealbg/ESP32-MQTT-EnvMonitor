@@ -5,6 +5,7 @@
 - [Requirements](#requirements)
 - [Setup](#setup)
 - [Usage](#usage)
+- [Remote Management](#remote-management-tcp-listener--mqtt-commands)
 - [Troubleshooting](#troubleshooting)
 - [WebServer with API Endpoints](#webserver-with-api-endpoints)
 - [Index Page](#index-page)
