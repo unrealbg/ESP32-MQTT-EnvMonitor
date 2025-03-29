@@ -1,11 +1,15 @@
 namespace ESP32_NF_MQTT_DHT
 {
     using System;
+    using System.Threading;
 
     using ESP32_NF_MQTT_DHT.Extensions;
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Services;
 
     using Microsoft.Extensions.DependencyInjection;
+
+    using GC = nanoFramework.Runtime.Native.GC;
 
     /// <summary>
     /// Main program class.
@@ -17,6 +21,10 @@ namespace ESP32_NF_MQTT_DHT
         /// </summary>
         public static void Main()
         {
+#if DEBUG
+            new Thread(MemoryMonitor).Start();
+#endif
+
             try
             {
                 // Set the sensor type to use.
@@ -47,6 +55,17 @@ namespace ESP32_NF_MQTT_DHT
 
             var serviceProvider = services.BuildServiceProvider();
             return serviceProvider;
+        }
+
+        private static void MemoryMonitor()
+        {
+            while (true)
+            {
+                long totalMemory = GC.Run(true);
+                LogHelper.LogInformation($"[MemoryMonitor] Total unused memory: {totalMemory} bytes");
+
+                Thread.Sleep(60000);
+            }
         }
     }
 }
