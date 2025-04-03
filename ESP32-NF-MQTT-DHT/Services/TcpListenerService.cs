@@ -1,19 +1,20 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
+    using Contracts;
+
+    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using nanoFramework.Runtime.Native;
+
     using System;
     using System.Collections;
+    using System.Diagnostics;
     using System.IO;
     using System.Net;
     using System.Net.NetworkInformation;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
-
-    using Contracts;
-
-    using ESP32_NF_MQTT_DHT.Helpers;
-
-    using nanoFramework.Runtime.Native;
 
     using static Settings.DeviceSettings;
     using static Settings.TcpSettings;
@@ -319,11 +320,24 @@
             {
                 Version firmwareVersion = SystemInfo.Version;
                 string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
-                string info = "Device: " + DeviceName + "\r\n" +
-                              "Firmware Version: " + versionString + "\r\n" +
-                              "IP: " + GetCurrentIpAddress() + "\r\n" +
-                              "Uptime: " + _uptimeService.GetUptime() + "\r\n" +
-                              "Sensor Interval: " + _sensorInterval + " ms";
+                string processor = SystemInfo.OEMString;
+                string familyName = SystemInfo.TargetName;
+                uint freeMemory = GC.Run(false);
+
+                var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
+                string ip = networkInterface.IPv4Address;
+                string mac = BitConverter.ToString(networkInterface.PhysicalAddress);
+
+                string info = $"Device: {DeviceName}\r\n" +
+                              $"Firmware Version: {versionString}\r\n" +
+                              $"Platform: {SystemInfo.Platform}\r\n" +
+                              $"Family: {familyName}\r\n" +
+                              $"CPU: {processor}\r\n" +
+                              $"Free RAM: {freeMemory} bytes\r\n" +
+                              $"IP: {ip}\r\n" +
+                              $"MAC: {mac}\r\n" +
+                              $"Uptime: {_uptimeService.GetUptime()}\r\n" +
+                              $"Sensor Interval: {_sensorInterval} ms";
                 this.WriteToStream(writer, info);
                 return false;
             }));
