@@ -1,20 +1,19 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
-    using Contracts;
-
-    using ESP32_NF_MQTT_DHT.Helpers;
-
-    using nanoFramework.Runtime.Native;
-
     using System;
     using System.Collections;
-    using System.Diagnostics;
     using System.IO;
     using System.Net;
     using System.Net.NetworkInformation;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
+
+    using Contracts;
+
+    using ESP32_NF_MQTT_DHT.Helpers;
+
+    using nanoFramework.Runtime.Native;
 
     using static Settings.DeviceSettings;
     using static Settings.TcpSettings;
