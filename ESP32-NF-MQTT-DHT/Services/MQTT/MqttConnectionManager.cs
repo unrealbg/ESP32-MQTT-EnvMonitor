@@ -38,8 +38,8 @@
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"Error connecting to MQTT broker: {ex.Message}");
-                LogService.LogCritical($"Error connecting to MQTT broker: {ex.Message}", ex);
+                LogHelper.LogError($"{LogMessages.ErrorConnectingToBroker} {ex.Message}");
+                LogService.LogCritical($"{LogMessages.ErrorConnectingToBroker} {ex.Message}");
             }
 
             return false;
