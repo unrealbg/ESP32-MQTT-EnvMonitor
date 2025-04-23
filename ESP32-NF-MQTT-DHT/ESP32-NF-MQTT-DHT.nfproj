@@ -31,8 +31,10 @@
     <Compile Include="ExtensionAttribute.cs" />
     <Compile Include="Services\LedIndicatorService.cs" />
     <Compile Include="Services\LogService.cs" />
+    <Compile Include="Services\MQTT\CircuitBreaker.cs" />
     <Compile Include="Services\MQTT\Contracts\IMqttConnectionManager.cs" />
     <Compile Include="Services\MQTT\Contracts\ISensorDataPublisher.cs" />
+    <Compile Include="Services\MQTT\ReconnectStrategy.cs" />
     <Compile Include="Services\Sensors\Aht20Bmp280SensorService.cs" />
     <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Helpers\Constants.cs" />
