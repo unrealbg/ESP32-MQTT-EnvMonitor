@@ -30,6 +30,9 @@
         private readonly IMqttConnectionManager _connectionManager;
         private readonly ISensorDataPublisher _sensorDataPublisher;
 
+        private readonly CircuitBreaker _circuitBreaker = new CircuitBreaker();
+        private readonly ReconnectStrategy _reconnectStrategy = new ReconnectStrategy(INITIAL_RECONNECT_DELAY, MAX_RECONNECT_DELAY);
+
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private readonly object _connectionLock = new object();
         private readonly object _stateLock = new object();
@@ -45,13 +48,9 @@
         private EventHandler _connectionLostHandler;
         private EventHandler _connectionRestoredHandler;
 
-
         private Thread _connectionThread;
 
         private readonly Random _random = new Random();
-
-        private bool _circuitOpen;
-        private DateTime _circuitResetTime;
 
         /// <summary>
         /// Initializes a new instance of the MqttClientService class.
@@ -82,7 +81,6 @@
             _connectionService.ConnectionRestored += _connectionRestoredHandler;
 
             this.SetIsRunning(true);
-            _circuitOpen = false;
         }
 
         /// <summary>
@@ -107,15 +105,19 @@
                 return;
             }
 
-            if (_circuitOpen && DateTime.UtcNow < _circuitResetTime)
+            if (_circuitBreaker.IsOpen)
             {
                 LogHelper.LogWarning("Circuit breaker is open. Delaying connection attempts until reset.");
                 return;
             }
 
-            if (this._circuitOpen)
+            _circuitBreaker.Close();
+
+
+            if (!_connectionService.IsConnected)
             {
-                this._circuitOpen = false;
+                LogHelper.LogWarning("WiFi not connected. Waiting for WiFi before checking Internet...");
+                return;
             }
 
             if (_internetConnectionService.IsInternetAvailable())
@@ -234,11 +236,10 @@
                     int jitter = _random.Next(JITTER_RANGE) + JITTER_BASE;
                     _stopSignal.WaitOne(delayBetweenAttempts + jitter, false);
 
-                    delayBetweenAttempts = Math.Min(delayBetweenAttempts * 3 / 2, MAX_RECONNECT_DELAY);
+                    delayBetweenAttempts = _reconnectStrategy.GetNextDelay(delayBetweenAttempts);
                 }
 
-                _circuitOpen = true;
-                _circuitResetTime = DateTime.UtcNow.AddMinutes(5);
+                _circuitBreaker.Open(TimeSpan.FromMinutes(5));
                 LogHelper.LogWarning("Max connection attempts reached. Circuit breaker activated.");
 
                 this.HandleMaxAttemptsReached();
@@ -428,9 +429,22 @@
             }
             else if (source == "Internet")
             {
-                if (!_isWifiConnected)
+                if (!_connectionService.IsConnected)
                 {
-                    LogHelper.LogInformation("WiFi not connected, waiting for restoration...");
+                    LogHelper.LogInformation("WiFi not connected, checking WiFi state explicitly...");
+                    _connectionService.CheckConnection();
+
+                    if (_connectionService.IsConnected)
+                    {
+                        _isWifiConnected = true;
+                        LogHelper.LogInformation("WiFi is now detected as connected, starting MQTT...");
+                        this.Start();
+                    }
+                    else
+                    {
+                        LogHelper.LogWarning("WiFi still disconnected after explicit check.");
+                    }
+
                     return;
                 }
 
