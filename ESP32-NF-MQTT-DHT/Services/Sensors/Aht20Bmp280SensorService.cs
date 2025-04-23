@@ -3,7 +3,6 @@
     using System.Device.I2c;
 
     using ESP32_NF_MQTT_DHT.Helpers;
-    using ESP32_NF_MQTT_DHT.Services.Contracts;
 
     using Iot.Device.Ahtxx;
     using Iot.Device.Bmxx80;
