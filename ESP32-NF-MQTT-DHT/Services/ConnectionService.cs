@@ -1,13 +1,14 @@
 ﻿namespace ESP32_NF_MQTT_DHT.Services
 {
-    using System;
-    using System.Device.Wifi;
-    using System.Net.NetworkInformation;
-    using System.Threading;
-
     using Contracts;
 
     using Helpers;
+
+    using System;
+    using System.Device.Wifi;
+    using System.Net;
+    using System.Net.NetworkInformation;
+    using System.Threading;
 
     using static Settings.WifiSettings;
 
@@ -20,21 +21,25 @@
         private const int RECONNECT_DELAY_MS = 10000;
         private const int CONNECTION_CHECK_INTERVAL_MS = 200;
 
+        private readonly WifiAdapter _wifiAdapter;
         private readonly object _connectionLock = new object();
         private bool _hasConnectedSuccessfully = false;
         private bool _isConnectionInProgress = false;
         private string _ipAddress;
-        private WifiAdapter _wifiAdapter;
-        private Thread _connectionThread;
-        private bool _connectionThreadActive = false;
-        private readonly ManualResetEvent _stopConnectionRequest = new ManualResetEvent(false);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionService"/> class.
         /// </summary>
         public ConnectionService()
         {
-            InitializeWifiAdapter();
+            try
+            {
+                _wifiAdapter = WifiAdapter.FindAllAdapters()[0];
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError($"Failed to initialize WiFi adapter: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -50,7 +55,13 @@
         /// <summary>
         /// Gets a value indicating whether the device is currently connected to the network.
         /// </summary>
-        public bool IsConnected => IsAlreadyConnected(out _);
+        public bool IsConnected
+        {
+            get
+            {
+                return this.IsAlreadyConnected(out _);
+            }
+        }
 
         /// <summary>
         /// Gets a value indicating whether the connection is in progress.
@@ -71,12 +82,13 @@
         /// </summary>
         public void Connect()
         {
-            if (_wifiAdapter == null && !InitializeWifiAdapter())
+            if (_wifiAdapter == null)
             {
+                LogHelper.LogError("Cannot connect: WiFi adapter not available");
                 return;
             }
 
-            if (IsAlreadyConnected(out var currentIp))
+            if (this.IsAlreadyConnected(out var currentIp))
             {
                 LogHelper.LogInformation($"Already connected. IP: {currentIp}");
                 return;
@@ -84,21 +96,78 @@
 
             lock (_connectionLock)
             {
-                if (_isConnectionInProgress && _connectionThreadActive)
+                _isConnectionInProgress = true;
+            }
+
+            while (!this.IsAlreadyConnected(out _))
+            {
+                int attemptCount = 0;
+                bool connected = false;
+
+                while (!this.IsAlreadyConnected(out string ipAddress) && attemptCount < MAX_CONNECTION_ATTEMPTS)
                 {
-                    LogHelper.LogDebug("Connection attempt already in progress");
-                    return;
+                    attemptCount++;
+                    LogHelper.LogInformation($"Connecting... [Attempt {attemptCount}/{MAX_CONNECTION_ATTEMPTS}]");
+
+                    try
+                    {
+                        var result = _wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
+
+                        if (this.TryWaitForConnection(result, out ipAddress))
+                        {
+                            this.HandleSuccessfulConnection(ipAddress);
+                            connected = true;
+                            break;
+                        }
+
+                        LogHelper.LogWarning($"{this.GetErrorMessage(result.ConnectionStatus)}. Retrying in {RECONNECT_DELAY_MS / 1000} seconds...");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.LogError($"Connection error: {ex.Message}");
+                        LogService.LogCritical($"Socket error: {ex.Message}");
+                    }
+
+                    Thread.Sleep(RECONNECT_DELAY_MS);
                 }
 
-                _stopConnectionRequest.Set();
-                Thread.Sleep(100);
-                _stopConnectionRequest.Reset();
+                if (connected)
+                {
+                    break;
+                }
 
-                _isConnectionInProgress = true;
-                _connectionThreadActive = true;
-                _connectionThread = new Thread(ConnectionThreadWorker);
-                _connectionThread.Start();
-                LogHelper.LogDebug("Started new connection thread");
+                if (this.IsAlreadyConnected(out string ip))
+                {
+                    lock (_connectionLock)
+                    {
+                        _ipAddress = ip;
+                        _isConnectionInProgress = false;
+                    }
+
+                    if (_hasConnectedSuccessfully)
+                    {
+                        LogHelper.LogInformation($"Connection restored. IP Address: {ip}");
+                        this.RaiseConnectionRestored();
+                    }
+                    else
+                    {
+                        LogHelper.LogInformation($"Connection established after retry. IP Address: {ip}");
+                        _hasConnectedSuccessfully = true;
+                    }
+
+                    break;
+                }
+
+                LogHelper.LogError($"Failed to connect after {MAX_CONNECTION_ATTEMPTS} attempts. Sleeping for 1 minute before retrying...");
+                Thread.Sleep(60000);
+
+                if (this.IsAlreadyConnected(out ip))
+                {
+                    _ipAddress = ip;
+                    LogHelper.LogInformation($"Connection restored. IP Address: {ip}");
+                    this.RaiseConnectionRestored();
+                    _isConnectionInProgress = false;
+                }
             }
         }
 
@@ -107,20 +176,17 @@
         /// </summary>
         public void CheckConnection()
         {
-            lock (_connectionLock)
+            if (_isConnectionInProgress)
             {
-                if (_isConnectionInProgress)
-                {
-                    LogHelper.LogDebug("Connection attempt already in progress");
-                    return;
-                }
+                return; // Don't start another connection attempt if one is already in progress
             }
 
-            if (!IsAlreadyConnected(out _))
+            if (!this.IsAlreadyConnected(out _))
             {
-                RaiseConnectionLost();
+                _isConnectionInProgress = true;
+                this.RaiseConnectionLost();
                 LogHelper.LogWarning("Lost network connection. Attempting to reconnect...");
-                Connect();
+                this.Connect();
             }
         }
 
@@ -132,7 +198,7 @@
         {
             if (string.IsNullOrEmpty(_ipAddress) || _ipAddress == "0.0.0.0")
             {
-                if (IsAlreadyConnected(out string currentIp))
+                if (this.IsAlreadyConnected(out string currentIp))
                 {
                     _ipAddress = currentIp;
                 }
@@ -146,110 +212,6 @@
         }
 
         /// <summary>
-        /// Stops any ongoing connection attempts.
-        /// </summary>
-        public void StopConnectionAttempts()
-        {
-            _stopConnectionRequest.Set();
-            lock (_connectionLock)
-            {
-                _isConnectionInProgress = false;
-            }
-            LogHelper.LogDebug("Connection attempts stopped");
-        }
-
-        /// <summary>
-        /// Thread worker method for handling Wi-Fi connection attempts.
-        /// </summary>
-        private void ConnectionThreadWorker()
-        {
-            try
-            {
-                int attemptCount = 0;
-                bool connected = false;
-
-                LogHelper.LogDebug("Connection thread started");
-
-                while (!connected && !_stopConnectionRequest.WaitOne(0, false))
-                {
-                    Thread.Sleep(500);
-
-                    if (IsAlreadyConnected(out string ipAddress))
-                    {
-                        HandleSuccessfulConnection(ipAddress);
-                        connected = true;
-                        break;
-                    }
-
-                    while (!connected && attemptCount < MAX_CONNECTION_ATTEMPTS && !_stopConnectionRequest.WaitOne(0, false))
-                    {
-                        attemptCount++;
-                        LogHelper.LogInformation($"Connecting... [Attempt {attemptCount}/{MAX_CONNECTION_ATTEMPTS}]");
-
-                        try
-                        {
-                            var result = _wifiAdapter.Connect(SSID, WifiReconnectionKind.Automatic, Password);
-
-                            if (TryWaitForConnection(result, out string ipAddressTry))
-                            {
-                                HandleSuccessfulConnection(ipAddressTry);
-                                connected = true;
-                                break;
-                            }
-
-                            LogHelper.LogWarning($"{GetErrorMessage(result.ConnectionStatus)}. Retrying in {RECONNECT_DELAY_MS / 1000} seconds...");
-                        }
-                        catch (Exception ex)
-                        {
-                            LogHelper.LogError($"Connection error: {ex.Message}");
-                        }
-
-                        for (int i = 0; i < RECONNECT_DELAY_MS / 500 && !_stopConnectionRequest.WaitOne(0, false); i++)
-                        {
-                            Thread.Sleep(500);
-                            if (IsAlreadyConnected(out string ipWhileWaiting))
-                            {
-                                HandleSuccessfulConnection(ipWhileWaiting);
-                                connected = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!connected)
-                    {
-                        LogHelper.LogError("Failed to connect after maximum attempts. Waiting passively for WiFi...");
-
-                        for (int i = 0; i < 30 && !_stopConnectionRequest.WaitOne(0, false); i++)
-                        {
-                            Thread.Sleep(2000);
-                            if (IsAlreadyConnected(out string ipDuringWait))
-                            {
-                                HandleSuccessfulConnection(ipDuringWait);
-                                connected = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogHelper.LogError($"Error in connection thread: {ex.Message}");
-            }
-            finally
-            {
-                lock (_connectionLock)
-                {
-                    _connectionThreadActive = false;
-                    _isConnectionInProgress = false;
-                }
-
-                LogHelper.LogDebug("Connection thread completed");
-            }
-        }
-
-        /// <summary>
         /// Checks if the device is already connected to the network.
         /// </summary>
         /// <param name="ipAddress">The IP address of the device if connected.</param>
@@ -257,14 +219,12 @@
         private bool IsAlreadyConnected(out string ipAddress)
         {
             ipAddress = null;
+
             try
             {
-                var interfaces = NetworkInterface.GetAllNetworkInterfaces();
-                if (interfaces.Length == 0) return false;
-
-                var netInterface = interfaces[0];
-                ipAddress = netInterface.IPv4Address;
-                return !string.IsNullOrEmpty(ipAddress) && ipAddress != "0.0.0.0" && ipAddress != "0";
+                var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
+                ipAddress = networkInterface.IPv4Address;
+                return !(string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0");
             }
             catch (Exception ex)
             {
@@ -282,18 +242,23 @@
         private bool TryWaitForConnection(WifiConnectionResult result, out string ipAddress)
         {
             ipAddress = null;
-            if (result.ConnectionStatus != WifiConnectionStatus.Success) return false;
 
-            for (int i = 0; i < MAX_CONNECTION_ATTEMPTS && !_stopConnectionRequest.WaitOne(0, false); i++)
+            if (result.ConnectionStatus != WifiConnectionStatus.Success)
             {
-                if (IsAlreadyConnected(out string currentIp))
+                return false;
+            }
+
+            for (int i = 0; i < MAX_CONNECTION_ATTEMPTS; i++)
+            {
+                if (this.IsAlreadyConnected(out string currentIp))
                 {
                     ipAddress = currentIp;
-                    LogHelper.LogDebug($"Successfully obtained IP: {ipAddress}");
                     return true;
                 }
+
                 Thread.Sleep(CONNECTION_CHECK_INTERVAL_MS);
             }
+
             return false;
         }
 
@@ -303,11 +268,7 @@
         /// <param name="ipAddress">The assigned IP address.</param>
         private void HandleSuccessfulConnection(string ipAddress)
         {
-            lock (_connectionLock)
-            {
-                _ipAddress = ipAddress;
-                _isConnectionInProgress = false;
-            }
+            _ipAddress = ipAddress;
 
             if (!_hasConnectedSuccessfully)
             {
@@ -317,8 +278,10 @@
             else
             {
                 LogHelper.LogInformation($"Connection restored. IP Address: {ipAddress}");
-                RaiseConnectionRestored();
+                this.RaiseConnectionRestored();
             }
+
+            _isConnectionInProgress = false;
         }
 
         /// <summary>
@@ -328,34 +291,32 @@
         /// <returns>The error message.</returns>
         private string GetErrorMessage(WifiConnectionStatus status)
         {
-            return status switch
+            switch (status)
             {
-                WifiConnectionStatus.AccessRevoked => "Access to the network has been revoked",
-                WifiConnectionStatus.InvalidCredential => "Invalid credential was presented",
-                WifiConnectionStatus.NetworkNotAvailable => "Network is not available",
-                WifiConnectionStatus.Timeout => "Connection attempt timed out",
-                WifiConnectionStatus.UnspecifiedFailure => "Unspecified error [connection refused]",
-                WifiConnectionStatus.UnsupportedAuthenticationProtocol => "Authentication protocol is not supported",
-                _ => "Unknown error"
-            };
+                case WifiConnectionStatus.AccessRevoked: return "Access to the network has been revoked";
+                case WifiConnectionStatus.InvalidCredential: return "Invalid credential was presented";
+                case WifiConnectionStatus.NetworkNotAvailable: return "Network is not available";
+                case WifiConnectionStatus.Timeout: return "Connection attempt timed out";
+                case WifiConnectionStatus.UnspecifiedFailure: return "Unspecified error [connection refused]";
+                case WifiConnectionStatus.UnsupportedAuthenticationProtocol: return "Authentication protocol is not supported";
+                default: return "Unknown error";
+            }
         }
 
-        private bool InitializeWifiAdapter()
+        private void RaiseConnectionRestored()
         {
-            try
+            if (this.ConnectionRestored != null)
             {
-                _wifiAdapter = WifiAdapter.FindAllAdapters()[0];
-                LogHelper.LogInformation("WiFi adapter initialized successfully");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LogHelper.LogError($"Failed to initialize WiFi adapter: {ex.Message}");
-                return false;
+                this.ConnectionRestored(this, EventArgs.Empty);
             }
         }
 
-        private void RaiseConnectionRestored() => ConnectionRestored?.Invoke(this, EventArgs.Empty);
-        private void RaiseConnectionLost() => ConnectionLost?.Invoke(this, EventArgs.Empty);
+        private void RaiseConnectionLost()
+        {
+            if (this.ConnectionLost != null)
+            {
+                this.ConnectionLost(this, EventArgs.Empty);
+            }
+        }
     }
 }
