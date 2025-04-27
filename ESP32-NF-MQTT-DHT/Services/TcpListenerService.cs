@@ -128,6 +128,14 @@
             TcpListener listener = null;
             try
             {
+                string ipAddress = GetCurrentIpAddress();
+                if (string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0")
+                {
+                    LogHelper.LogWarning("TCPListener delayed: No valid IP address yet.");
+                    Thread.Sleep(5000);
+                    return;
+                }
+
                 listener = new TcpListener(IPAddress.Any, TcpPort);
                 listener.Server.ReceiveTimeout = Timeout;
                 listener.Server.SendTimeout = Timeout;
@@ -643,7 +651,11 @@
 
         private void ConnectionRestored(object sender, EventArgs e)
         {
-            this.Start();
+            if (!_isRunning)
+            {
+                LogHelper.LogInformation("Wi-Fi connection restored. Starting TCP listener...");
+                this.Start();
+            }
         }
 
         private void ConnectionLost(object sender, EventArgs e)

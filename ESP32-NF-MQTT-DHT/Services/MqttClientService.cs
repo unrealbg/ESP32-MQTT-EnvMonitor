@@ -113,7 +113,6 @@
 
             _circuitBreaker.Close();
 
-
             if (!_connectionService.IsConnected)
             {
                 LogHelper.LogWarning("WiFi not connected. Waiting for WiFi before checking Internet...");
