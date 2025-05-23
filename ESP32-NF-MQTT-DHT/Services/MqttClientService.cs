@@ -23,6 +23,9 @@
     /// </summary>
     internal class MqttClientService : IMqttClientService, IDisposable
     {
+        private const int ConnectionThreadJoinTimeoutMs = 1000;
+        private const int DeepSleepWaitMs = 2000;
+
         private readonly IConnectionService _connectionService;
         private readonly IInternetConnectionService _internetConnectionService;
         private readonly MqttMessageHandler _mqttMessageHandler;
@@ -66,7 +69,6 @@
             _internetConnectionService = internetConnectionService ?? throw new ArgumentNullException(nameof(internetConnectionService));
             _mqttMessageHandler = mqttMessageHandler ?? throw new ArgumentNullException(nameof(mqttMessageHandler));
             _mqttPublishService = mqttPublishService ?? throw new ArgumentNullException(nameof(mqttPublishService));
-
             _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
             _sensorDataPublisher = new SensorDataPublisher(this.SensorDataTimerCallback);
 
@@ -86,54 +88,53 @@
         /// <summary>
         /// Gets the current instance of the MQTT client.
         /// </summary>
-        public MqttClient MqttClient => _connectionManager.MqttClient;
+        public MqttClient MqttClient
+        {
+            get
+            {
+                ThrowIfDisposed();
+                return _connectionManager.MqttClient;
+            }
+        }
 
         /// <summary>
         /// Starts the MQTT service by establishing a connection to the broker.
         /// </summary>
         public void Start()
         {
-            if (_isDisposed)
-            {
-                LogHelper.LogWarning("Cannot start disposed MQTT client service");
-                return;
-            }
+            ThrowIfDisposed();
 
-            if (_connectionThread != null && _connectionThread.IsAlive)
+            lock (_connectionLock)
             {
-                LogHelper.LogInformation("Connection thread already running");
-                return;
-            }
+                if (_connectionThread != null && _connectionThread.IsAlive)
+                {
+                    LogHelper.LogInformation("Connection thread already running");
+                    return;
+                }
 
-            if (_circuitBreaker.IsOpen)
-            {
-                LogHelper.LogWarning("Circuit breaker is open. Delaying connection attempts until reset.");
-                return;
-            }
+                if (_circuitBreaker.IsOpen)
+                {
+                    LogHelper.LogWarning("Circuit breaker is open. Delaying connection attempts until reset.");
+                    return;
+                }
 
-            _circuitBreaker.Close();
+                _circuitBreaker.Close();
 
-            if (!_connectionService.IsConnected)
-            {
-                LogHelper.LogWarning("WiFi not connected. Waiting for WiFi before checking Internet...");
-                return;
-            }
+                if (!_connectionService.IsConnected)
+                {
+                    LogHelper.LogWarning("WiFi not connected. Waiting for WiFi before checking Internet...");
+                    return;
+                }
 
-            if (_internetConnectionService.IsInternetAvailable())
-            {
-                if (_connectionThread == null || !_connectionThread.IsAlive)
+                if (_internetConnectionService.IsInternetAvailable())
                 {
                     _connectionThread = new Thread(this.EstablishBrokerConnection);
                     _connectionThread.Start();
                 }
                 else
                 {
-                    LogHelper.LogInformation("Connection thread already running");
+                    LogHelper.LogWarning("Internet not available on startup. Waiting for internet restoration...");
                 }
-            }
-            else
-            {
-                LogHelper.LogWarning("Internet not available on startup. Waiting for internet restoration...");
             }
         }
 
@@ -142,6 +143,8 @@
         /// </summary>
         public void Stop()
         {
+            ThrowIfDisposed();
+
             this.SetIsRunning(false);
             _sensorDataPublisher.Stop();
 
@@ -149,12 +152,14 @@
 
             _stopSignal.Set();
 
-            if (_connectionThread != null && _connectionThread.IsAlive)
+            lock (_connectionLock)
             {
-                _connectionThread.Join(1000);
+                if (_connectionThread != null && _connectionThread.IsAlive)
+                {
+                    _connectionThread.Join(ConnectionThreadJoinTimeoutMs);
+                }
+                _connectionThread = null;
             }
-
-            _connectionThread = null;
         }
 
         /// <summary>
@@ -173,6 +178,11 @@
             _internetConnectionService.InternetRestored -= _internetRestoredHandler;
             _connectionService.ConnectionLost -= _connectionLostHandler;
             _connectionService.ConnectionRestored -= _connectionRestoredHandler;
+
+            _internetLostHandler = null;
+            _internetRestoredHandler = null;
+            _connectionLostHandler = null;
+            _connectionRestoredHandler = null;
 
             if (this.MqttClient != null)
             {
@@ -283,7 +293,7 @@
             this.SafeDisconnect();
             _sensorDataPublisher.Stop();
 
-            _stopSignal.WaitOne(2000, false);
+            _stopSignal.WaitOne(DeepSleepWaitMs, false);
 
             TimeSpan deepSleepDuration = new TimeSpan(0, DEEP_SLEEP_MINUTES, 0);
 
@@ -316,18 +326,18 @@
             }
             catch (SocketException ex)
             {
-                LogHelper.LogError($"Socket error: {ex.Message}");
-                LogService.LogCritical($"Socket error: {ex.Message}");
+                LogHelper.LogError($"Socket error: {ex.Message}\n{ex}");
+                LogService.LogCritical($"Socket error: {ex.Message}\n{ex}");
             }
             catch (NullReferenceException ex)
             {
-                LogHelper.LogError($"Null reference encountered: {ex.Message}");
-                LogService.LogCritical($"Null reference encountered: {ex.Message}");
+                LogHelper.LogError($"Null reference encountered: {ex.Message}\n{ex}");
+                LogService.LogCritical($"Null reference encountered: {ex.Message}\n{ex}");
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"MQTT connect error: {ex.Message}");
-                LogService.LogCritical($"MQTT connect error: {ex.Message}");
+                LogHelper.LogError($"MQTT connect error: {ex.Message}\n{ex}");
+                LogService.LogCritical($"MQTT connect error: {ex.Message}\n{ex}");
             }
 
             this.SafeDisconnect();
@@ -380,7 +390,7 @@
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"SensorDataTimer Exception: {ex.Message}");
+                LogHelper.LogError($"SensorDataTimer Exception: {ex.Message}\n{ex}");
 
                 try
                 {
@@ -388,10 +398,10 @@
                 }
                 catch (Exception innerEx)
                 {
-                    LogHelper.LogError($"Error publishing sensor data error: {innerEx.Message}");
+                    LogHelper.LogError($"Error publishing sensor data error: {innerEx.Message}\n{innerEx}");
                 }
 
-                LogService.LogCritical($"SensorDataTimer Exception: {ex.Message}");
+                LogService.LogCritical($"SensorDataTimer Exception: {ex.Message}\n{ex}");
             }
         }
 
@@ -403,6 +413,11 @@
         /// <param name="source">Specifies the source of the connectivity change.</param>
         private void OnConnectivityChanged(object sender, bool isRestored, string source)
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
             if (source == "WiFi")
             {
                 _isWifiConnected = isRestored;
@@ -466,6 +481,11 @@
         /// </summary>
         private void ConnectionClosed(object sender, EventArgs e)
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
             LogHelper.LogWarning("Lost connection to MQTT broker, attempting to reconnect...");
 
             this.SafeDisconnect();
@@ -505,8 +525,8 @@
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"Error while disconnecting MQTT client: {ex.Message}");
-                LogService.LogCritical($"Error while disconnecting MQTT client: {ex.Message}");
+                LogHelper.LogError($"Error while disconnecting MQTT client: {ex.Message}\n{ex}");
+                LogService.LogCritical($"Error while disconnecting MQTT client: {ex.Message}\n{ex}");
             }
             finally
             {
@@ -517,8 +537,8 @@
                 }
                 catch (Exception ex)
                 {
-                    LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}");
-                    LogService.LogCritical($"Error while disposing MQTT client: {ex.Message}");
+                    LogHelper.LogError($"Error while disposing MQTT client: {ex.Message}\n{ex}");
+                    LogService.LogCritical($"Error while disposing MQTT client: {ex.Message}\n{ex}");
                 }
                 finally
                 {
@@ -526,6 +546,17 @@
                     _mqttPublishService.StopHeartbeat();
                     _connectionManager.Disconnect();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Throws ObjectDisposedException if the service is disposed.
+        /// </summary>
+        private void ThrowIfDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(nameof(MqttClientService));
             }
         }
     }
