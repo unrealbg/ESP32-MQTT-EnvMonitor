@@ -2,17 +2,23 @@
 {
 #if DEBUG
     using Microsoft.Extensions.Logging;
+
     using nanoFramework.Logging.Debug;
 #endif
     using System;
 
     /// <summary>
-    /// Helper class for logging messages.
+    /// Helper class for logging messages optimized for nanoFramework memory constraints.
     /// </summary>
     public static class LogHelper
     {
 #if DEBUG
         private static DebugLogger _logger = new DebugLogger("GlobalLogger");
+
+        private const string INFO_COLOR = "\u001b[32m";
+        private const string WARNING_COLOR = "\u001b[33m";
+        private const string ERROR_COLOR = "\u001b[31m";
+        private const string RESET_COLOR = "\u001b[0m";
 #endif
 
         /// <summary>
@@ -22,7 +28,7 @@
         public static void LogInformation(string message)
         {
 #if DEBUG
-            _logger.LogInformation(FormatMessage("INFO", message));
+            _logger.LogInformation(FormatMessage("INFO", message, INFO_COLOR));
 #endif
         }
 
@@ -35,9 +41,8 @@
         {
 #if DEBUG
             string formattedMessage = ex != null
-                ? $"{FormatMessage("ERROR", message)} | Exception: {ex}"
-                : FormatMessage("ERROR", message);
-
+                ? FormatMessage("ERROR", message + " | Exception: " + ex.Message, ERROR_COLOR)
+                : FormatMessage("ERROR", message, ERROR_COLOR);
             _logger.LogError(formattedMessage);
 #endif
         }
@@ -49,7 +54,7 @@
         public static void LogWarning(string message)
         {
 #if DEBUG
-            _logger.LogWarning(FormatMessage("WARNING", message));
+            _logger.LogWarning(FormatMessage("WARNING", message, WARNING_COLOR));
 #endif
         }
 
@@ -60,22 +65,27 @@
         public static void LogDebug(string message)
         {
 #if DEBUG
-            _logger.LogDebug(FormatMessage("DEBUG", message));
+            _logger.LogDebug(FormatMessage("DEBUG", message, RESET_COLOR));
 #endif
         }
 
 #if DEBUG
-        private static string FormatMessage(string level, string message)
+        private static string FormatMessage(string level, string message, string color)
         {
-            string color = level switch
-            {
-                "INFO" => "\u001b[32m",
-                "WARNING" => "\u001b[33m",
-                "ERROR" => "\u001b[31m",
-                _ => "\u001b[0m"
-            };
+            var now = DateTime.UtcNow;
 
-            return $"[{DateTime.UtcNow:dd-MM-yyyy HH:mm:ss}] {color}[{level}]\u001b[0m {message}";
+            return "[" + now.Year + "-" +
+                   PadZero(now.Month) + "-" +
+                   PadZero(now.Day) + " " +
+                   PadZero(now.Hour) + ":" +
+                   PadZero(now.Minute) + ":" +
+                   PadZero(now.Second) + "] " +
+                   color + "[" + level + "]" + RESET_COLOR + " " + message;
+        }
+
+        private static string PadZero(int num)
+        {
+            return num < 10 ? "0" + num : num.ToString();
         }
 #endif
     }
