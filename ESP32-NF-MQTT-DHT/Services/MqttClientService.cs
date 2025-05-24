@@ -168,29 +168,43 @@
         public void Dispose()
         {
             if (_isDisposed)
-            {
                 return;
-            }
 
-            this.Stop();
-
-            _internetConnectionService.InternetLost -= _internetLostHandler;
-            _internetConnectionService.InternetRestored -= _internetRestoredHandler;
-            _connectionService.ConnectionLost -= _connectionLostHandler;
-            _connectionService.ConnectionRestored -= _connectionRestoredHandler;
-
-            _internetLostHandler = null;
-            _internetRestoredHandler = null;
-            _connectionLostHandler = null;
-            _connectionRestoredHandler = null;
-
-            if (this.MqttClient != null)
+            try
             {
-                this.MqttClient.ConnectionClosed -= this.ConnectionClosed;
-                this.MqttClient.MqttMsgPublishReceived -= _mqttMessageHandler.HandleIncomingMessage;
-            }
+                Stop();
 
-            _isDisposed = true;
+                if (_internetConnectionService != null)
+                {
+                    _internetConnectionService.InternetLost -= _internetLostHandler;
+                    _internetConnectionService.InternetRestored -= _internetRestoredHandler;
+                }
+
+                if (_connectionService != null)
+                {
+                    _connectionService.ConnectionLost -= _connectionLostHandler;
+                    _connectionService.ConnectionRestored -= _connectionRestoredHandler;
+                }
+
+                if (MqttClient != null)
+                {
+                    MqttClient.ConnectionClosed -= ConnectionClosed;
+                    MqttClient.MqttMsgPublishReceived -= _mqttMessageHandler.HandleIncomingMessage;
+                }
+
+                _internetLostHandler = null;
+                _internetRestoredHandler = null;
+                _connectionLostHandler = null;
+                _connectionRestoredHandler = null;
+            }
+            catch
+            {
+                // cleanup
+            }
+            finally
+            {
+                _isDisposed = true;
+            }
         }
 
         /// <summary>
