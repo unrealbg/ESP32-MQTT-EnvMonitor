@@ -25,7 +25,7 @@
     /// <summary>
     /// Provides TCP listener services – handles incoming TCP connections and commands.
     /// </summary>
-    public class TcpListenerService : ITcpListenerService
+    public class TcpListenerService : ITcpListenerService, IDisposable
     {
         private const int TcpPort = 31337;
         private const int Timeout = 5000;
@@ -39,6 +39,8 @@
 
         private bool _isRunning;
         private Thread _listenerThread;
+        private TcpListener _listener;
+        private bool _disposed = false;
 
         private int _sensorInterval = 1000;
 
@@ -84,6 +86,11 @@
         /// </summary>
         public void Start()
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(TcpListenerService));
+            }
+
             if (_isRunning)
             {
                 LogHelper.LogInformation("TCP Listener already running");
@@ -104,9 +111,21 @@
         {
             _isRunning = false;
 
+            if (_listener != null)
+            {
+                try
+                {
+                    _listener.Stop();
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Error stopping TCP listener: " + ex.Message);
+                }
+            }
+
             if (_listenerThread != null)
             {
-                _listenerThread.Join();
+                _listenerThread.Join(5000);
             }
 
             LogHelper.LogInformation("TCP listener stopped");
@@ -125,7 +144,6 @@
         /// </summary>
         private void StartTcpListening()
         {
-            TcpListener listener = null;
             try
             {
                 string ipAddress = GetCurrentIpAddress();
@@ -136,10 +154,10 @@
                     return;
                 }
 
-                listener = new TcpListener(IPAddress.Any, TcpPort);
-                listener.Server.ReceiveTimeout = Timeout;
-                listener.Server.SendTimeout = Timeout;
-                listener.Start(2);
+                _listener = new TcpListener(IPAddress.Any, TcpPort);
+                _listener.Server.ReceiveTimeout = Timeout;
+                _listener.Server.SendTimeout = Timeout;
+                _listener.Start(2);
 
                 while (_isRunning)
                 {
@@ -147,7 +165,7 @@
                     try
                     {
                         // Accept a client connection (synchronously).
-                        TcpClient client = listener.AcceptTcpClient();
+                        TcpClient client = _listener.AcceptTcpClient();
                         IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                         string clientIp = remoteIpEndPoint != null ? remoteIpEndPoint.Address.ToString() : "Unknown";
                         LogHelper.LogInformation("Client connected on port " + TcpPort + " from " + clientIp);
@@ -202,12 +220,18 @@
                     }
                     catch (SocketException socketEx)
                     {
-                        LogHelper.LogError("Socket exception while accepting client: " + socketEx.Message);
+                        if (_isRunning) // Only log if we're still supposed to be running
+                        {
+                            LogHelper.LogError("Socket exception while accepting client: " + socketEx.Message);
+                        }
                         Thread.Sleep(1000);
                     }
                     catch (Exception ex)
                     {
-                        LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
+                        if (_isRunning) // Only log if we're still supposed to be running
+                        {
+                            LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
+                        }
                         Thread.Sleep(1000);
                     }
                 }
@@ -217,20 +241,7 @@
                 LogHelper.LogError("Fatal error in TCP listener: " + initEx.Message);
                 LogService.LogCritical("Fatal error in TCP listener: " + initEx.Message);
             }
-            finally
-            {
-                if (listener != null)
-                {
-                    try
-                    {
-                        listener.Stop();
-                    }
-                    catch
-                    {
-                        // Ignore exceptions during cleanup.
-                    }
-                }
-            }
+            // Cleanup is now handled by Dispose()
         }
 
         /// <summary>
@@ -651,7 +662,7 @@
 
         private void ConnectionRestored(object sender, EventArgs e)
         {
-            if (!_isRunning)
+            if (!_isRunning && !_disposed)
             {
                 LogHelper.LogInformation("Wi-Fi connection restored. Starting TCP listener...");
                 this.Start();
@@ -660,7 +671,72 @@
 
         private void ConnectionLost(object sender, EventArgs e)
         {
-            this.Stop();
+            if (!_disposed)
+            {
+                this.Stop();
+            }
         }
+
+        #region IDisposable Implementation
+
+        /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        /// <summary>
+        /// Releases the unmanaged resources and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Stop the service
+                    Stop();
+
+                    // Unsubscribe from events to prevent memory leaks
+                    if (_connectionService != null)
+                    {
+                        _connectionService.ConnectionLost -= this.ConnectionLost;
+                        _connectionService.ConnectionRestored -= this.ConnectionRestored;
+                    }
+
+                    // Dispose managed resources
+                    if (_listener != null)
+                    {
+                        try
+                        {
+                            _listener.Stop();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHelper.LogError("Error disposing TCP listener: " + ex.Message);
+                        }
+
+                        _listener = null;
+                    }
+
+                    // Clean up thread reference
+                    _listenerThread = null;
+
+                    // Clear command descriptions
+                    if (_commandDescriptions != null)
+                    {
+                        _commandDescriptions.Clear();
+                    }
+                }
+
+                _disposed = true;
+                LogHelper.LogInformation("TcpListenerService disposed");
+            }
+        }
+
+        #endregion
     }
 }
