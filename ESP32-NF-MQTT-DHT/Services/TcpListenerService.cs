@@ -42,9 +42,11 @@
         private TcpListener _listener;
         private bool _disposed = false;
 
-        private int _sensorInterval = 1000;
+        // TODO: Not applied to sensor service
+        private int _sensorInterval = 1000; 
 
         private readonly Hashtable _commandDescriptions = new Hashtable();
+        private readonly object _lock = new object();
 
         /// <summary>
         /// Initializes a new instance of the TcpListenerService class.
@@ -91,13 +93,16 @@
                 throw new ObjectDisposedException(nameof(TcpListenerService));
             }
 
-            if (_isRunning)
+            lock (_lock)
             {
-                LogHelper.LogInformation("TCP Listener already running");
-                return;
+                if (_isRunning)
+                {
+                    LogHelper.LogInformation("TCP Listener already running");
+                    return;
+                }
+                _isRunning = true;
             }
 
-            _isRunning = true;
             _listenerThread = new Thread(this.StartTcpListening);
             _listenerThread.Start();
 
@@ -109,7 +114,10 @@
         /// </summary>
         public void Stop()
         {
-            _isRunning = false;
+            lock (_lock)
+            {
+                _isRunning = false;
+            }
 
             if (_listener != null)
             {
@@ -133,9 +141,14 @@
 
         private static string GetCurrentIpAddress()
         {
-            var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
-            var ipAddress = networkInterface.IPv4Address;
+            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            if (interfaces == null || interfaces.Length == 0)
+            {
+                return string.Empty;
+            }
 
+            var networkInterface = interfaces[0];
+            var ipAddress = networkInterface.IPv4Address;
             return ipAddress;
         }
 
@@ -146,11 +159,18 @@
         {
             try
             {
+                int retryCount = 0;
                 string ipAddress = GetCurrentIpAddress();
+                while ((string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0") && _isRunning && retryCount < 60)
+                {
+                    LogHelper.LogWarning("TCPListener delayed: No valid IP address yet. Retrying...");
+                    Thread.Sleep(5000);
+                    retryCount++;
+                    ipAddress = GetCurrentIpAddress();
+                }
                 if (string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0")
                 {
-                    LogHelper.LogWarning("TCPListener delayed: No valid IP address yet.");
-                    Thread.Sleep(5000);
+                    LogHelper.LogWarning("TCPListener could not start: No valid IP address after retries.");
                     return;
                 }
 
@@ -319,7 +339,23 @@
             commands.Add("humidity", new CommandHandler((args, writer) => { this.WriteToStream(writer, _sensorService.GetHumidity().ToString()); return false; }));
             commands.Add("publishtemp", new CommandHandler((args, writer) =>
             {
-                _mqttClient.MqttClient.Publish("home/" + DeviceName + "/temperature", Encoding.UTF8.GetBytes(_sensorService.GetTemp().ToString()));
+                if (_mqttClient.MqttClient == null)
+                {
+                    LogHelper.LogError("MQTT client is not initialized.");
+                    this.WriteToStream(writer, "MQTT client is not initialized.");
+                    return false;
+                }
+
+                try
+                {
+                    _mqttClient.MqttClient.Publish("home/" + DeviceName + "/temperature", Encoding.UTF8.GetBytes(_sensorService.GetTemp().ToString()));
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Error publishing temperature: " + ex.Message);
+                    this.WriteToStream(writer, "Error publishing temperature: " + ex.Message);
+                }
+
                 return false;
             }));
             commands.Add("status", new CommandHandler((args, writer) =>
@@ -329,7 +365,23 @@
             }));
             commands.Add("publishuptime", new CommandHandler((args, writer) =>
             {
-                _mqttClient.MqttClient.Publish("home/" + DeviceName + "/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
+                if (_mqttClient.MqttClient == null)
+                {
+                    LogHelper.LogError("MQTT client is not initialized.");
+                    this.WriteToStream(writer, "MQTT client is not initialized.");
+                    return false;
+                }
+
+                try
+                {
+                    _mqttClient.MqttClient.Publish("home/" + DeviceName + "/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Error publishing uptime: " + ex.Message);
+                    this.WriteToStream(writer, "Error publishing uptime: " + ex.Message);
+                }
+
                 return false;
             }));
             commands.Add("getipaddress", new CommandHandler((args, writer) => { this.WriteToStream(writer, GetCurrentIpAddress()); return false; }));
@@ -342,9 +394,9 @@
                 string familyName = SystemInfo.TargetName;
                 uint freeMemory = GC.Run(false);
 
-                var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
-                string ip = networkInterface.IPv4Address;
-                string mac = BitConverter.ToString(networkInterface.PhysicalAddress);
+                var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+                string ip = interfaces != null && interfaces.Length > 0 ? interfaces[0].IPv4Address : "N/A";
+                string mac = interfaces != null && interfaces.Length > 0 ? BitConverter.ToString(interfaces[0].PhysicalAddress) : "N/A";
 
                 string info = $"Device: {DeviceName}\r\n" +
                               $"Firmware Version: {versionString}\r\n" +
@@ -355,7 +407,7 @@
                               $"IP: {ip}\r\n" +
                               $"MAC: {mac}\r\n" +
                               $"Uptime: {_uptimeService.GetUptime()}\r\n" +
-                              $"Sensor Interval: {_sensorInterval} ms";
+                              $"Sensor Interval: {_sensorInterval} ms (TODO: Not applied to sensor service)";
                 this.WriteToStream(writer, info);
                 return false;
             }));
@@ -515,6 +567,7 @@
                         }
                         else
                         {
+                            LogHelper.LogError($"Unrecognized command: {commandKey}");
                             this.WriteToStream(sw, "Unrecognized command");
                         }
                     }
