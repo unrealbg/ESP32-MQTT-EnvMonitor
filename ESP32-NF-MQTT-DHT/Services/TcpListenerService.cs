@@ -25,7 +25,7 @@
     /// <summary>
     /// Provides TCP listener services – handles incoming TCP connections and commands.
     /// </summary>
-    public class TcpListenerService : ITcpListenerService
+    public class TcpListenerService : ITcpListenerService, IDisposable
     {
         private const int TcpPort = 31337;
         private const int Timeout = 5000;
@@ -39,10 +39,14 @@
 
         private bool _isRunning;
         private Thread _listenerThread;
+        private TcpListener _listener;
+        private bool _disposed = false;
 
-        private int _sensorInterval = 1000;
+        // TODO: Not applied to sensor service
+        private int _sensorInterval = 1000; 
 
         private readonly Hashtable _commandDescriptions = new Hashtable();
+        private readonly object _lock = new object();
 
         /// <summary>
         /// Initializes a new instance of the TcpListenerService class.
@@ -84,13 +88,21 @@
         /// </summary>
         public void Start()
         {
-            if (_isRunning)
+            if (_disposed)
             {
-                LogHelper.LogInformation("TCP Listener already running");
-                return;
+                throw new ObjectDisposedException(nameof(TcpListenerService));
             }
 
-            _isRunning = true;
+            lock (_lock)
+            {
+                if (_isRunning)
+                {
+                    LogHelper.LogInformation("TCP Listener already running");
+                    return;
+                }
+                _isRunning = true;
+            }
+
             _listenerThread = new Thread(this.StartTcpListening);
             _listenerThread.Start();
 
@@ -102,11 +114,26 @@
         /// </summary>
         public void Stop()
         {
-            _isRunning = false;
+            lock (_lock)
+            {
+                _isRunning = false;
+            }
+
+            if (_listener != null)
+            {
+                try
+                {
+                    _listener.Stop();
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Error stopping TCP listener: " + ex.Message);
+                }
+            }
 
             if (_listenerThread != null)
             {
-                _listenerThread.Join();
+                _listenerThread.Join(5000);
             }
 
             LogHelper.LogInformation("TCP listener stopped");
@@ -114,9 +141,14 @@
 
         private static string GetCurrentIpAddress()
         {
-            var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
-            var ipAddress = networkInterface.IPv4Address;
+            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            if (interfaces == null || interfaces.Length == 0)
+            {
+                return string.Empty;
+            }
 
+            var networkInterface = interfaces[0];
+            var ipAddress = networkInterface.IPv4Address;
             return ipAddress;
         }
 
@@ -125,21 +157,27 @@
         /// </summary>
         private void StartTcpListening()
         {
-            TcpListener listener = null;
             try
             {
+                int retryCount = 0;
                 string ipAddress = GetCurrentIpAddress();
+                while ((string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0") && _isRunning && retryCount < 60)
+                {
+                    LogHelper.LogWarning("TCPListener delayed: No valid IP address yet. Retrying...");
+                    Thread.Sleep(5000);
+                    retryCount++;
+                    ipAddress = GetCurrentIpAddress();
+                }
                 if (string.IsNullOrEmpty(ipAddress) || ipAddress == "0.0.0.0")
                 {
-                    LogHelper.LogWarning("TCPListener delayed: No valid IP address yet.");
-                    Thread.Sleep(5000);
+                    LogHelper.LogWarning("TCPListener could not start: No valid IP address after retries.");
                     return;
                 }
 
-                listener = new TcpListener(IPAddress.Any, TcpPort);
-                listener.Server.ReceiveTimeout = Timeout;
-                listener.Server.SendTimeout = Timeout;
-                listener.Start(2);
+                _listener = new TcpListener(IPAddress.Any, TcpPort);
+                _listener.Server.ReceiveTimeout = Timeout;
+                _listener.Server.SendTimeout = Timeout;
+                _listener.Start(2);
 
                 while (_isRunning)
                 {
@@ -147,7 +185,7 @@
                     try
                     {
                         // Accept a client connection (synchronously).
-                        TcpClient client = listener.AcceptTcpClient();
+                        TcpClient client = _listener.AcceptTcpClient();
                         IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                         string clientIp = remoteIpEndPoint != null ? remoteIpEndPoint.Address.ToString() : "Unknown";
                         LogHelper.LogInformation("Client connected on port " + TcpPort + " from " + clientIp);
@@ -202,12 +240,18 @@
                     }
                     catch (SocketException socketEx)
                     {
-                        LogHelper.LogError("Socket exception while accepting client: " + socketEx.Message);
+                        if (_isRunning) // Only log if we're still supposed to be running
+                        {
+                            LogHelper.LogError("Socket exception while accepting client: " + socketEx.Message);
+                        }
                         Thread.Sleep(1000);
                     }
                     catch (Exception ex)
                     {
-                        LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
+                        if (_isRunning) // Only log if we're still supposed to be running
+                        {
+                            LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
+                        }
                         Thread.Sleep(1000);
                     }
                 }
@@ -217,20 +261,7 @@
                 LogHelper.LogError("Fatal error in TCP listener: " + initEx.Message);
                 LogService.LogCritical("Fatal error in TCP listener: " + initEx.Message);
             }
-            finally
-            {
-                if (listener != null)
-                {
-                    try
-                    {
-                        listener.Stop();
-                    }
-                    catch
-                    {
-                        // Ignore exceptions during cleanup.
-                    }
-                }
-            }
+            // Cleanup is now handled by Dispose()
         }
 
         /// <summary>
@@ -308,7 +339,23 @@
             commands.Add("humidity", new CommandHandler((args, writer) => { this.WriteToStream(writer, _sensorService.GetHumidity().ToString()); return false; }));
             commands.Add("publishtemp", new CommandHandler((args, writer) =>
             {
-                _mqttClient.MqttClient.Publish("home/" + DeviceName + "/temperature", Encoding.UTF8.GetBytes(_sensorService.GetTemp().ToString()));
+                if (_mqttClient.MqttClient == null)
+                {
+                    LogHelper.LogError("MQTT client is not initialized.");
+                    this.WriteToStream(writer, "MQTT client is not initialized.");
+                    return false;
+                }
+
+                try
+                {
+                    _mqttClient.MqttClient.Publish("home/" + DeviceName + "/temperature", Encoding.UTF8.GetBytes(_sensorService.GetTemp().ToString()));
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Error publishing temperature: " + ex.Message);
+                    this.WriteToStream(writer, "Error publishing temperature: " + ex.Message);
+                }
+
                 return false;
             }));
             commands.Add("status", new CommandHandler((args, writer) =>
@@ -318,7 +365,23 @@
             }));
             commands.Add("publishuptime", new CommandHandler((args, writer) =>
             {
-                _mqttClient.MqttClient.Publish("home/" + DeviceName + "/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
+                if (_mqttClient.MqttClient == null)
+                {
+                    LogHelper.LogError("MQTT client is not initialized.");
+                    this.WriteToStream(writer, "MQTT client is not initialized.");
+                    return false;
+                }
+
+                try
+                {
+                    _mqttClient.MqttClient.Publish("home/" + DeviceName + "/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Error publishing uptime: " + ex.Message);
+                    this.WriteToStream(writer, "Error publishing uptime: " + ex.Message);
+                }
+
                 return false;
             }));
             commands.Add("getipaddress", new CommandHandler((args, writer) => { this.WriteToStream(writer, GetCurrentIpAddress()); return false; }));
@@ -331,9 +394,9 @@
                 string familyName = SystemInfo.TargetName;
                 uint freeMemory = GC.Run(false);
 
-                var networkInterface = NetworkInterface.GetAllNetworkInterfaces()[0];
-                string ip = networkInterface.IPv4Address;
-                string mac = BitConverter.ToString(networkInterface.PhysicalAddress);
+                var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+                string ip = interfaces != null && interfaces.Length > 0 ? interfaces[0].IPv4Address : "N/A";
+                string mac = interfaces != null && interfaces.Length > 0 ? BitConverter.ToString(interfaces[0].PhysicalAddress) : "N/A";
 
                 string info = $"Device: {DeviceName}\r\n" +
                               $"Firmware Version: {versionString}\r\n" +
@@ -344,7 +407,7 @@
                               $"IP: {ip}\r\n" +
                               $"MAC: {mac}\r\n" +
                               $"Uptime: {_uptimeService.GetUptime()}\r\n" +
-                              $"Sensor Interval: {_sensorInterval} ms";
+                              $"Sensor Interval: {_sensorInterval} ms (TODO: Not applied to sensor service)";
                 this.WriteToStream(writer, info);
                 return false;
             }));
@@ -504,6 +567,7 @@
                         }
                         else
                         {
+                            LogHelper.LogError($"Unrecognized command: {commandKey}");
                             this.WriteToStream(sw, "Unrecognized command");
                         }
                     }
@@ -651,7 +715,7 @@
 
         private void ConnectionRestored(object sender, EventArgs e)
         {
-            if (!_isRunning)
+            if (!_isRunning && !_disposed)
             {
                 LogHelper.LogInformation("Wi-Fi connection restored. Starting TCP listener...");
                 this.Start();
@@ -660,7 +724,72 @@
 
         private void ConnectionLost(object sender, EventArgs e)
         {
-            this.Stop();
+            if (!_disposed)
+            {
+                this.Stop();
+            }
         }
+
+        #region IDisposable Implementation
+
+        /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        /// <summary>
+        /// Releases the unmanaged resources and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Stop the service
+                    Stop();
+
+                    // Unsubscribe from events to prevent memory leaks
+                    if (_connectionService != null)
+                    {
+                        _connectionService.ConnectionLost -= this.ConnectionLost;
+                        _connectionService.ConnectionRestored -= this.ConnectionRestored;
+                    }
+
+                    // Dispose managed resources
+                    if (_listener != null)
+                    {
+                        try
+                        {
+                            _listener.Stop();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHelper.LogError("Error disposing TCP listener: " + ex.Message);
+                        }
+
+                        _listener = null;
+                    }
+
+                    // Clean up thread reference
+                    _listenerThread = null;
+
+                    // Clear command descriptions
+                    if (_commandDescriptions != null)
+                    {
+                        _commandDescriptions.Clear();
+                    }
+                }
+
+                _disposed = true;
+                LogHelper.LogInformation("TcpListenerService disposed");
+            }
+        }
+
+        #endregion
     }
 }

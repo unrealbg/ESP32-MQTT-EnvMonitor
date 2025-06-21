@@ -25,6 +25,8 @@
     {
         private const int ConnectionThreadJoinTimeoutMs = 1000;
         private const int DeepSleepWaitMs = 2000;
+        private const string WifiSource = "WiFi";
+        private const string InternetSource = "Internet";
 
         private readonly IConnectionService _connectionService;
         private readonly IInternetConnectionService _internetConnectionService;
@@ -39,6 +41,8 @@
         private readonly ManualResetEvent _stopSignal = new ManualResetEvent(false);
         private readonly object _connectionLock = new object();
         private readonly object _stateLock = new object();
+        private readonly object _randomLock = new object();
+        private readonly object _heartbeatLock = new object();
 
         private bool _isRunning;
         private bool _isConnecting;
@@ -72,10 +76,10 @@
             _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
             _sensorDataPublisher = new SensorDataPublisher(this.SensorDataTimerCallback);
 
-            _internetLostHandler = (s, e) => this.OnConnectivityChanged(s, false, "Internet");
-            _internetRestoredHandler = (s, e) => this.OnConnectivityChanged(s, true, "Internet");
-            _connectionLostHandler = (s, e) => this.OnConnectivityChanged(s, false, "WiFi");
-            _connectionRestoredHandler = (s, e) => this.OnConnectivityChanged(s, true, "WiFi");
+            _internetLostHandler = (s, e) => this.OnConnectivityChanged(s, false, InternetSource);
+            _internetRestoredHandler = (s, e) => this.OnConnectivityChanged(s, true, InternetSource);
+            _connectionLostHandler = (s, e) => this.OnConnectivityChanged(s, false, WifiSource);
+            _connectionRestoredHandler = (s, e) => this.OnConnectivityChanged(s, true, WifiSource);
 
             _internetConnectionService.InternetLost += _internetLostHandler;
             _internetConnectionService.InternetRestored += _internetRestoredHandler;
@@ -103,6 +107,8 @@
         public void Start()
         {
             ThrowIfDisposed();
+
+            _stopSignal.Reset();
 
             lock (_connectionLock)
             {
@@ -157,6 +163,10 @@
                 if (_connectionThread != null && _connectionThread.IsAlive)
                 {
                     _connectionThread.Join(ConnectionThreadJoinTimeoutMs);
+                    if (_connectionThread.IsAlive)
+                    {
+                        LogHelper.LogWarning("Connection thread did not terminate within timeout.");
+                    }
                 }
                 _connectionThread = null;
             }
@@ -197,9 +207,9 @@
                 _connectionLostHandler = null;
                 _connectionRestoredHandler = null;
             }
-            catch
+            catch (Exception ex)
             {
-                // cleanup
+                LogHelper.LogError($"Exception in Dispose: {ex.Message}\n{ex}");
             }
             finally
             {
@@ -256,7 +266,11 @@
                         LogHelper.LogInformation($"Attempt {attemptCount}/{MAX_TOTAL_ATTEMPTS}. Retry in {delayBetweenAttempts / 1000}s");
                     }
 
-                    int jitter = _random.Next(JITTER_RANGE) + JITTER_BASE;
+                    int jitter;
+                    lock (_randomLock)
+                    {
+                        jitter = _random.Next(JITTER_RANGE) + JITTER_BASE;
+                    }
                     _stopSignal.WaitOne(delayBetweenAttempts + jitter, false);
 
                     delayBetweenAttempts = _reconnectStrategy.GetNextDelay(delayBetweenAttempts);
@@ -269,7 +283,10 @@
             }
             finally
             {
-                _isConnecting = false;
+                lock (_connectionLock)
+                {
+                    _isConnecting = false;
+                }
             }
         }
 
@@ -379,10 +396,13 @@
             _mqttMessageHandler.SetMqttClient(this.MqttClient);
             _mqttPublishService.SetMqttClient(this.MqttClient);
 
-            if (!_isHeartbeatRunning)
+            lock (_heartbeatLock)
             {
-                _mqttPublishService.StartHeartbeat();
-                _isHeartbeatRunning = true;
+                if (!_isHeartbeatRunning)
+                {
+                    _mqttPublishService.StartHeartbeat();
+                    _isHeartbeatRunning = true;
+                }
             }
 
             LogHelper.LogInformation("MQTT client setup complete");
@@ -432,7 +452,7 @@
                 return;
             }
 
-            if (source == "WiFi")
+            if (source == WifiSource)
             {
                 _isWifiConnected = isRestored;
 
@@ -455,7 +475,7 @@
                     _sensorDataPublisher.Stop();
                 }
             }
-            else if (source == "Internet")
+            else if (source == InternetSource)
             {
                 if (!_connectionService.IsConnected)
                 {
@@ -525,16 +545,17 @@
         /// </summary>
         private void SafeDisconnect()
         {
-            if (this.MqttClient == null)
+            var client = this.MqttClient;
+            if (client == null)
             {
                 return;
             }
 
             try
             {
-                if (this.MqttClient.IsConnected)
+                if (client.IsConnected)
                 {
-                    this.MqttClient.Disconnect();
+                    client.Disconnect();
                 }
             }
             catch (Exception ex)
@@ -546,8 +567,12 @@
             {
                 try
                 {
-                    this.MqttClient.Dispose();
+                    client.Dispose();
                     LogHelper.LogInformation("MQTT client disconnected and disposed");
+                }
+                catch (ObjectDisposedException)
+                {
+                    LogHelper.LogWarning("MQTT client already disposed.");
                 }
                 catch (Exception ex)
                 {
@@ -556,7 +581,10 @@
                 }
                 finally
                 {
-                    _isHeartbeatRunning = false;
+                    lock (_heartbeatLock)
+                    {
+                        _isHeartbeatRunning = false;
+                    }
                     _mqttPublishService.StopHeartbeat();
                     _connectionManager.Disconnect();
                 }
