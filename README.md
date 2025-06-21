@@ -37,7 +37,7 @@ I acknowledge that the code may not be perfect and there are certainly areas tha
 
 - The required nanoFramework firmware version depends on the NuGet packages used in this project.
 - To ensure compatibility, use the firmware version that matches the latest tested state of this repository.
-- The last tested firmware version for this project was **1.12.4.38**.
+- The last tested firmware version for this project was **1.12.4.289**.
 - You can check your current firmware version using the **Device Explorer** in the nanoFramework extension for Visual Studio or by running:
 
   ```sh
