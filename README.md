@@ -107,11 +107,16 @@ If you test the project with other hardware, feel free to contribute feedback!
 Once the setup is complete, the ESP32 device will start publishing temperature and humidity data from the selected sensor (DHT21, AHT10, or SHTC3) to an MQTT topic. Subscribe to this topic to receive real-time updates. The system also supports publishing custom messages to the MQTT topic.
 
 ## Remote Management (TCP Listener & MQTT Commands)
-Please refer to the following documentation for details about remote device management and available commands:
+
+The device can be remotely managed over the network using the built-in TCP Listener. By default, the TCP service listens on port 31337. You can connect using a standard terminal (e.g., PuTTY, netcat, or telnet) to the device's IP address and port.
 
 ### TCP Listener
 
-The ESP32-NF MQTT Environment Monitor provides TCP Listener functionality for remote device management. Connect to the device via TCP on port `31337` to execute commands interactively.
+Once authenticated, you are presented with a command-line interface, allowing you to monitor device status, view sensor data, control the relay, manage logs, and perform administrative actions such as reboot or password change.
+
+Below is an example session after logging in:
+
+![TCPListener Session Example](https://vps.unrealbg.com/updates/tcp.png)
 
 ### TCP Commands
 
@@ -130,11 +135,15 @@ The ESP32-NF MQTT Environment Monitor provides TCP Listener functionality for re
 - **diagnostic**: Shows diagnostic information (free memory).
 - **getlogs**: Retrieves the device logs.
 - **clearlogs**: Clears all device logs.
+- **changepassword**: Changes login credentials. Usage: changepassword <user> <pass>.
+- **whoami**: Shows current user information.
 - **exit**: Exits the TCP session.
 - **reboot**: Reboots the device.
 
 ### Authentication
-Connect using the configured username and password.
+**Default credentials:**  
+Username: `admin`  
+Password: `admin`
 
 ---
 
