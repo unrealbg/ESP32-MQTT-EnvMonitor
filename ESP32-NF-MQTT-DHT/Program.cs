@@ -24,6 +24,7 @@ namespace ESP32_NF_MQTT_DHT
 #if DEBUG
             new Thread(MemoryMonitor).Start();
 #endif
+            CredentialCache.Load();
 
             try
             {
@@ -37,7 +38,7 @@ namespace ESP32_NF_MQTT_DHT
             }
             catch (Exception ex)
             {
-                LogHelper.LogError($"An error occurred: {ex.Message}");
+                LogHelper.LogError("An error occurred: " + ex.Message);
                 LogService.LogCritical("Critical error in Main", ex);
             }
         }
@@ -63,7 +64,7 @@ namespace ESP32_NF_MQTT_DHT
             while (true)
             {
                 long totalMemory = GC.Run(true);
-                LogHelper.LogInformation($"[MemoryMonitor] Total unused memory: {totalMemory} bytes");
+                LogHelper.LogInformation("[MemoryMonitor] Total unused memory: " + totalMemory + " bytes");
 
                 Thread.Sleep(60000);
             }
