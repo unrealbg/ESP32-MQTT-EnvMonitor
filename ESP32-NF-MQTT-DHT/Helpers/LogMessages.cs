@@ -30,6 +30,9 @@
         public const string SensorDataThreadStarted = "Sensor data thread started.";
         public const string SensorDataThreadStopped = "Sensor data thread stopped.";
 
-        public static readonly string TimeStamp = $"[{DateTime.UtcNow:dd-MM-yyyy HH:mm:ss}]";
+        public static string GetTimeStamp()
+        {
+            return "[" + DateTime.UtcNow.ToString("dd-MM-yyyy HH:mm:ss") + "]";
+        }
     }
 }
