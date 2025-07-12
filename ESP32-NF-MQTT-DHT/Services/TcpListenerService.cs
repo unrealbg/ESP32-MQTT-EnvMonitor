@@ -280,7 +280,7 @@
                         return false;
                     }
 
-                    this.WriteInline(sw, LogMessages.TimeStamp + " login as: ");
+                    this.WriteInline(sw, LogMessages.GetTimeStamp() + " login as: ");
                     string usernameInput = streamReader.ReadLine();
 
                     if (string.IsNullOrEmpty(usernameInput))
@@ -289,7 +289,7 @@
                         return false;
                     }
 
-                    this.WriteInline(sw, LogMessages.TimeStamp + " " + usernameInput + "@" + clientIp + " password: ");
+                    this.WriteInline(sw, LogMessages.GetTimeStamp() + " " + usernameInput + "@" + clientIp + " password: ");
                     string passwordInput = streamReader.ReadLine();
 
                     if (string.IsNullOrEmpty(passwordInput))
@@ -389,7 +389,7 @@
             commands.Add("info", new CommandHandler((args, writer) =>
             {
                 Version firmwareVersion = SystemInfo.Version;
-                string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
+                string versionString = firmwareVersion.Major + "." + firmwareVersion.Minor + "." + firmwareVersion.Build + "." + firmwareVersion.Revision;
                 string processor = SystemInfo.OEMString;
                 string familyName = SystemInfo.TargetName;
                 uint freeMemory = GC.Run(false);
@@ -398,16 +398,16 @@
                 string ip = interfaces != null && interfaces.Length > 0 ? interfaces[0].IPv4Address : "N/A";
                 string mac = interfaces != null && interfaces.Length > 0 ? BitConverter.ToString(interfaces[0].PhysicalAddress) : "N/A";
 
-                string info = $"Device: {DeviceName}\r\n" +
-                              $"Firmware Version: {versionString}\r\n" +
-                              $"Platform: {SystemInfo.Platform}\r\n" +
-                              $"Family: {familyName}\r\n" +
-                              $"CPU: {processor}\r\n" +
-                              $"Free RAM: {freeMemory} bytes\r\n" +
-                              $"IP: {ip}\r\n" +
-                              $"MAC: {mac}\r\n" +
-                              $"Uptime: {_uptimeService.GetUptime()}\r\n" +
-                              $"Sensor Interval: {_sensorInterval} ms (TODO: Not applied to sensor service)";
+                string info = "Device: " + DeviceName + "\r\n" +
+                              "Firmware Version: " + versionString + "\r\n" +
+                              "Platform: " + SystemInfo.Platform + "\r\n" +
+                              "Family: " + familyName + "\r\n" +
+                              "CPU: " + processor + "\r\n" +
+                              "Free RAM: " + freeMemory + " bytes\r\n" +
+                              "IP: " + ip + "\r\n" +
+                              "MAC: " + mac + "\r\n" +
+                              "Uptime: " + _uptimeService.GetUptime() + "\r\n" +
+                              "Sensor Interval: " + _sensorInterval + " ms (TODO: Not applied to sensor service)";
                 this.WriteToStream(writer, info);
                 return false;
             }));
@@ -640,7 +640,7 @@
         /// </summary>
         private void WritePrompt(StreamWriter sw, string clientIp)
         {
-            this.WriteInline(sw, LogMessages.TimeStamp + " " + ClientUsername + "@" + clientIp + "]:~# ");
+            this.WriteInline(sw, LogMessages.GetTimeStamp() + " " + ClientUsername + "@" + clientIp + "]:~# ");
         }
 
         /// <summary>
@@ -683,7 +683,7 @@
         private void SendWelcomeMessage(StreamWriter sw, string clientIp)
         {
             Version firmwareVersion = SystemInfo.Version;
-            string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
+            string versionString = firmwareVersion.Major + "." + firmwareVersion.Minor + "." + firmwareVersion.Build + "." + firmwareVersion.Revision;
             string welcomeMessage =
                 "Welcome to ESP32-NF MQTT EnvMonitor!\r\n" +
                 "\r\n" +
