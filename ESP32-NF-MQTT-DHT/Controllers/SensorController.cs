@@ -15,7 +15,6 @@
     /// <summary>
     /// Controller for handling sensor-related HTTP requests.
     /// </summary>
-    [Authentication("Basic:user p@ssw0rd")]
     public class SensorController : BaseController
     {
         private readonly ISensorService _sensorService;
@@ -42,22 +41,22 @@
         [Method("GET")]
         public void Index(WebServerEventArgs e)
         {
-            this.HandleRequest(
-                e,
-                () =>
-                    {
-                        try
-                        {
-                            string htmlContent = Html.GetIndexContent();
-                            this.SendResponse(e, htmlContent, "text/html");
-                        }
-                        catch (Exception ex)
-                        {
-                            this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
-                            LogHelper.LogWarning("Failed to load index page.");
-                        }
-                    },
-                "/");
+            if (!this.IsAuthenticated(e))
+            {
+                this.SendUnauthorizedResponse(e);
+                return;
+            }
+
+            try
+            {
+                string htmlContent = Html.GetIndexContent();
+                this.SendResponse(e, htmlContent, "text/html");
+            }
+            catch (Exception ex)
+            {
+                this.SendErrorResponse(e, "Unable to load index page.", HttpStatusCode.InternalServerError);
+                LogHelper.LogWarning("Failed to load index page.");
+            }
         }
 
         /// <summary>
