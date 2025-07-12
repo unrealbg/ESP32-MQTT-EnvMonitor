@@ -96,7 +96,7 @@
             }
             else
             {
-                this.PublishError($"{LogMessages.TimeStamp} Unable to read sensor data");
+                this.PublishError(LogMessages.GetTimeStamp() + " Unable to read sensor data");
                 LogHelper.LogWarning("Unable to read sensor data");
             }
         }
