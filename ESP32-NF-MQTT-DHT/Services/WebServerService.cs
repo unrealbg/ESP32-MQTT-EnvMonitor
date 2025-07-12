@@ -139,8 +139,12 @@
         {
             if (_server == null)
             {
-                _server = new WebServerDi(80, HttpProtocol.Http, new Type[] { typeof(SensorController) }, _serviceProvider);
-                LogHelper.LogInformation("Web server initialized.");
+                // Register both SensorController and AuthController
+                _server = new WebServerDi(80, HttpProtocol.Http, new Type[] { 
+                    typeof(SensorController),
+                    typeof(AuthController)
+                }, _serviceProvider);
+                LogHelper.LogInformation("Web server initialized with SensorController and AuthController.");
             }
         }
     }
