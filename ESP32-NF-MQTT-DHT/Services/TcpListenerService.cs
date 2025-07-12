@@ -16,7 +16,6 @@
     using nanoFramework.Runtime.Native;
 
     using static Settings.DeviceSettings;
-    using static Settings.TcpSettings;
 
     using GC = nanoFramework.Runtime.Native.GC;
 
@@ -42,8 +41,7 @@
         private TcpListener _listener;
         private bool _disposed = false;
 
-        // TODO: Not applied to sensor service
-        private int _sensorInterval = 1000; 
+        private int _sensorInterval = 1000;
 
         private readonly Hashtable _commandDescriptions = new Hashtable();
         private readonly object _lock = new object();
@@ -76,6 +74,8 @@
             _commandDescriptions.Add("diagnostic", "Displays diagnostic info (free memory).");
             _commandDescriptions.Add("getlogs", "Retrieves the device logs.");
             _commandDescriptions.Add("clearlogs", "Clears the device logs.");
+            _commandDescriptions.Add("changepassword", "Changes the login credentials. Usage: changepassword <username> <password>");
+            _commandDescriptions.Add("whoami", "Shows current logged in user information.");
             _commandDescriptions.Add("exit", "Exits the session.");
             _commandDescriptions.Add("reboot", "Reboots the device.");
 
@@ -184,7 +184,6 @@
                     LogHelper.LogInformation("Waiting for an incoming connection on " + GetCurrentIpAddress() + " port " + TcpPort);
                     try
                     {
-                        // Accept a client connection (synchronously).
                         TcpClient client = _listener.AcceptTcpClient();
                         IPEndPoint remoteIpEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
                         string clientIp = remoteIpEndPoint != null ? remoteIpEndPoint.Address.ToString() : "Unknown";
@@ -207,7 +206,8 @@
                                     {
                                         try
                                         {
-                                            if (!this.AuthenticateClient(streamReader, sw, clientIp))
+                                            string authenticatedUser = this.AuthenticateClient(streamReader, sw, clientIp);
+                                            if (string.IsNullOrEmpty(authenticatedUser))
                                             {
                                                 LogHelper.LogInformation("Authentication failed for client: " + clientIp);
                                                 client.Close();
@@ -216,7 +216,7 @@
 
                                             try
                                             {
-                                                this.SendWelcomeMessage(sw, clientIp);
+                                                this.SendWelcomeMessage(sw, clientIp, authenticatedUser);
                                             }
                                             catch (Exception welcome_ex)
                                             {
@@ -225,7 +225,7 @@
                                                 continue;
                                             }
 
-                                            this.ProcessClientCommands(streamReader, sw, clientIp);
+                                            this.ProcessClientCommands(streamReader, sw, clientIp, authenticatedUser);
                                         }
                                         catch (Exception sessionEx)
                                         {
@@ -240,7 +240,7 @@
                     }
                     catch (SocketException socketEx)
                     {
-                        if (_isRunning) // Only log if we're still supposed to be running
+                        if (_isRunning)
                         {
                             LogHelper.LogError("Socket exception while accepting client: " + socketEx.Message);
                         }
@@ -248,7 +248,7 @@
                     }
                     catch (Exception ex)
                     {
-                        if (_isRunning) // Only log if we're still supposed to be running
+                        if (_isRunning)
                         {
                             LogHelper.LogError("Exception occurred while processing client request: " + ex.Message);
                         }
@@ -261,14 +261,13 @@
                 LogHelper.LogError("Fatal error in TCP listener: " + initEx.Message);
                 LogService.LogCritical("Fatal error in TCP listener: " + initEx.Message);
             }
-            // Cleanup is now handled by Dispose()
         }
 
         /// <summary>
-        /// Authenticates the client with a limited number of attempts.
-        /// Prompts are written inline so the user input appears on the same line.
+        /// Authenticates the client with a limited number of attempts using CredentialCache.
+        /// Returns the authenticated username or null if authentication failed.
         /// </summary>
-        private bool AuthenticateClient(StreamReader streamReader, StreamWriter sw, string clientIp)
+        private string AuthenticateClient(StreamReader streamReader, StreamWriter sw, string clientIp)
         {
             for (int attempt = 1; attempt <= MaxAuthAttempts; attempt++)
             {
@@ -277,55 +276,56 @@
                     if (!streamReader.BaseStream.CanRead)
                     {
                         LogHelper.LogError("Stream not readable during authentication");
-                        return false;
+                        return null;
                     }
 
-                    this.WriteInline(sw, LogMessages.TimeStamp + " login as: ");
+                    this.WriteInline(sw, LogMessages.GetTimeStamp() + " login as: ");
                     string usernameInput = streamReader.ReadLine();
 
                     if (string.IsNullOrEmpty(usernameInput))
                     {
                         LogHelper.LogError("Client disconnected during authentication - no username provided");
-                        return false;
+                        return null;
                     }
 
-                    this.WriteInline(sw, LogMessages.TimeStamp + " " + usernameInput + "@" + clientIp + " password: ");
+                    this.WriteInline(sw, LogMessages.GetTimeStamp() + " " + usernameInput + "@" + clientIp + " password: ");
                     string passwordInput = streamReader.ReadLine();
 
                     if (string.IsNullOrEmpty(passwordInput))
                     {
                         LogHelper.LogError("Client disconnected during authentication - no password provided");
-                        return false;
+                        return null;
                     }
 
-                    if (usernameInput == ClientUsername && passwordInput == ClientPassword)
+                    if (CredentialCache.Validate(usernameInput, passwordInput))
                     {
-                        return true;
+                        LogHelper.LogInformation("Successful authentication for user: " + usernameInput + " from " + clientIp);
+                        return usernameInput;
                     }
 
                     this.WriteToStream(sw, "Login incorrect");
-                    LogHelper.LogError("Login incorrect for " + clientIp);
+                    LogHelper.LogError("Login incorrect for " + clientIp + " with username: " + usernameInput);
                     Thread.Sleep(1000);
                 }
                 catch (IOException ex)
                 {
                     LogHelper.LogError("IO Exception during authentication: " + ex.Message);
-                    return false;
+                    return null;
                 }
                 catch (SocketException ex)
                 {
                     LogHelper.LogError("Socket Exception during authentication: " + ex.Message);
-                    return false;
+                    return null;
                 }
                 catch (Exception ex)
                 {
                     LogHelper.LogError("Authentication error: " + ex.Message);
                     LogService.LogCritical("Authentication error: " + ex.Message);
-                    return false;
+                    return null;
                 }
             }
 
-            return false;
+            return null;
         }
 
         /// <summary>
@@ -349,6 +349,7 @@
                 try
                 {
                     _mqttClient.MqttClient.Publish("home/" + DeviceName + "/temperature", Encoding.UTF8.GetBytes(_sensorService.GetTemp().ToString()));
+                    this.WriteToStream(writer, "Temperature published successfully");
                 }
                 catch (Exception ex)
                 {
@@ -375,6 +376,7 @@
                 try
                 {
                     _mqttClient.MqttClient.Publish("home/" + DeviceName + "/uptime", Encoding.UTF8.GetBytes(_uptimeService.GetUptime()));
+                    this.WriteToStream(writer, "Uptime published successfully");
                 }
                 catch (Exception ex)
                 {
@@ -389,7 +391,7 @@
             commands.Add("info", new CommandHandler((args, writer) =>
             {
                 Version firmwareVersion = SystemInfo.Version;
-                string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
+                string versionString = firmwareVersion.Major + "." + firmwareVersion.Minor + "." + firmwareVersion.Build + "." + firmwareVersion.Revision;
                 string processor = SystemInfo.OEMString;
                 string familyName = SystemInfo.TargetName;
                 uint freeMemory = GC.Run(false);
@@ -398,16 +400,17 @@
                 string ip = interfaces != null && interfaces.Length > 0 ? interfaces[0].IPv4Address : "N/A";
                 string mac = interfaces != null && interfaces.Length > 0 ? BitConverter.ToString(interfaces[0].PhysicalAddress) : "N/A";
 
-                string info = $"Device: {DeviceName}\r\n" +
-                              $"Firmware Version: {versionString}\r\n" +
-                              $"Platform: {SystemInfo.Platform}\r\n" +
-                              $"Family: {familyName}\r\n" +
-                              $"CPU: {processor}\r\n" +
-                              $"Free RAM: {freeMemory} bytes\r\n" +
-                              $"IP: {ip}\r\n" +
-                              $"MAC: {mac}\r\n" +
-                              $"Uptime: {_uptimeService.GetUptime()}\r\n" +
-                              $"Sensor Interval: {_sensorInterval} ms (TODO: Not applied to sensor service)";
+                string info = "Device: " + DeviceName + "\r\n" +
+                              "Firmware Version: " + versionString + "\r\n" +
+                              "Platform: " + SystemInfo.Platform + "\r\n" +
+                              "Family: " + familyName + "\r\n" +
+                              "CPU: " + processor + "\r\n" +
+                              "Free RAM: " + freeMemory + " bytes\r\n" +
+                              "IP: " + ip + "\r\n" +
+                              "MAC: " + mac + "\r\n" +
+                              "Uptime: " + _uptimeService.GetUptime() + "\r\n" +
+                              "Sensor Interval: " + _sensorInterval + " ms (TODO: Not applied to sensor service)" + "\r\n" +
+                              "Current User: " + CredentialCache.Username;
                 this.WriteToStream(writer, info);
                 return false;
             }));
@@ -494,9 +497,61 @@
                 this.WriteToStream(writer, "Logs cleared");
                 return false;
             }));
+
+            commands.Add("changepassword", new CommandHandler((args, writer) =>
+            {
+                if (args.Length < 3)
+                {
+                    this.WriteToStream(writer, "Usage: changepassword <username> <password>");
+                    this.WriteToStream(writer, "Example: changepassword admin newpassword123");
+                    return false;
+                }
+
+                string newUsername = args[1];
+                string newPassword = args[2];
+
+                try
+                {
+                    if (string.IsNullOrEmpty(newUsername) || string.IsNullOrEmpty(newPassword))
+                    {
+                        this.WriteToStream(writer, "Error: Username and password cannot be empty");
+                        return false;
+                    }
+
+                    if (newUsername.Length > 50 || newPassword.Length > 100)
+                    {
+                        this.WriteToStream(writer, "Error: Username max 50 chars, password max 100 chars");
+                        return false;
+                    }
+
+                    CredentialCache.Update(newUsername, newPassword);
+                    this.WriteToStream(writer, "Credentials updated successfully!");
+                    this.WriteToStream(writer, "New username: " + newUsername);
+                    this.WriteToStream(writer, "Note: New credentials will be used for future logins (both TCP and Web)");
+
+                    LogHelper.LogInformation("Credentials changed via TCP console for user: " + newUsername);
+                }
+                catch (Exception ex)
+                {
+                    this.WriteToStream(writer, "Error updating credentials: " + ex.Message);
+                    LogHelper.LogError("Error changing password via TCP: " + ex.Message);
+                }
+
+                return false;
+            }));
+
+            commands.Add("whoami", new CommandHandler((args, writer) =>
+            {
+                this.WriteToStream(writer, "Current logged in user: " + CredentialCache.Username);
+                this.WriteToStream(writer, "Credentials are shared between TCP console and Web interface");
+                return false;
+            }));
+
             commands.Add("exit", new CommandHandler((args, writer) => { return true; }));
             commands.Add("reboot", new CommandHandler((args, writer) =>
             {
+                this.WriteToStream(writer, "Rebooting device...");
+                LogHelper.LogInformation("Device reboot requested via TCP console");
                 Power.RebootDevice();
                 return true;
             }));
@@ -506,11 +561,11 @@
         /// <summary>
         /// Processes client commands.
         /// </summary>
-        private void ProcessClientCommands(StreamReader streamReader, StreamWriter sw, string clientIp)
+        private void ProcessClientCommands(StreamReader streamReader, StreamWriter sw, string clientIp, string authenticatedUser)
         {
             Hashtable commandHandlers = this.RegisterCommands();
 
-            this.WritePrompt(sw, clientIp);
+            this.WritePrompt(sw, clientIp, authenticatedUser);
 
             while (true)
             {
@@ -546,12 +601,12 @@
                         break;
                     }
 
-                    LogHelper.LogInformation("Command received: " + input);
+                    LogHelper.LogInformation("Command received from " + authenticatedUser + "@" + clientIp + ": " + input);
 
                     string[] parts = input.Trim().Split(' ');
                     if (parts.Length == 0)
                     {
-                        this.WritePrompt(sw, clientIp);
+                        this.WritePrompt(sw, clientIp, authenticatedUser);
                         continue;
                     }
 
@@ -567,8 +622,9 @@
                         }
                         else
                         {
-                            LogHelper.LogError($"Unrecognized command: {commandKey}");
-                            this.WriteToStream(sw, "Unrecognized command");
+                            LogHelper.LogError("Unrecognized command: " + commandKey);
+                            this.WriteToStream(sw, "Unrecognized command: " + commandKey);
+                            this.WriteToStream(sw, "Type 'help' for available commands");
                         }
                     }
                     catch (Exception cmdEx)
@@ -586,12 +642,13 @@
 
                     if (shouldExit)
                     {
+                        this.WriteToStream(sw, "Goodbye!");
                         break;
                     }
 
                     try
                     {
-                        this.WritePrompt(sw, clientIp);
+                        this.WritePrompt(sw, clientIp, authenticatedUser);
                     }
                     catch (Exception ex)
                     {
@@ -617,7 +674,7 @@
                 }
             }
 
-            LogHelper.LogInformation("Command processing ended for client: " + clientIp);
+            LogHelper.LogInformation("Command processing ended for client: " + authenticatedUser + "@" + clientIp);
         }
 
         /// <summary>
@@ -629,7 +686,7 @@
             helpText.Append("Available commands:\r\n");
             foreach (DictionaryEntry entry in _commandDescriptions)
             {
-                helpText.Append(entry.Key + " - " + entry.Value + "\r\n");
+                helpText.Append("  " + entry.Key + " - " + entry.Value + "\r\n");
             }
 
             this.WriteToStream(sw, helpText.ToString());
@@ -638,9 +695,9 @@
         /// <summary>
         /// Writes a prompt to the client using inline output.
         /// </summary>
-        private void WritePrompt(StreamWriter sw, string clientIp)
+        private void WritePrompt(StreamWriter sw, string clientIp, string authenticatedUser)
         {
-            this.WriteInline(sw, LogMessages.TimeStamp + " " + ClientUsername + "@" + clientIp + "]:~# ");
+            this.WriteInline(sw, LogMessages.GetTimeStamp() + " " + authenticatedUser + "@" + clientIp + "]:~# ");
         }
 
         /// <summary>
@@ -680,16 +737,17 @@
         /// <summary>
         /// Sends a welcome message with a list of available commands.
         /// </summary>
-        private void SendWelcomeMessage(StreamWriter sw, string clientIp)
+        private void SendWelcomeMessage(StreamWriter sw, string clientIp, string authenticatedUser)
         {
             Version firmwareVersion = SystemInfo.Version;
-            string versionString = $"{firmwareVersion.Major}.{firmwareVersion.Minor}.{firmwareVersion.Build}.{firmwareVersion.Revision}";
+            string versionString = firmwareVersion.Major + "." + firmwareVersion.Minor + "." + firmwareVersion.Build + "." + firmwareVersion.Revision;
             string welcomeMessage =
                 "Welcome to ESP32-NF MQTT EnvMonitor!\r\n" +
                 "\r\n" +
                 "* Device: " + DeviceName + "\r\n" +
                 "* Firmware Version: " + versionString + "\r\n" +
                 "* IP Address: " + GetCurrentIpAddress() + "\r\n" +
+                "* Logged in as: " + authenticatedUser + "\r\n" +
                 "\r\n" +
                 "Available commands:\r\n" +
                 " - uptime          : Displays the device uptime.\r\n" +
@@ -706,6 +764,8 @@
                 " - diagnostic      : Displays diagnostic info (free memory).\r\n" +
                 " - getlogs         : Retrieves the device logs.\r\n" +
                 " - clearlogs       : Clears the device logs.\r\n" +
+                " - changepassword  : Changes login credentials. Usage: changepassword <user> <pass>\r\n" +
+                " - whoami          : Shows current user information.\r\n" +
                 " - exit            : Exits the session.\r\n" +
                 " - reboot          : Reboots the device.\r\n" +
                 "\r\n" +
@@ -750,17 +810,14 @@
             {
                 if (disposing)
                 {
-                    // Stop the service
                     Stop();
 
-                    // Unsubscribe from events to prevent memory leaks
                     if (_connectionService != null)
                     {
                         _connectionService.ConnectionLost -= this.ConnectionLost;
                         _connectionService.ConnectionRestored -= this.ConnectionRestored;
                     }
 
-                    // Dispose managed resources
                     if (_listener != null)
                     {
                         try
@@ -775,10 +832,8 @@
                         _listener = null;
                     }
 
-                    // Clean up thread reference
                     _listenerThread = null;
 
-                    // Clear command descriptions
                     if (_commandDescriptions != null)
                     {
                         _commandDescriptions.Clear();

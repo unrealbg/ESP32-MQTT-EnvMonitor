@@ -28,7 +28,9 @@
   </PropertyGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
+    <Compile Include="Controllers\AuthController.cs" />
     <Compile Include="ExtensionAttribute.cs" />
+    <Compile Include="Helpers\CredentialCache.cs" />
     <Compile Include="Services\LedIndicatorService.cs" />
     <Compile Include="Services\LogService.cs" />
     <Compile Include="Services\MQTT\CircuitBreaker.cs" />
@@ -60,7 +62,7 @@
     <Compile Include="Services\Sensors\Shtc3SensorService.cs" />
     <Compile Include="Settings\DeviceSettings.cs" />
     <Compile Include="Settings\MqttSettings.cs" />
-    <Compile Include="Settings\TcpSettings.cs" />
+    <Compile Include="Settings\WebServerSettings.cs" />
     <Compile Include="Settings\WifiSettings.cs" />
     <Compile Include="Controllers\SensorController.cs" />
     <Compile Include="Models\Sensor.cs" />

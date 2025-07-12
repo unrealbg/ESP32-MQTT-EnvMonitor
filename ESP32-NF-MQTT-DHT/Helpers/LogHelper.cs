@@ -6,6 +6,7 @@
     using nanoFramework.Logging.Debug;
 #endif
     using System;
+    using System.Text;
 
     /// <summary>
     /// Helper class for logging messages optimized for nanoFramework memory constraints.
@@ -19,6 +20,8 @@
         private const string WARNING_COLOR = "\u001b[33m";
         private const string ERROR_COLOR = "\u001b[31m";
         private const string RESET_COLOR = "\u001b[0m";
+
+        private static readonly object _builderLock = new object();
 #endif
 
         /// <summary>
@@ -28,7 +31,8 @@
         public static void LogInformation(string message)
         {
 #if DEBUG
-            _logger.LogInformation(FormatMessage("INFO", message, INFO_COLOR));
+            string formattedMessage = FormatMessage("INFO", message, INFO_COLOR);
+            _logger.LogInformation(formattedMessage);
 #endif
         }
 
@@ -40,9 +44,16 @@
         public static void LogError(string message, Exception ex = null)
         {
 #if DEBUG
-            string formattedMessage = ex != null
-                ? FormatMessage("ERROR", message + " | Exception: " + ex.Message, ERROR_COLOR)
-                : FormatMessage("ERROR", message, ERROR_COLOR);
+            string formattedMessage;
+            if (ex != null)
+            {
+                formattedMessage = FormatMessage("ERROR", message + " | Exception: " + ex.Message, ERROR_COLOR);
+            }
+            else
+            {
+                formattedMessage = FormatMessage("ERROR", message, ERROR_COLOR);
+            }
+            
             _logger.LogError(formattedMessage);
 #endif
         }
@@ -54,7 +65,8 @@
         public static void LogWarning(string message)
         {
 #if DEBUG
-            _logger.LogWarning(FormatMessage("WARNING", message, WARNING_COLOR));
+            string formattedMessage = FormatMessage("WARNING", message, WARNING_COLOR);
+            _logger.LogWarning(formattedMessage);
 #endif
         }
 
@@ -65,7 +77,8 @@
         public static void LogDebug(string message)
         {
 #if DEBUG
-            _logger.LogDebug(FormatMessage("DEBUG", message, RESET_COLOR));
+            string formattedMessage = FormatMessage("DEBUG", message, RESET_COLOR);
+            _logger.LogDebug(formattedMessage);
 #endif
         }
 
@@ -74,18 +87,14 @@
         {
             var now = DateTime.UtcNow;
 
-            return "[" + now.Year + "-" +
-                   PadZero(now.Month) + "-" +
-                   PadZero(now.Day) + " " +
-                   PadZero(now.Hour) + ":" +
-                   PadZero(now.Minute) + ":" +
-                   PadZero(now.Second) + "] " +
+            return "[" + now.Year + "-" + PadZero(now.Month) + "-" + PadZero(now.Day) + 
+                   " " + PadZero(now.Hour) + ":" + PadZero(now.Minute) + ":" + PadZero(now.Second) + "] " +
                    color + "[" + level + "]" + RESET_COLOR + " " + message;
         }
 
         private static string PadZero(int num)
         {
-            return num < 10 ? "0" + num : num.ToString();
+            return num < 10 ? "0" + num.ToString() : num.ToString();
         }
 #endif
     }
