@@ -28,15 +28,21 @@
   </PropertyGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.props" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.props')" />
   <ItemGroup>
+    <Compile Include="Configuration\AppConfiguration.cs" />
+    <Compile Include="Configuration\StartupConfiguration.cs" />
     <Compile Include="Controllers\AuthController.cs" />
+    <Compile Include="Exceptions\ApplicationExceptions.cs" />
     <Compile Include="ExtensionAttribute.cs" />
     <Compile Include="Helpers\CredentialCache.cs" />
+    <Compile Include="Services\Contracts\IPlatformService.cs" />
+    <Compile Include="Services\Contracts\IServiceStartupManager.cs" />
     <Compile Include="Services\LedIndicatorService.cs" />
     <Compile Include="Services\LogService.cs" />
     <Compile Include="Services\MQTT\CircuitBreaker.cs" />
     <Compile Include="Services\MQTT\Contracts\IMqttConnectionManager.cs" />
     <Compile Include="Services\MQTT\Contracts\ISensorDataPublisher.cs" />
     <Compile Include="Services\MQTT\ReconnectStrategy.cs" />
+    <Compile Include="Services\PlatformService.cs" />
     <Compile Include="Services\Sensors\Aht20Bmp280SensorService.cs" />
     <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Helpers\Constants.cs" />
@@ -60,6 +66,7 @@
     <Compile Include="Services\MQTT\SensorDataPublisher.cs" />
     <Compile Include="Services\Sensors\BaseSensorService.cs" />
     <Compile Include="Services\Sensors\Shtc3SensorService.cs" />
+    <Compile Include="Services\ServiceStartupManager.cs" />
     <Compile Include="Settings\DeviceSettings.cs" />
     <Compile Include="Settings\MqttSettings.cs" />
     <Compile Include="Settings\WebServerSettings.cs" />
