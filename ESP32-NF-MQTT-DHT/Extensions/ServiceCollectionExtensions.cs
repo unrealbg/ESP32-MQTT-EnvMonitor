@@ -37,6 +37,7 @@
             services.AddSingleton(typeof(IMqttPublishService), typeof(MqttPublishService));
             services.AddSingleton(typeof(ITcpListenerService), typeof(TcpListenerService));
             services.AddSingleton(typeof(IWebServerService), typeof(WebServerService));
+            services.AddSingleton(typeof(IOtaService), typeof(OtaService));
             
             // Hardware services
             services.AddSingleton(typeof(IRelayService), typeof(RelayService));

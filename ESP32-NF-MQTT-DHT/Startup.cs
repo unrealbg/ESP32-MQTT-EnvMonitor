@@ -16,6 +16,170 @@
         private readonly IConnectionService _connectionService;
         private readonly IServiceStartupManager _serviceStartupManager;
         private readonly IPlatformService _platformService;
+        private static System.Security.Cryptography.X509Certificates.X509Certificate _otaRootCaCert;
+
+        /// <summary>
+        /// Loads the OTA server root CA certificate for TLS.
+        /// </summary>
+        private static void LoadOtaRootCa()
+        {
+            try
+            {
+                // Try common device storage locations (internal flash is typically I:\ on nanoFramework)
+                string[] candidates = new string[]
+                {
+                    @"I:\\ota_root_ca.pem",
+                    @"I:\\Settings\\ota_root_ca.pem"
+                };
+
+                string caPath = null;
+                for (int i = 0; i < candidates.Length; i++)
+                {
+                    try
+                    {
+                        if (System.IO.File.Exists(candidates[i]))
+                        {
+                            caPath = candidates[i];
+                            break;
+                        }
+                    }
+                    catch
+                    {
+                        /* ignore invalid path exceptions */
+                    }
+                }
+
+                if (caPath != null)
+                {
+                    // Parse PEM file and select a root (self-signed) CA certificate
+                    string pemText = System.IO.File.ReadAllText(caPath);
+                    const string begin = "-----BEGIN CERTIFICATE-----";
+                    const string end = "-----END CERTIFICATE-----";
+
+                    System.Security.Cryptography.X509Certificates.X509Certificate selected = null;
+                    int idx = 0;
+                    int total = 0;
+                    while (true)
+                    {
+                        int start = pemText.IndexOf(begin, idx);
+                        if (start < 0) break;
+                        int stop = pemText.IndexOf(end, start);
+                        if (stop < 0) break;
+                        stop += end.Length;
+
+                        string block = pemText.Substring(start, stop - start);
+                        total++;
+                        var cert = new System.Security.Cryptography.X509Certificates.X509Certificate(block);
+                        // Prefer self-signed (Issuer == Subject) as root CA
+                        try
+                        {
+                            if (cert.Issuer == cert.Subject)
+                            {
+                                selected = cert;
+                                break;
+                            }
+                        }
+                        catch
+                        {
+                            // ignored
+                        }
+
+                        if (selected == null)
+                        {
+                            selected = cert; // fallback to first found
+                        }
+
+                        idx = stop;
+                    }
+
+                    _otaRootCaCert = selected;
+                    if (_otaRootCaCert != null)
+                    {
+                        LogHelper.LogInformation($"TLS CA prepared from '{caPath}'. Found {total} cert(s); using: '{_otaRootCaCert.Subject}' issued by '{_otaRootCaCert.Issuer}'.");
+                    }
+                    else
+                    {
+                        LogHelper.LogWarning("No usable certificate found in PEM. HTTPS may fail.");
+                    }
+                }
+                else
+                {
+                    // Fallback to embedded certificate(s) shipped with firmware
+                    string pemText = Settings.OtaCertificates.RootCaPem;
+                    if (!string.IsNullOrEmpty(pemText))
+                    {
+                        const string begin = "-----BEGIN CERTIFICATE-----";
+                        const string end = "-----END CERTIFICATE-----";
+
+                        System.Security.Cryptography.X509Certificates.X509Certificate selected = null;
+                        int idx = 0;
+                        int total = 0;
+                        while (true)
+                        {
+                            int start = pemText.IndexOf(begin, idx);
+                            if (start < 0)
+                            {
+                                break;
+                            }
+
+                            int stop = pemText.IndexOf(end, start);
+                            if (stop < 0)
+                            {
+                                break;
+                            }
+
+                            stop += end.Length;
+
+                            string block = pemText.Substring(start, stop - start);
+                            total++;
+                            var cert = new System.Security.Cryptography.X509Certificates.X509Certificate(block);
+                            try
+                            {
+                                if (cert.Issuer == cert.Subject)
+                                {
+                                    selected = cert;
+                                    break;
+                                }
+                            }
+                            catch
+                            {
+                                // ignored
+                            }
+
+                            if (selected == null)
+                            {
+                                selected = cert;
+                            }
+
+                            idx = stop;
+                        }
+
+                        _otaRootCaCert = selected;
+                        if (_otaRootCaCert != null)
+                        {
+                            LogHelper.LogInformation($"TLS CA prepared from embedded PEM. Found {total} cert(s); using: '{_otaRootCaCert.Subject}' issued by '{_otaRootCaCert.Issuer}'.");
+                        }
+                        else
+                        {
+                            LogHelper.LogWarning("Embedded PEM present but no usable certificate found. HTTPS may fail.");
+                        }
+                    }
+                    else
+                    {
+                        LogHelper.LogWarning("Root CA PEM file not found on device and no embedded PEM present. Place it at I:\\ota_root_ca.pem.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogError("Failed to load OTA root CA: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Gets the prepared OTA root CA certificate (may be null).
+        /// </summary>
+        public static System.Security.Cryptography.X509Certificates.X509Certificate OtaRootCaCert => _otaRootCaCert;
 
         public Startup(
             IConnectionService connectionService,
@@ -32,6 +196,8 @@
 
         public void Run()
         {
+            // Load OTA root CA for TLS before any HTTPS requests
+            LoadOtaRootCa();
             try
             {
                 this.ValidateSystemRequirements();
@@ -52,7 +218,7 @@
                 LogService.LogCritical($"Failed to start service: {serviceEx.ServiceName}", serviceEx);
                 throw;
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 LogHelper.LogError($"Unexpected startup failure: {ex.Message}");
                 LogService.LogCritical("Critical error during startup", ex);

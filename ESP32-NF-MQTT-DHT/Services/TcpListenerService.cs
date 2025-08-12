@@ -12,6 +12,7 @@
     using Contracts;
 
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.OTA;
 
     using nanoFramework.Runtime.Native;
 
@@ -76,6 +77,7 @@
             _commandDescriptions.Add("clearlogs", "Clears the device logs.");
             _commandDescriptions.Add("changepassword", "Changes the login credentials. Usage: changepassword <username> <password>");
             _commandDescriptions.Add("whoami", "Shows current logged in user information.");
+            _commandDescriptions.Add("ota", "OTA over TCP. Usage: ota url <manifestUrl> | ota status | ota reboot");
             _commandDescriptions.Add("exit", "Exits the session.");
             _commandDescriptions.Add("reboot", "Reboots the device.");
 
@@ -498,6 +500,96 @@
                 return false;
             }));
 
+            commands.Add("ota", new CommandHandler((args, writer) =>
+            {
+                // Usage: ota url <manifestUrl> | ota status | ota reboot
+                try
+                {
+                    if (args.Length < 2)
+                    {
+                        this.WriteToStream(writer, "Usage: ota url <manifestUrl> | ota status | ota reboot");
+                        return false;
+                    }
+
+                    var sub = args[1].ToLower();
+                    if (sub == "status")
+                    {
+                        // Print current version and list files in OTA app dir
+                        string version = "(none)";
+                        try { if (File.Exists(Config.VersionFile)) version = File.ReadAllText(Config.VersionFile); } catch { }
+                        this.WriteToStream(writer, "OTA Version: " + version);
+                        try
+                        {
+                            if (Directory.Exists(Config.AppDir))
+                            {
+                                var files = Directory.GetFiles(Config.AppDir);
+                                if (files != null && files.Length > 0)
+                                {
+                                    this.WriteToStream(writer, "Files in " + Config.AppDir + ":");
+                                    for (int i = 0; i < files.Length; i++)
+                                    {
+                                        var p = files[i];
+                                        long sz = 0; try { var fi = new FileInfo(p); sz = fi.Length; } catch { }
+                                        this.WriteToStream(writer, " - " + p + " (" + sz + " bytes)");
+                                    }
+                                }
+                                else
+                                {
+                                    this.WriteToStream(writer, "No files in " + Config.AppDir);
+                                }
+                            }
+                            else
+                            {
+                                this.WriteToStream(writer, "OTA app dir not found: " + Config.AppDir);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.WriteToStream(writer, "Error reading OTA status: " + ex.Message);
+                        }
+                        return false;
+                    }
+                    else if (sub == "reboot")
+                    {
+                        this.WriteToStream(writer, "Rebooting device (requested via ota reboot)...");
+                        Power.RebootDevice();
+                        return true;
+                    }
+                    else if (sub == "url")
+                    {
+                        if (args.Length < 3)
+                        {
+                            this.WriteToStream(writer, "Usage: ota url <manifestUrl>");
+                            return false;
+                        }
+
+                        string url = args[2];
+                        this.WriteToStream(writer, "Starting OTA from: " + url);
+                        try
+                        {
+                            var mgr = new OtaManager();
+                            mgr.CheckAndUpdateFromUrl(url);
+                            this.WriteToStream(writer, "OTA completed. If configured, device may reboot.");
+                        }
+                        catch (Exception ex)
+                        {
+                            this.WriteToStream(writer, "OTA failed: " + ex.Message);
+                        }
+                        return false;
+                    }
+                    else
+                    {
+                        this.WriteToStream(writer, "Unknown ota subcommand. Usage: ota url <manifestUrl> | ota status | ota reboot");
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.WriteToStream(writer, "OTA command error: " + ex.Message);
+                    return false;
+                }
+            }));
+
             commands.Add("changepassword", new CommandHandler((args, writer) =>
             {
                 if (args.Length < 3)
@@ -766,6 +858,7 @@
                 " - clearlogs       : Clears the device logs.\r\n" +
                 " - changepassword  : Changes login credentials. Usage: changepassword <user> <pass>\r\n" +
                 " - whoami          : Shows current user information.\r\n" +
+                " - ota             : OTA over TCP. Usage: ota url <manifestUrl> | ota status | ota reboot\r\n" +
                 " - exit            : Exits the session.\r\n" +
                 " - reboot          : Reboots the device.\r\n" +
                 "\r\n" +

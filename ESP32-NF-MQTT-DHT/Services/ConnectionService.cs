@@ -281,6 +281,26 @@
                 this.RaiseConnectionRestored();
             }
 
+            try
+            {
+                if (DateTime.UtcNow.Year < 2020)
+                {
+                    LogHelper.LogInformation("Syncing time via SNTP...");
+                    nanoFramework.Networking.Sntp.Server1 = ESP32_NF_MQTT_DHT.Settings.TimeSettings.NtpServer;
+                    nanoFramework.Networking.Sntp.Start();
+                    Thread.Sleep(1500);
+                    LogHelper.LogInformation($"SNTP done. UTC now: {DateTime.UtcNow}");
+                    nanoFramework.Networking.Sntp.Stop();
+                    Thread.Sleep(1500);
+                    LogHelper.LogInformation($"SNTP done. UTC now: {DateTime.UtcNow}");
+                    nanoFramework.Networking.Sntp.Stop();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.LogWarning($"SNTP failed: {ex.Message}");
+            }
+
             _isConnectionInProgress = false;
         }
 
