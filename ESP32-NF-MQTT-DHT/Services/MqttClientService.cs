@@ -390,7 +390,7 @@
             this.MqttClient.MqttMsgPublishReceived -= _mqttMessageHandler.HandleIncomingMessage;
 
             this.MqttClient.ConnectionClosed += this.ConnectionClosed;
-            this.MqttClient.Subscribe(new[] { "#" }, new[] { MqttQoSLevel.AtLeastOnce });
+            this.MqttClient.Subscribe(new[] { "#", OTA.Config.TopicCmd }, new[] { MqttQoSLevel.AtLeastOnce, MqttQoSLevel.AtLeastOnce });
             this.MqttClient.MqttMsgPublishReceived += _mqttMessageHandler.HandleIncomingMessage;
 
             _mqttMessageHandler.SetMqttClient(this.MqttClient);
