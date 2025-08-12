@@ -34,6 +34,14 @@
     <Compile Include="Exceptions\ApplicationExceptions.cs" />
     <Compile Include="ExtensionAttribute.cs" />
     <Compile Include="Helpers\CredentialCache.cs" />
+    <Compile Include="OTA\Config.cs" />
+    <Compile Include="OTA\OtaCrypto.cs" />
+    <Compile Include="OTA\OtaFile.cs" />
+    <Compile Include="OTA\OtaManager.cs" />
+    <Compile Include="OTA\OtaManifest.cs" />
+    <Compile Include="OTA\OtaUtil.cs" />
+    <Compile Include="OTA\Sha256Lite.cs" />
+    <Compile Include="OTA\StrVec.cs" />
     <Compile Include="Services\Contracts\IPlatformService.cs" />
     <Compile Include="Services\Contracts\IServiceStartupManager.cs" />
     <Compile Include="Services\LedIndicatorService.cs" />
@@ -69,8 +77,10 @@
     <Compile Include="Services\ServiceStartupManager.cs" />
     <Compile Include="Settings\DeviceSettings.cs" />
     <Compile Include="Settings\MqttSettings.cs" />
+    <Compile Include="Settings\OtaCertificates.cs" />
     <Compile Include="Settings\WebServerSettings.cs" />
     <Compile Include="Settings\WifiSettings.cs" />
+    <Compile Include="Settings\TimeSettings.cs" />
     <Compile Include="Controllers\SensorController.cs" />
     <Compile Include="Models\Sensor.cs" />
     <Compile Include="Models\Data.cs" />
@@ -79,6 +89,7 @@
     <Compile Include="Services\Sensors\AhtSernsorService.cs" />
     <Compile Include="Services\ConnectionService.cs" />
     <Compile Include="Services\Contracts\IConnectionService.cs" />
+    <Compile Include="Services\Contracts\IOtaService.cs" />
     <Compile Include="Services\Contracts\IMqttClientService.cs" />
     <Compile Include="Services\Contracts\IRelayService.cs" />
     <Compile Include="Services\Contracts\ITcpListenerService.cs" />
@@ -86,6 +97,7 @@
     <Compile Include="Services\Contracts\IWebServerService.cs" />
     <Compile Include="Services\Sensors\DhtService.cs" />
     <Compile Include="Services\MqttClientService.cs" />
+    <Compile Include="Services\OtaService.cs" />
     <Compile Include="Services\RelayService.cs" />
     <Compile Include="Services\TcpListenerService.cs" />
     <Compile Include="Services\UptimeService.cs" />
@@ -141,6 +153,9 @@
     </Reference>
     <Reference Include="nanoFramework.M2Mqtt.Core">
       <HintPath>..\packages\nanoFramework.M2Mqtt.5.1.199\lib\nanoFramework.M2Mqtt.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="nanoFramework.Networking.Sntp">
+      <HintPath>..\packages\nanoFramework.Networking.Sntp.1.6.42\lib\nanoFramework.Networking.Sntp.dll</HintPath>
     </Reference>
     <Reference Include="nanoFramework.Runtime.Events">
       <HintPath>..\packages\nanoFramework.Runtime.Events.1.11.32\lib\nanoFramework.Runtime.Events.dll</HintPath>
@@ -217,6 +232,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Settings\ota_root_ca.pem" />
   </ItemGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.CSharp.targets" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.CSharp.targets')" />
   <ProjectExtensions>
