@@ -3,13 +3,15 @@
 ## Table of Contents
 - [Introduction](#introduction)
 - [Requirements](#requirements)
+- [Tested Hardware](#tested-hardware)
 - [Setup](#setup)
 - [Usage](#usage)
-- [Remote Management](#remote-management-tcp-listener--mqtt-commands)
+- [Remote Management (TCP Listener & MQTT Commands)](#remote-management-tcp-listener--mqtt-commands)
+- [Secure OTA Updates (nanoFramework ESP32)](#secure-ota-updates-nanoframework-esp32)
 - [Troubleshooting](#troubleshooting)
 - [WebServer with API Endpoints](#webserver-with-api-endpoints)
 - [Index Page](#index-page)
-- [Relay Control](#relay-control)
+- [Relay Control](#new-feature-relay-control-with-toggle-button)
 - [Additional Functionalities](#additional-functionalities)
 - [Project Images](#project-images)
 - [Contributing](#contributing)
@@ -40,23 +42,25 @@ I acknowledge that the code may not be perfect and there are certainly areas tha
 - The last tested firmware version for this project was **1.12.4.289**.
 - You can check your current firmware version using the **Device Explorer** in the nanoFramework extension for Visual Studio or by running:
 
-  ```sh
-  nanoff --platform esp32 --target <YOUR_ESP32_TARGET> --serialport <YOUR_COM_PORT> --list
+```sh
+nanoff --platform esp32 --target <YOUR_ESP32_TARGET> --serialport <YOUR_COM_PORT> --list
+```
 
 - If needed, update your firmware to the version used in this project:
   
-  ```sh
-  nanoff --platform esp32 --target <YOUR_ESP32_TARGET> --serialport <YOUR_COM_PORT> --masserase --update --fwversion 1.12.4.14
+```sh
+nanoff --platform esp32 --target <YOUR_ESP32_TARGET> --serialport <YOUR_COM_PORT> --masserase --update --fwversion 1.12.4.14
+```
 
-- Important: Replace <YOUR_ESP32_TARGET> with the correct target for your device (e.g., ESP32_WROOM_32, ESP32_S3, ESP32_C3). You can find the available targets by running:
+- Important: Replace `<YOUR_ESP32_TARGET>` with the correct target for your device (e.g., ESP32_WROOM_32, ESP32_S3, ESP32_C3). You can find the available targets by running:
 
-  ```sh
-  nanoff --platform esp32 --listtargets
+```sh
+nanoff --platform esp32 --listtargets
+```
 
-- Also, replace <YOUR_COM_PORT> with the actual serial port where your ESP32 device is connected (e.g., COM31 on Windows or /dev/ttyUSB0 on Linux/macOS).
+- Also, replace `<YOUR_COM_PORT>` with the actual serial port where your ESP32 device is connected (e.g., `COM31` on Windows or `/dev/ttyUSB0` on Linux/macOS).
 - If you decide to use a **newer firmware version**, you **must also update the corresponding NuGet packages** in your project to ensure compatibility. Check for updates in Visual Studio's **NuGet Package Manager** and make sure all dependencies align with the firmware version you are using.
 - For detailed firmware update instructions, visit the [nanoFramework documentation](https://docs.nanoframework.net/content/getting-started-guides/getting-started-managed.html).
-
 
 ## Tested Hardware
 
@@ -169,6 +173,205 @@ Publish commands to the respective MQTT topics below:
 - **Error Logging (`home/<DeviceName>/errors`):**
   - Publish error messages for logging and debugging.
 
+---
+
+## Secure OTA Updates (nanoFramework ESP32)
+
+Over-the-air updates let the device securely download, verify, and load application modules without reflashing the base firmware.
+
+### Features
+- HTTPS download with TLS 1.2 and CA-based server verification.
+- Integrity check: SHA-256 of every downloaded file.
+- Transactional writes with .bak rollback on failure.
+- Dependency pre-load, then main app load and invoke.
+- Status via MQTT and interactive control via TCP console.
+- Small packager tool that emits manifest.json + hashes.
+
+### Components
+- Runtime:
+  - OtaManager.cs — orchestrates manifest fetch, download, verify, write, load, and finalization.
+  - OtaManifest.cs, OtaFile.cs, OtaUtil.cs, OtaCrypto.cs, Sha256Lite.cs
+  - Config.cs — OTA configuration (paths, topics, behavior, entry point).
+- Transport:
+  - MQTT OTA control integrated with existing broker.
+  - TCP console command ota (URL/status/reboot).
+- Packaging:
+  - OtaPackager — CLI to compute SHA-256 and generate `manifest.json` (and `HASHES.txt`).
+
+---
+
+### How it works
+
+1) Device downloads `manifest.json` (HTTPS).
+2) For each file:
+   - Downloads bytes.
+   - Verifies SHA-256 matches manifest.
+   - Writes to `I:/data/app/<name>` with safe backup (`.bak`).
+3) Loads all dependencies (.pe) except main.
+4) Loads main app `.pe` and invokes entry method.
+5) Writes version file and optionally reboots/cleans old files.
+
+Status messages are published to MQTT during each step.
+
+---
+
+### Requirements
+
+- **Time/TLS**
+  - Device time must be synced (SNTP is used in the project; keep it enabled).
+  - A trusted CA certificate for your HTTPS server must be available.
+    - Preferred: embedded PEM in OtaCertificates.cs.
+    - Override (if present): `I:\ota_root_ca.pem` (PEM). Use a CA/intermediate, not the leaf cert.
+
+- **Storage**
+  - OTA app dir: `I:/data/app`
+  - Version file: `I:/data/app/CurrentVersion.txt`
+
+- **Entry point in App.pe**
+  - Public static parameterless method (default: `Entry.Start()`).
+  - If different, set in Config.cs:
+    - `EntryTypeName` (fully qualified if namespaced)
+    - `EntryMethodName` (“Start” or “Main”)
+
+---
+
+### Configuration (OTA/Config.cs)
+
+- **Identity and MQTT topics:**
+  - `DeviceId` = `Settings.DeviceSettings.DeviceName`
+  - Topics:
+    - Cmd: `home/{DeviceId}/ota/cmd`
+    - Status: `home/{DeviceId}/ota/status`
+- **Storage:**
+  - `AppDir = "I:/data/app"`
+  - `VersionFile = "I:/data/app/CurrentVersion.txt"`
+- **Behavior:**
+  - `MainAppName = "App.pe"`
+  - `RebootAfterApply = true`
+  - `CleanAfterApply = true`
+  - `EntryTypeName = "Entry"`
+  - `EntryMethodName = "Start"`
+
+---
+
+### Packaging updates
+
+Use the packager to generate `manifest.json` and file hashes for the .pe artifacts you’ll host.
+
+- Inputs: folder with your .pe files (built for nanoFramework)
+- Outputs: `manifest.json` and `HASHES.txt`
+- Options:
+  - `--main=App.pe` sets which file is the main (ensures it loads last).
+  - `--base-url=https://host/path/` prefixes URLs in manifest.
+  - `--include=App.pe;Lib.pe` explicitly includes only listed files.
+
+Example:
+```powershell
+# From the repo root (adjust paths)
+dotnet run --project .\ESP32-NF-MQTT-DHT\Tools\OtaPackager\OtaPackager.csproj `
+  -- "E:\build\ota\pe" "1.0.3" "E:\build\ota\out" `
+  --main=App.pe `
+  --base-url=https://example.com/esp32/
+```
+
+This creates:
+- `out\manifest.json`
+- `out\HASHES.txt`
+- Copies .pe files into `out\` (hashes printed to console and HASHES.txt)
+
+Manifest example:
+```json
+{
+  "version": "1.0.3",
+  "files": [
+    {
+      "name": "Lib.pe",
+      "url": "https://example.com/esp32/Lib.pe",
+      "sha256": "<sha256-of-Lib.pe>"
+    },
+    {
+      "name": "App.pe",
+      "url": "https://example.com/esp32/App.pe",
+      "sha256": "<sha256-of-App.pe>"
+    }
+  ]
+}
+```
+Note: main app (`App.pe`) is listed last by the packager.
+
+---
+
+### Hosting
+
+- Upload `manifest.json` and all listed `.pe` files to your HTTPS server.
+- Serve .pe as binary:
+  - Content-Type: `application/octet-stream`
+  - Disable compression (no gzip/deflate) for `.pe`
+- Ensure URLs in `manifest.json` match exactly (case-sensitive on many hosts).
+- If using a CDN, purge caches or add version query strings.
+
+---
+
+### Triggering an update
+
+**Option A — via MQTT**
+- Topic: `home/{DeviceId}/ota/cmd`
+- Payload: either a raw URL string or JSON with url
+  - Raw string:
+    - `https://example.com/esp32/manifest.json`
+  - JSON:
+    - `{"url":"https://example.com/esp32/manifest.json"}`
+
+Progress/status is published to:
+- Topic: `home/{DeviceId}/ota/status`
+- JSON message: `{ "ts": "...", "state": "DOWNLOADING|VERIFYING|WRITTEN|APPLIED|REBOOT|..." , "msg": "..." }`
+
+**Option B — via TCP console (port 31337)**
+- Commands:
+  - `ota status` — shows installed version and files in `I:/data/app`
+  - `ota url <manifestUrl>` — runs the update flow
+  - `ota reboot` — reboots the device
+- Other TCP commands are listed in the welcome banner.
+
+---
+
+### Versioning and cleanup
+
+- After a successful apply:
+  - Version is written to `I:/data/app/CurrentVersion.txt`.
+  - If `CleanAfterApply = true`, any old `.pe` (not in the manifest) and `*.bak` are removed.
+  - If `RebootAfterApply = true`, the device reboots.
+
+- **Update gating:**
+  - The device compares the new `manifest.version` against `CurrentVersion.txt`. If not greater, it reports “UPTODATE” and skips.
+
+---
+
+### Troubleshooting (OTA)
+
+- **SHA mismatch + tiny size (e.g., 231 bytes)**
+  - The URL in `manifest.json` likely points to a non-.pe file (HTML/JSON/error/redirect).
+  - Fix: ensure the file’s URL is the .pe, not `manifest.json` or an index page. Verify response is 200 OK and binary.
+  - Cross-check: compare server file hash with `HASHES.txt`.
+
+- **“Entry type/method not found”**
+  - Set `EntryTypeName` and `EntryMethodName` in Config.cs to your actual entry (public static Start/Main).
+  - Loader also tries common fallbacks and scans all types, but config is authoritative.
+
+- **TLS failures**
+  - Ensure time is synced (SNTP).
+  - Provide correct CA PEM (Let’s Encrypt intermediate/root or your CA):
+    - Preferred embedded PEM in OtaCertificates.cs.
+    - Optional override at `I:\ota_root_ca.pem` (PEM format).
+
+- **HTTP non-200 statuses**
+  - The client requires `200 OK`. Fix server paths/auth and ensure no redirects are required.
+
+- **CDN or caching issues**
+  - Purge caches or add version query parameters to file URLs.
+
+---
+
 ## Troubleshooting
 
 - **Bootloop Prevention:**   
@@ -249,6 +452,7 @@ The web interface has been updated with a new **Relay Control** button. This but
 ### Example HTML:
 ```html
 <button id="relayButton" class="btn-on" onclick="toggleRelay()">Loading...</button>
+<script>
 async function toggleRelay() {
     const response = await fetch('/api/toggle-relay', { method: 'POST' });
     const data = await response.json();
@@ -265,6 +469,7 @@ function updateRelayButton(isRelayOn) {
         relayButton.className = 'btn-on';
     }
 }
+</script>
 ```
 
 ## Additional Functionalities
@@ -304,6 +509,10 @@ Contributions are welcome! Please follow these steps to contribute:
 - Special thanks to everyone who contributed to this project.
 
 ## Changelog
+
+### [v1.2.0] - 2025-08-12
+- Added secure OTA updates (HTTPS + CA validation, SHA-256 verification, transactional apply, MQTT/TCP control).
+- Included OtaPackager CLI and OTA runtime components.
 
 ### [v1.1.0] - 2025-03-02
 - **Sensor Services:**  
