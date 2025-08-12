@@ -23,9 +23,10 @@
         private static readonly string UptimeTopic = $"home/{DeviceName}/uptime";
         private static readonly string ErrorTopic = $"home/{DeviceName}/errors";
 
-        private readonly IRelayService _relayService;
+    private readonly IRelayService _relayService;
         private readonly IUptimeService _uptimeService;
         private readonly IConnectionService _connectionService;
+    private readonly IOtaService _otaService;
         private MqttClient _mqttClient;
 
         /// <summary>
@@ -35,11 +36,12 @@
         /// <param name="uptimeService">The uptime service for retrieving system uptime.</param>
         /// <param name="logHelper">The log helper for logging messages.</param>
         /// <param name="connectionService">The connection service for retrieving network information.</param>
-        public MqttMessageHandler(IRelayService relayService, IUptimeService uptimeService, IConnectionService connectionService)
+        public MqttMessageHandler(IRelayService relayService, IUptimeService uptimeService, IConnectionService connectionService, IOtaService otaService)
         {
             this._relayService = relayService;
             this._uptimeService = uptimeService;
             this._connectionService = connectionService;
+            this._otaService = otaService;
         }
 
         /// <summary>
@@ -49,6 +51,16 @@
         public void SetMqttClient(MqttClient mqttClient)
         {
             _mqttClient = mqttClient;
+            // give OTA service access to the connected client for status publishing
+            try
+            {
+                var setter = _otaService as ESP32_NF_MQTT_DHT.Services.OtaService;
+                setter?.SetMqttClient(mqttClient);
+            }
+            catch
+            {
+                // ignored
+            }
         }
 
         /// <summary>
@@ -140,6 +152,10 @@
                 {
                     // Log the error message
                     LogHelper.LogError(e.Message.ToString());
+                }
+                else if (e.Topic == ESP32_NF_MQTT_DHT.OTA.Config.TopicCmd)
+                {
+                    _otaService.HandleOtaCommand(message);
                 }
             }
             catch (Exception ex)
