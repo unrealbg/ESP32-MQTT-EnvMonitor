@@ -8,6 +8,7 @@
 - [Usage](#usage)
 - [Remote Management (TCP Listener & MQTT Commands)](#remote-management-tcp-listener--mqtt-commands)
 - [Secure OTA Updates (nanoFramework ESP32)](#secure-ota-updates-nanoframework-esp32)
+- [OTA External Modules & HealthModule (Step-by-Step)](#ota-external-modules--healthmodule-step-by-step)
 - [Troubleshooting](#troubleshooting)
 - [WebServer with API Endpoints](#webserver-with-api-endpoints)
 - [Index Page](#index-page)
@@ -372,6 +373,97 @@ Progress/status is published to:
 
 ---
 
+## OTA External Modules & HealthModule (Step-by-Step)
+
+### Overview
+- The project supports **external modules** delivered via **OTA** without rebuilding the base firmware.
+- `ModuleManager` loads `.pe` files from `I:/data/app/modules` on boot and starts the modules.
+- Two kinds of external modules are supported:
+  - **Strong**: classes implementing `ESP32_NF_MQTT_DHT.Modules.Contracts.IModule`.
+  - **Duck-typed**: classes with the following members **(no compile-time references to this project)**:
+    - `public string Name { get; }`
+    - `public void Start()`
+    - `public void Stop()`
+    - Optional DI hook: `public void Init(object serviceProvider)`
+- The OTA Manager expects a JSON manifest over HTTPS. After OTA, modules found in `ModulesDir` are loaded on boot.
+
+### Paths & Configuration
+- `OTA.Config.AppDir`: `I:/data/app`
+- `OTA.Config.ModulesDir`: `I:/data/app/modules`
+- OTA behavior: `RebootAfterApply`, `CleanAfterApply`
+- HTTPS Root CA: `I:\ota_root_ca.pem` or `Settings.OtaCertificates.RootCaPem`
+
+### Example External Module: **HealthModule**
+- Separate project: `HealthModule.Ext` (Class Library — .NET nanoFramework)
+- `AssemblyName`: `HealthModule` → produces `HealthModule.pe`
+- Duck-typed implementation (no compile-time dependency on the main project)
+- Publishes JSON with `freeMemory` and `uptime` to MQTT topic: `home/{DeviceName}/health`.
+
+### Building a `.pe` for an External Module
+1) Create a **Class Library (.NET nanoFramework)** and set `AssemblyName` to e.g. `HealthModule`.  
+2) Implement the duck-typed API (`Name`/`Start`/`Stop` and optionally `Init(object serviceProvider)` for DI).  
+3) **Build** → take `HealthModule.pe` from `bin/Debug` or `bin/Release`.  
+4) Compute **SHA-256** (lowercase hex) of the `.pe` file.
+
+### Example OTA Manifest (module-only)
+- File example: `ESP32-NF-MQTT-DHT/OTA/Manifests/health-manifest.json`
+- Contents:
+```json
+{
+  "version": "1.0.3",
+  "files": [
+    { "name": "modules/HealthModule.pe", "url": "https://your.cdn/ota/modules/HealthModule.pe", "sha256": "lowercase_sha256_here" }
+  ]
+}
+```
+Notes:
+- `version` must be **greater** than the value stored in `I:/data/app/CurrentVersion.txt`.
+- A manifest **without** `App.pe` is supported (module-only update). OTA will **not** try to start `App.pe` if it’s not in the manifest.
+
+### Deploying OTA (Module)
+1) Upload `HealthModule.pe` to a public **HTTPS** URL (valid root CA).  
+2) Upload the manifest JSON to a public **HTTPS** URL.  
+3) Trigger OTA:
+   - **MQTT**: publish to `home/{DeviceName}/ota/cmd`  
+     Payload: `{"url":"https://your.cdn/ota/health-manifest.json"}`
+   - **TCP console**: `ota url https://your.cdn/ota/health-manifest.json`
+4) The device downloads the `.pe`, validates SHA-256, writes it to `I:/data/app/modules`, and on **next boot** the module loads.
+
+### Boot-Time Loading Flow
+- Startup calls `ModuleManager.LoadFromDirectory(ModulesDir)`.
+- For each `.pe`:
+  - If a class implements `IModule`, it’s created via DI or with a parameterless ctor.
+  - If **duck-typed**, reflection looks for members `Name`/`Start`/`Stop`.  
+    If `Init(serviceProvider)` exists, the DI container is passed in.
+- After registration, `Start()` is invoked for all modules.
+
+### Expected Logs
+- `Discovered and registered OTA modules: N` on boot.  
+- `Starting module: ...` per module.  
+- HealthModule publishes log line:  
+  `[HealthModule] published to home/{Device}/health: {json}`
+- For external `.pe` modules you may see `No debugging symbols available` — that’s normal.
+
+### Troubleshooting (Modules)
+- **OTA says “load failed — rolled back”**: ensure the version is higher, SHA-256 matches, and HTTPS CA is valid.  
+- **Module not loading**: verify the `.pe` is in `I:/data/app/modules` and that the class exposes `Name/Start/Stop` (or implements `IModule`).  
+- **No MQTT publish**: confirm MQTT connectivity. Duck-typed modules obtain the MQTT client via DI in `Init(serviceProvider)` → `IMqttClientService.get_MqttClient`.  
+- **Reflection exception on startup**: avoid `Type.GetProperty` / `Type.GetMethod` with BindingFlags in nanoFramework. Enumerate `GetMethods()` and use getter names like `get_XXX`.  
+- **Time is 1970**: wait for SNTP sync; a more robust SNTP with timeout/fallback is included.
+
+### Security
+- OTA uses **HTTPS**. Provide a valid **root CA** (`I:\ota_root_ca.pem` or `Settings.OtaCertificates.RootCaPem`) for the domain serving your `.pe` and manifest.  
+- Recommendation: host the files on a trusted CDN and/or sign them.
+
+### Developer Notes for Duck-Typed Modules (Tips)
+- Use `get_XXX` for property getters, because `GetProperty` isn’t available in nanoFramework.  
+- Avoid `Type.GetMethod` with `BindingFlags` (can throw `ArgumentException` on some platforms). Instead, enumerate `GetMethods()` and match by name/signature.  
+- Need `DeviceName`? Look for `ESP32_NF_MQTT_DHT.Settings.DeviceSettings.get_DeviceName` or a static `DeviceName` field.  
+- For DI access: in `Init(serviceProvider)`, call the provider’s `GetService(<FullType>)` via reflection to obtain services you need.
+
+### Licensing
+- Respect dependency licenses. Be cautious about reusing code and certificates.
+
 ## Troubleshooting
 
 - **Bootloop Prevention:**   
@@ -509,6 +601,12 @@ Contributions are welcome! Please follow these steps to contribute:
 - Special thanks to everyone who contributed to this project.
 
 ## Changelog
+
+### [v1.3.0] - 2025-08-15
+- **OTA External Modules**: Support for loading `.pe` modules from `I:/data/app/modules` at boot.
+- **Duck-Typed Modules**: Run modules with `Name/Start/Stop` (optional `Init(object serviceProvider)`).
+- **HealthModule Example**: Publishes `uptime` and `freeMemory` to `home/{DeviceName}/health`.
+- **Module-Only OTA**: Manifests without `App.pe` are now supported for safe module updates.
 
 ### [v1.2.0] - 2025-08-12
 - Added secure OTA updates (HTTPS + CA validation, SHA-256 verification, transactional apply, MQTT/TCP control).
