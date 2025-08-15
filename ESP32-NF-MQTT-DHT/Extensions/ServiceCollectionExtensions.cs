@@ -3,6 +3,8 @@
     using ESP32_NF_MQTT_DHT.Helpers;
     using ESP32_NF_MQTT_DHT.Managers;
     using ESP32_NF_MQTT_DHT.Managers.Contracts;
+    using ESP32_NF_MQTT_DHT.Modules;
+    using ESP32_NF_MQTT_DHT.Modules.Contracts;
     using ESP32_NF_MQTT_DHT.Services;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
     using ESP32_NF_MQTT_DHT.Services.MQTT;
@@ -46,6 +48,10 @@
             // Utility services
             services.AddSingleton(typeof(IUptimeService), typeof(UptimeService));
             services.AddSingleton(typeof(MqttMessageHandler));
+
+            // Modules
+            services.AddSingleton(typeof(IModuleManager), typeof(ModuleManager));
+            services.AddSingleton(typeof(OtaModule));
 
             return services;
         }

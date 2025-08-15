@@ -5,6 +5,9 @@
     using ESP32_NF_MQTT_DHT.Configuration;
     using ESP32_NF_MQTT_DHT.Exceptions;
     using ESP32_NF_MQTT_DHT.Helpers;
+    using ESP32_NF_MQTT_DHT.Modules;
+    using ESP32_NF_MQTT_DHT.Modules.Contracts;
+    using ESP32_NF_MQTT_DHT.OTA;
     using ESP32_NF_MQTT_DHT.Services;
     using ESP32_NF_MQTT_DHT.Services.Contracts;
 
@@ -13,10 +16,11 @@
     /// </summary>
     public class Startup
     {
+        private static System.Security.Cryptography.X509Certificates.X509Certificate _otaRootCaCert;
         private readonly IConnectionService _connectionService;
         private readonly IServiceStartupManager _serviceStartupManager;
         private readonly IPlatformService _platformService;
-        private static System.Security.Cryptography.X509Certificates.X509Certificate _otaRootCaCert;
+        private readonly IModuleManager _moduleManager;
 
         /// <summary>
         /// Loads the OTA server root CA certificate for TLS.
@@ -25,7 +29,7 @@
         {
             try
             {
-                // Try common device storage locations (internal flash is typically I:\ on nanoFramework)
+                // Try common device storage locations (internal flash is typically I:\\ on nanoFramework)
                 string[] candidates = new string[]
                 {
                     @"I:\\ota_root_ca.pem",
@@ -184,11 +188,17 @@
         public Startup(
             IConnectionService connectionService,
             IServiceStartupManager serviceStartupManager,
-            IPlatformService platformService)
+            IPlatformService platformService,
+            IModuleManager moduleManager,
+            OtaModule otaModule) // keep built-in OTA module only
         {
             _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
             _serviceStartupManager = serviceStartupManager ?? throw new ArgumentNullException(nameof(serviceStartupManager));
             _platformService = platformService ?? throw new ArgumentNullException(nameof(platformService));
+            _moduleManager = moduleManager ?? throw new ArgumentNullException(nameof(moduleManager));
+
+            // Register only built-in module(s)
+            _moduleManager.Register(otaModule);
 
             LogHelper.LogInformation("Initializing application...");
             this.LogPlatformInfo();
@@ -203,6 +213,19 @@
                 this.ValidateSystemRequirements();
                 this.EstablishConnection();
                 this.StartServices();
+
+                // Discover and register OTA-delivered modules before starting modules
+                try
+                {
+                    int n = (ESP32_NF_MQTT_DHT.Modules.ModuleManager)_moduleManager is ESP32_NF_MQTT_DHT.Modules.ModuleManager mm ? mm.LoadFromDirectory(Config.ModulesDir) : 0;
+                    LogHelper.LogInformation("Discovered and registered OTA modules: " + n);
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.LogError("Module discovery failed: " + ex.Message);
+                }
+
+                _moduleManager.StartAll();
                 
                 LogHelper.LogInformation("Application startup completed successfully.");
             }

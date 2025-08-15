@@ -34,6 +34,10 @@
     <Compile Include="Exceptions\ApplicationExceptions.cs" />
     <Compile Include="ExtensionAttribute.cs" />
     <Compile Include="Helpers\CredentialCache.cs" />
+    <Compile Include="Modules\Contracts\IModule.cs" />
+    <Compile Include="Modules\Contracts\IModuleManager.cs" />
+    <Compile Include="Modules\ModuleManager.cs" />
+    <Compile Include="Modules\OtaModule.cs" />
     <Compile Include="OTA\Config.cs" />
     <Compile Include="OTA\OtaCrypto.cs" />
     <Compile Include="OTA\OtaFile.cs" />
@@ -232,6 +236,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="README-OTA-MODULES.md" />
     <None Include="Settings\ota_root_ca.pem" />
   </ItemGroup>
   <Import Project="$(NanoFrameworkProjectSystemPath)NFProjectSystem.CSharp.targets" Condition="Exists('$(NanoFrameworkProjectSystemPath)NFProjectSystem.CSharp.targets')" />
