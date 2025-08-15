@@ -287,12 +287,29 @@
                 {
                     LogHelper.LogInformation("Syncing time via SNTP...");
                     nanoFramework.Networking.Sntp.Server1 = ESP32_NF_MQTT_DHT.Settings.TimeSettings.NtpServer;
+                    // Optional fallback server to improve reliability
+                    try { nanoFramework.Networking.Sntp.Server2 = "time.google.com"; } catch { }
+
                     nanoFramework.Networking.Sntp.Start();
-                    Thread.Sleep(1500);
-                    LogHelper.LogInformation($"SNTP done. UTC now: {DateTime.UtcNow}");
-                    nanoFramework.Networking.Sntp.Stop();
-                    Thread.Sleep(1500);
-                    LogHelper.LogInformation($"SNTP done. UTC now: {DateTime.UtcNow}");
+
+                    // Wait up to ~20s for SNTP to set the clock
+                    int attempts = 0;
+                    while (attempts < 20 && DateTime.UtcNow.Year < 2020)
+                    {
+                        Thread.Sleep(1000);
+                        attempts++;
+                    }
+
+                    if (DateTime.UtcNow.Year < 2020)
+                    {
+                        LogHelper.LogWarning("SNTP failed to set time within timeout.");
+                    }
+                    else
+                    {
+                        LogHelper.LogInformation($"SNTP synced. UTC now: {DateTime.UtcNow}");
+                    }
+
+                    // Stop the SNTP client after initial sync; periodic sync can be started elsewhere if desired
                     nanoFramework.Networking.Sntp.Stop();
                 }
             }
