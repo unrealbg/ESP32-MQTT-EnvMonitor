@@ -22,6 +22,7 @@
         // Storage
     public const string AppDir = "I:/data/app";
     public const string VersionFile = "I:/data/app/CurrentVersion.txt";
+    public const string ModulesDir = AppDir + "/modules";
 
         // Behavior
         public static bool RebootAfterApply = true;
