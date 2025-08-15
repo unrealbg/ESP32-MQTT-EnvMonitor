@@ -66,14 +66,35 @@
                         Console.WriteLine("[OTA] actual  : " + actualHex);
                         Console.WriteLine("[OTA] size    : " + data.Length);
                     }
-                    catch { }
+                    catch
+                    {
+                        // ignored
+                    }
+
                     throw new Exception("sha256 mismatch: " + f.Name);
                 }
 
                 EnsureDir(Config.AppDir);
+                var parent = ParentDir(path);
+                if (parent != null)
+                {
+                    EnsureDir(parent);
+                }
+
                 SafeWrite(path, bak, data);
                 updated[updatedCount++] = path;
                 OtaUtil.SafeStatus("WRITTEN", f.Name);
+            }
+
+            // Detect if manifest includes main app
+            bool hasMainApp = false;
+            for (int i = 0; i < mf.Files.Length; i++)
+            {
+                if (StringsEqual(mf.Files[i].Name, Config.MainAppName))
+                {
+                    hasMainApp = true;
+                    break;
+                }
             }
 
             // Step 2: load dependencies (every file except main app)
@@ -95,8 +116,12 @@
                 }
             }
 
-            // Step 3: load + start main app
-            bool appOk = depOk && TryLoadAndStart(Combine(Config.AppDir, Config.MainAppName));
+            // Step 3: load + start main app if present; otherwise accept module-only updates
+            bool appOk = depOk;
+            if (depOk && hasMainApp)
+            {
+                appOk = TryLoadAndStart(Combine(Config.AppDir, Config.MainAppName));
+            }
 
             if (!appOk)
             {
@@ -189,6 +214,27 @@
             return a + "/" + b;
         }
 
+        private static string ParentDir(string path)
+        {
+            if (path == null)
+            {
+                return null;
+            }
+
+            int i = path.Length - 1;
+            while (i >= 0 && path[i] != '/' && path[i] != (char)92)
+            {
+                i--;
+            }
+
+            if (i <= 0)
+            {
+                return null;
+            }
+
+            return path.Substring(0, i);
+        }
+
         private static void SafeWrite(string active, string backup, byte[] data)
         {
             if (File.Exists(active))
@@ -202,7 +248,9 @@
             }
 
             using (var fs = new FileStream(active, FileMode.Create, FileAccess.Write))
+            {
                 fs.Write(data, 0, data.Length);
+            }
         }
 
         private static void RollbackMany(string[] updated, int count)
@@ -416,7 +464,11 @@
                     for (int i = 0; i < typeCandidates.Length && m == null; i++)
                     {
                         var tt = asm.GetType(typeCandidates[i]);
-                        if (tt == null) continue;
+                        if (tt == null)
+                        {
+                            continue;
+                        }
+
                         for (int j = 0; j < methodCandidates.Length && m == null; j++)
                         {
                             m = tt.GetMethod(methodCandidates[j], BindingFlags.Public | BindingFlags.Static);
@@ -435,12 +487,27 @@
                         {
                             var tt = types[i];
                             m = tt.GetMethod(entryMethodName, BindingFlags.Public | BindingFlags.Static);
-                            if (m == null) m = tt.GetMethod("Start", BindingFlags.Public | BindingFlags.Static);
-                            if (m == null) m = tt.GetMethod("Main", BindingFlags.Public | BindingFlags.Static);
-                            if (m != null) { t = tt; break; }
+                            if (m == null)
+                            {
+                                m = tt.GetMethod("Start", BindingFlags.Public | BindingFlags.Static);
+                            }
+
+                            if (m == null)
+                            {
+                                m = tt.GetMethod("Main", BindingFlags.Public | BindingFlags.Static);
+                            }
+
+                            if (m != null)
+                            {
+                                t = tt;
+                                break;
+                            }
                         }
                     }
-                    catch { }
+                    catch
+                    {
+                        // ignored
+                    }
                 }
 
                 if (m == null)
@@ -465,44 +532,52 @@
             return b == null ? null : new string(Encoding.UTF8.GetChars(b, 0, b.Length));
         }
 
-    private static byte[] HttpGetBytes(string url)
+        private static byte[] HttpGetBytes(string url)
         {
             HttpClient client = null;
             try
             {
-        client = new HttpClient();
-        if (Startup.OtaRootCaCert != null)
-        {
-            client.HttpsAuthentCert = Startup.OtaRootCaCert;
-        }
-        // Prefer TLS 1.2 for compatibility; enforce certificate validation
-        client.SslProtocols = System.Net.Security.SslProtocols.Tls12;
-        client.SslVerification = System.Net.Security.SslVerification.CertificateRequired;
-        try
-        {
-            client.DefaultRequestHeaders.Add("Accept-Encoding", "identity");
-        }
-        catch
-        {
-            // ignored
-        }
+                client = new HttpClient();
+                if (Startup.OtaRootCaCert != null)
+                {
+                    client.HttpsAuthentCert = Startup.OtaRootCaCert;
+                }
+                // Prefer TLS 1.2 for compatibility; enforce certificate validation
+                client.SslProtocols = System.Net.Security.SslProtocols.Tls12;
+                client.SslVerification = System.Net.Security.SslVerification.CertificateRequired;
+                try
+                {
+                    client.DefaultRequestHeaders.Add("Accept-Encoding", "identity");
+                }
+                catch
+                {
+                    // ignored
+                }
 
-        var resp = client.Get(url);
-        if (resp == null || resp.Content == null)
-        {
-            return null;
-        }
+                var resp = client.Get(url);
+                if (resp == null || resp.Content == null)
+                {
+                    return null;
+                }
 
-        if ((int)resp.StatusCode != 200)
-        {
-            try { resp.Dispose(); } catch { }
-            Console.WriteLine("[HTTP] Non-OK status: " + (int)resp.StatusCode);
-            return null;
-        }
+                if ((int)resp.StatusCode != 200)
+                {
+                    try
+                    {
+                        resp.Dispose();
+                    }
+                    catch
+                    {
+                        // ignored
+                    }
 
-        var buf = resp.Content.ReadAsByteArray();
-        resp.Dispose();
-        return buf;
+                    Console.WriteLine("[HTTP] Non-OK status: " + (int)resp.StatusCode);
+                    return null;
+                }
+
+                var buf = resp.Content.ReadAsByteArray();
+                resp.Dispose();
+                return buf;
             }
             catch (Exception ex)
             {
