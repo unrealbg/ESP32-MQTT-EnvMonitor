@@ -91,39 +91,6 @@ namespace ESP32_NF_MQTT_DHT.OTA
             return sb.ToString();
         }
 
-        private static void AppendEscaped(StringBuilder sb, string s)
-        {
-            for (int i = 0; i < s.Length; i++)
-            {
-                char c = s[i];
-                // Use numeric codes to avoid copy/paste escape issues
-                if (c == (char)34 || c == (char)92)
-                {
-                    sb.Append((char)92);
-                    sb.Append(c);
-                }
-                else if (c == (char)10)
-                {
-                    sb.Append((char)92);
-                    sb.Append('n');
-                }
-                else if (c == (char)13)
-                {
-                    sb.Append((char)92);
-                    sb.Append('r');
-                }
-                else if (c == (char)9)
-                {
-                    sb.Append((char)92);
-                    sb.Append('t');
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-        }
-
         public static string ExtractUrl(string payload)
         {
             if (string.IsNullOrEmpty(payload))
@@ -260,42 +227,6 @@ namespace ESP32_NF_MQTT_DHT.OTA
             return vec.ToArray();
         }
 
-        private sealed class StrVecStr
-        {
-            private string[] _buf = new string[4];
-
-            private int _count = 0;
-
-            public void Add(string x)
-            {
-                if (this._count == this._buf.Length) this.Grow();
-                this._buf[this._count++] = x;
-            }
-
-            private void Grow()
-            {
-                var n = this._buf.Length * 2;
-                var nb = new string[n];
-                for (int i = 0; i < this._buf.Length; i++)
-                {
-                    nb[i] = this._buf[i];
-                }
-
-                this._buf = nb;
-            }
-
-            public string[] ToArray()
-            {
-                var a = new string[this._count];
-                for (int i = 0; i < this._count; i++)
-                {
-                    a[i] = this._buf[i];
-                }
-
-                return a;
-            }
-        }
-
         // --- Misc helpers ---
         public static int CmpVer(string a, string b)
         {
@@ -330,6 +261,39 @@ namespace ESP32_NF_MQTT_DHT.OTA
             return 0;
         }
 
+        private static void AppendEscaped(StringBuilder sb, string s)
+        {
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                // Use numeric codes to avoid copy/paste escape issues
+                if (c == (char)34 || c == (char)92)
+                {
+                    sb.Append((char)92);
+                    sb.Append(c);
+                }
+                else if (c == (char)10)
+                {
+                    sb.Append((char)92);
+                    sb.Append('n');
+                }
+                else if (c == (char)13)
+                {
+                    sb.Append((char)92);
+                    sb.Append('r');
+                }
+                else if (c == (char)9)
+                {
+                    sb.Append((char)92);
+                    sb.Append('t');
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+        }
+
         private static int ToInt(string s)
         {
             int v = 0, i = 0, sign = 1;
@@ -351,6 +315,42 @@ namespace ESP32_NF_MQTT_DHT.OTA
             }
 
             return v * sign;
+        }
+
+        private sealed class StrVecStr
+        {
+            private string[] _buf = new string[4];
+
+            private int _count = 0;
+
+            public void Add(string x)
+            {
+                if (this._count == this._buf.Length) this.Grow();
+                this._buf[this._count++] = x;
+            }
+
+            public string[] ToArray()
+            {
+                var a = new string[this._count];
+                for (int i = 0; i < this._count; i++)
+                {
+                    a[i] = this._buf[i];
+                }
+
+                return a;
+            }
+
+            private void Grow()
+            {
+                var n = this._buf.Length * 2;
+                var nb = new string[n];
+                for (int i = 0; i < this._buf.Length; i++)
+                {
+                    nb[i] = this._buf[i];
+                }
+
+                this._buf = nb;
+            }
         }
     }
 }
